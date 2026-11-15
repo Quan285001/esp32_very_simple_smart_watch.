@@ -197,7 +197,7 @@ void invalidateDynamicTextCache() {
 }
 
 bool calculateAnalogHandEndpoints(const FaceObject& object, const struct tm& timeInfo,
-                                  int& centerX, int& centerY,
+                                  int millisValue, int& centerX, int& centerY,
                                   int (&endpointX)[3], int (&endpointY)[3]) {
     const int width = static_cast<int>(lroundf(object.transform.width));
     const int height = static_cast<int>(lroundf(object.transform.height));
@@ -206,7 +206,10 @@ bool calculateAnalogHandEndpoints(const FaceObject& object, const struct tm& tim
     const int radius = (width < height ? width : height) / 2 - 2;
     if (radius < 8) return false;
 
-    const float seconds = static_cast<float>(timeInfo.tm_sec);
+    if (millisValue < 0) millisValue = 0;
+    if (millisValue > 999) millisValue = 999;
+    const float seconds = static_cast<float>(timeInfo.tm_sec) +
+                          static_cast<float>(millisValue) / 1000.0f;
     const float minutes = static_cast<float>(timeInfo.tm_min) + seconds / 60.0f;
     const float hours = static_cast<float>(timeInfo.tm_hour % 12) + minutes / 60.0f;
     const float angles[3] = {
@@ -223,13 +226,13 @@ bool calculateAnalogHandEndpoints(const FaceObject& object, const struct tm& tim
 }
 
 bool analogHandsUnchanged(uint8_t objectIndex, const FaceObject& object,
-                          const struct tm& timeInfo,
+                          const struct tm& timeInfo, int millisValue,
                           int& dirtyX, int& dirtyY, int& dirtyWidth, int& dirtyHeight) {
     dirtyX = dirtyY = dirtyWidth = dirtyHeight = 0;
     if (objectIndex >= FACE_MAX_OBJECTS) return false;
 
     int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
-    if (!calculateAnalogHandEndpoints(object, timeInfo, centerX, centerY, endpointX, endpointY)) {
+    if (!calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY)) {
         return true;
     }
 
@@ -335,10 +338,10 @@ void markAnalogMaskHands(int centerX, int centerY,
 }
 
 void updateAnalogHandCache(uint8_t objectIndex, const FaceObject& object,
-                           const struct tm& timeInfo) {
+                           const struct tm& timeInfo, int millisValue) {
     if (objectIndex >= FACE_MAX_OBJECTS) return;
     int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
-    if (!calculateAnalogHandEndpoints(object, timeInfo, centerX, centerY, endpointX, endpointY)) return;
+    if (!calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY)) return;
     AnalogHandCacheEntry& entry = analogHandCache[objectIndex];
     strncpy(entry.objectId, object.id, sizeof(entry.objectId) - 1);
     entry.objectId[sizeof(entry.objectId) - 1] = '\0';
@@ -350,18 +353,19 @@ void updateAnalogHandCache(uint8_t objectIndex, const FaceObject& object,
 }
 
 bool drawObject(const FaceModel& face, const FaceObject& object,
-                const struct tm& timeInfo, const WeatherData& weather);
+                const struct tm& timeInfo, const WeatherData& weather, int millisValue);
 
 bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
                              const FaceObject& object, const struct tm& timeInfo,
-                             const WeatherData& weather, const uint8_t* order) {
+                             int millisValue, const WeatherData& weather,
+                             const uint8_t* order) {
     DisplayCanvas& canvas = getDisplayCanvas();
     const int displayWidth = canvas.width();
     const int displayHeight = canvas.height();
     if (displayWidth > ANALOG_MASK_WIDTH || displayHeight > ANALOG_MASK_HEIGHT) return false;
 
     int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
-    if (!calculateAnalogHandEndpoints(object, timeInfo, centerX, centerY, endpointX, endpointY)) return true;
+    if (!calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY)) return true;
 
     memset(analogPixelMask, 0, sizeof(analogPixelMask));
     // Restore the previous stroke even if the object ID changed in this slot:
@@ -421,7 +425,7 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
                 const FaceObject& candidate = face.objects[order[layer]];
                 if (candidate.visible &&
                     intersects(candidate, tileX, tileY, tileWidth, tileHeight) &&
-                    !drawObject(face, candidate, timeInfo, weather)) {
+                    !drawObject(face, candidate, timeInfo, weather, millisValue)) {
                     drawOk = false;
                     break;
                 }
@@ -472,7 +476,7 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
                 while (x < displayWidth && analogMaskPixel(x, y)) ++x;
                 if (x <= start || !intersects(candidate, start, y, x - start, 1)) continue;
                 canvas.setClipRect(start, y, x - start, 1);
-                const bool drawOk = drawObject(face, candidate, timeInfo, weather);
+                const bool drawOk = drawObject(face, candidate, timeInfo, weather, millisValue);
                 canvas.resetClip();
                 if (!drawOk) return false;
             }
@@ -605,7 +609,7 @@ void drawShape(const FaceObject& object) {
     }
 }
 
-void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo) {
+void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int millisValue) {
     const int w = static_cast<int>(lroundf(object.transform.width));
     const int h = static_cast<int>(lroundf(object.transform.height));
     const int cx = static_cast<int>(lroundf(object.transform.x)) + w / 2;
@@ -625,7 +629,10 @@ void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo) {
         getDisplayCanvas().drawLine(innerX, innerY, outerX, outerY, color);
     }
 
-    const float seconds = static_cast<float>(timeInfo.tm_sec);
+    if (millisValue < 0) millisValue = 0;
+    if (millisValue > 999) millisValue = 999;
+    const float seconds = static_cast<float>(timeInfo.tm_sec) +
+                          static_cast<float>(millisValue) / 1000.0f;
     const float minutes = static_cast<float>(timeInfo.tm_min) + seconds / 60.0f;
     const float hours = static_cast<float>(timeInfo.tm_hour % 12) + minutes / 60.0f;
     const float hourAngle = (hours * 30.0f - 90.0f) * PI_F / 180.0f;
@@ -641,14 +648,14 @@ void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo) {
 }
 
 bool drawObject(const FaceModel& face, const FaceObject& object,
-                const struct tm& timeInfo, const WeatherData& weather) {
+                const struct tm& timeInfo, const WeatherData& weather, int millisValue) {
     if (!object.visible) return true;
     switch (object.type) {
         case FaceElementType::Shape:
             drawShape(object);
             return true;
         case FaceElementType::AnalogClock:
-            drawAnalogClock(object, timeInfo);
+            drawAnalogClock(object, timeInfo, millisValue);
             return true;
         case FaceElementType::DigitalClock: {
             char value[FACE_TEXT_CAPACITY] = {};
@@ -703,7 +710,7 @@ FaceRenderStatus validateFaceModelForRenderer(const FaceModel& face) {
 }
 
 FaceRenderStatus renderWatchFace(const FaceModel& face, const struct tm& timeInfo,
-                                 const WeatherData& weather) {
+                                 int millisValue, const WeatherData& weather) {
     invalidateDynamicTextCache();
     const FaceRenderStatus status = preflight(face);
     if (status != FaceRenderStatus::Ok) return status;
@@ -713,13 +720,13 @@ FaceRenderStatus renderWatchFace(const FaceModel& face, const struct tm& timeInf
     sortObjectIndices(face, order);
     for (uint8_t i = 0; i < face.objectCount; ++i) {
         const FaceObject& object = face.objects[order[i]];
-        if (!drawObject(face, object, timeInfo, weather)) {
+        if (!drawObject(face, object, timeInfo, weather, millisValue)) {
             invalidateDynamicTextCache();
             return FaceRenderStatus::AssetReadFailed;
         }
         if (object.visible && object.type == FaceElementType::AnalogClock) {
             int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
-            if (calculateAnalogHandEndpoints(object, timeInfo, centerX, centerY, endpointX, endpointY) &&
+            if (calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY) &&
                 order[i] < FACE_MAX_OBJECTS) {
                 AnalogHandCacheEntry& entry = analogHandCache[order[i]];
                 strncpy(entry.objectId, object.id, sizeof(entry.objectId) - 1);
@@ -743,7 +750,7 @@ FaceRenderStatus renderWatchFace(const FaceModel& face, const struct tm& timeInf
 }
 
 FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& timeInfo,
-                                        const WeatherData& weather) {
+                                        int millisValue, const WeatherData& weather) {
     const FaceRenderStatus status = preflight(face);
     if (status != FaceRenderStatus::Ok) return status;
 
@@ -757,12 +764,14 @@ FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& 
         // from the previous and current hand endpoints; text uses changed glyph cells.
         int x = 0, y = 0, w = 0, h = 0;
         if (dynamicObject.type == FaceElementType::AnalogClock) {
-            if (analogHandsUnchanged(order[i], dynamicObject, timeInfo, x, y, w, h)) continue;
-            if (!restoreAnalogHandPixels(face, order[i], dynamicObject, timeInfo, weather, order)) {
+            if (analogHandsUnchanged(order[i], dynamicObject, timeInfo, millisValue,
+                                     x, y, w, h)) continue;
+            if (!restoreAnalogHandPixels(face, order[i], dynamicObject, timeInfo,
+                                         millisValue, weather, order)) {
                 invalidateDynamicTextCache();
                 return FaceRenderStatus::AssetReadFailed;
             }
-            updateAnalogHandCache(order[i], dynamicObject, timeInfo);
+            updateAnalogHandCache(order[i], dynamicObject, timeInfo, millisValue);
             continue;
         }
         int dirtyX = 0;
@@ -798,7 +807,7 @@ FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& 
         for (uint8_t j = 0; j < face.objectCount; ++j) {
             const FaceObject& candidate = face.objects[order[j]];
             if (candidate.visible && intersects(candidate, x, y, w, h) &&
-                !drawObject(face, candidate, timeInfo, weather)) {
+                !drawObject(face, candidate, timeInfo, weather, millisValue)) {
                 drawOk = false;
                 break;
             }
