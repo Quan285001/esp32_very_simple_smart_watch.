@@ -10,6 +10,7 @@
 namespace {
 std::vector<uint8_t> packageBytes;
 uint8_t selectedSlot = 0;
+size_t openSlotCount = 0;
 
 struct CapturedRow {
     int x;
@@ -49,6 +50,7 @@ DisplayCanvas& getDisplayCanvas() { return canvas; }
 namespace FaceStorage {
 uint8_t activeSlot() { return selectedSlot; }
 fs::File openSlot(uint8_t, const char*) {
+    ++openSlotCount;
     return fs::File(packageBytes.data(), packageBytes.size());
 }
 } // namespace FaceStorage
@@ -125,6 +127,19 @@ int main() {
     // Restore the 2x2 object geometry so the following malformed-file cases
     // exercise byte-length and file-range validation rather than size mismatch.
     object = makeImageObject();
+
+
+    // A dynamic multi-tile update keeps one SPIFFS file handle alive across
+    // repeated image draws, rather than reopening the active slot per tile.
+    canvas.rows.clear();
+    openSlotCount = 0;
+    beginImageRenderPass();
+    assert(drawImageElement(face, object));
+    assert(drawImageElement(face, object));
+    assert(openSlotCount == 1);
+    endImageRenderPass();
+    assert(drawImageElement(face, object));
+    assert(openSlotCount == 2);
 
     // Reject malformed metadata and file ranges before touching the canvas.
     canvas.rows.clear();
