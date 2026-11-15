@@ -18,22 +18,30 @@ uint8_t fallbackTextScale(float fontSize) {
 }
 
 class TftDisplayCanvas final : public DisplayCanvas {
+    TFT_eSprite regionSprite{&tft};
+    bool offscreenActive = false;
+    int originX = 0;
+    int originY = 0;
+
+    TFT_eSPI& target() {
+        return offscreenActive ? static_cast<TFT_eSPI&>(regionSprite) : tft;
+    }
 public:
     uint16_t width() const override { return static_cast<uint16_t>(tft.width()); }
     uint16_t height() const override { return static_cast<uint16_t>(tft.height()); }
-    void clearScreen(uint16_t color) override { tft.fillScreen(color); }
-    void fillRect(int x, int y, int w, int h, uint16_t color) override { tft.fillRect(x, y, w, h, color); }
-    void drawRect(int x, int y, int w, int h, uint16_t color) override { tft.drawRect(x, y, w, h, color); }
+    void clearScreen(uint16_t color) override { target().fillScreen(color); }
+    void fillRect(int x, int y, int w, int h, uint16_t color) override { target().fillRect(x - originX, y - originY, w, h, color); }
+    void drawRect(int x, int y, int w, int h, uint16_t color) override { target().drawRect(x - originX, y - originY, w, h, color); }
     void fillRoundRect(int x, int y, int w, int h, int radius, uint16_t color) override {
-        tft.fillRoundRect(x, y, w, h, radius, color);
+        target().fillRoundRect(x - originX, y - originY, w, h, radius, color);
     }
     void drawRoundRect(int x, int y, int w, int h, int radius, uint16_t color) override {
-        tft.drawRoundRect(x, y, w, h, radius, color);
+        target().drawRoundRect(x - originX, y - originY, w, h, radius, color);
     }
-    void fillCircle(int x, int y, int radius, uint16_t color) override { tft.fillCircle(x, y, radius, color); }
-    void drawCircle(int x, int y, int radius, uint16_t color) override { tft.drawCircle(x, y, radius, color); }
+    void fillCircle(int x, int y, int radius, uint16_t color) override { target().fillCircle(x - originX, y - originY, radius, color); }
+    void drawCircle(int x, int y, int radius, uint16_t color) override { target().drawCircle(x - originX, y - originY, radius, color); }
     void drawLine(int x0, int y0, int x1, int y1, uint16_t color) override {
-        tft.drawLine(x0, y0, x1, y1, color);
+        target().drawLine(x0 - originX, y0 - originY, x1 - originX, y1 - originY, color);
     }
     void pushRgb565Row(int x, int y, uint16_t count, const uint16_t* pixels) override {
         if (pixels == nullptr || count == 0) return;
@@ -44,19 +52,57 @@ public:
         // ESP32-C3, swapBytes selects TFT_eSPI's pair-reordering SPI helper.
         // Sprite buffers are different: TFT_eSprite::drawPixel pre-swaps
         // their stored words, which is why pushSprite() explicitly uses false.
-        const bool previousSwapBytes = tft.getSwapBytes();
-        tft.setSwapBytes(true);
-        tft.pushImage(x, y, count, 1, pixels);
-        tft.setSwapBytes(previousSwapBytes);
+         TftDisplayCanvas::target() uses the same RGB565LE conversion for the physical
+        // display and the off-screen sprite, so the final pushSprite preserves
+        // the backend's normal RGB565 storage semantics.
+        TFT_eSPI& drawTarget = target();
+        const bool previousSwapBytes = drawTarget.getSwapBytes();
+        drawTarget.setSwapBytes(true);
+        drawTarget.pushImage(x - originX, y - originY, count, 1, pixels);
+        drawTarget.setSwapBytes(previousSwapBytes);
     }
-    void setClipRect(int x, int y, int w, int h) override { tft.setViewport(x, y, w, h, false); }
-    void resetClip() override { tft.resetViewport(); }
+    void setClipRect(int x, int y, int w, int h) override {
+        target().setViewport(x - originX, y - originY, w, h, false);
+    }
+    void resetClip() override { target().resetViewport(); }
+
+    bool beginOffscreen(int x, int y, int w, int h, uint16_t background) override {
+        if (offscreenActive || w <= 0 || h <= 0 ||
+            x < 0 || y < 0 || x + w > width() || y + h > height()) return false;
+        regionSprite.setColorDepth(16);
+        if (regionSprite.createSprite(w, h) == nullptr) return false;
+        originX = x;
+        originY = y;
+        offscreenActive = true;
+        regionSprite.fillSprite(background);
+        regionSprite.setViewport(0, 0, w, h, false);
+        return true;
+    }
+
+    bool presentOffscreen() override {
+        if (!offscreenActive) return false;
+        regionSprite.resetViewport();
+        regionSprite.pushSprite(originX, originY);
+        regionSprite.deleteSprite();
+        offscreenActive = false;
+        originX = originY = 0;
+        return true;
+    }
+
+    void cancelOffscreen() override {
+        if (offscreenActive) regionSprite.deleteSprite();
+        offscreenActive = false;
+        originX = originY = 0;
+    }
 
     void drawText(const char* text, int x, int y, int w, int h,
                   uint16_t color, float fontSize, float scaleX, float scaleY,
                   uint16_t fontWeight, float letterSpacing,
                   CanvasTextAlignment alignment) override {
         if (text == nullptr || text[0] == '\0' || w <= 0 || h <= 0) return;
+        TFT_eSPI& drawTarget = target();
+        x -= originX;
+        y -= originY;
         const float glyphScaleX = (fontSize / 8.0f) * scaleX;
         const float glyphScaleY = (fontSize / 8.0f) * scaleY;
         const float advance = 6.0f * glyphScaleX + letterSpacing;
@@ -81,18 +127,18 @@ public:
         }
         if (!glyphScratchReady) {
             const uint8_t fallbackScale = fallbackTextScale(fontSize);
-            tft.setTextSize(fallbackScale);
-            tft.setTextColor(color);
-            tft.setTextDatum(TL_DATUM);
-            tft.drawString(text, x, y + (h - 8 * fallbackScale) / 2, 1);
-            tft.setTextSize(1);
+            drawTarget.setTextSize(fallbackScale);
+            drawTarget.setTextColor(color);
+            drawTarget.setTextDatum(TL_DATUM);
+            drawTarget.drawString(text, x, y + (h - 8 * fallbackScale) / 2, 1);
+            drawTarget.setTextSize(1);
             return;
         }
 
         const uint16_t* glyphPixels = static_cast<const uint16_t*>(glyphScratch.getPointer());
         if (glyphPixels == nullptr) return;
         const int clipLeft = x, clipTop = y, clipRight = x + w, clipBottom = y + h;
-        tft.startWrite();
+        drawTarget.startWrite();
         for (const unsigned char* character = reinterpret_cast<const unsigned char*>(text);
              *character != 0; ++character) {
             glyphScratch.fillSprite(TFT_BLACK);
@@ -112,10 +158,10 @@ public:
                         if (top < clipTop) top = clipTop;
                         if (bottom > clipBottom) bottom = clipBottom;
                         if (right > left && bottom > top) {
-                            tft.fillRect(left, top, right - left, bottom - top, color);
+                            drawTarget.fillRect(left, top, right - left, bottom - top, color);
                             if (fontWeight >= 600 && left + 1 < clipRight) {
                                 const int boldWidth = right - left;
-                                tft.fillRect(left + 1, top,
+                                drawTarget.fillRect(left + 1, top,
                                     boldWidth > clipRight - left - 1 ? clipRight - left - 1 : boldWidth,
                                     bottom - top, color);
                             }
@@ -126,7 +172,7 @@ public:
             }
             cursorX += advance;
         }
-        tft.endWrite();
+        drawTarget.endWrite();
     }
 };
 
