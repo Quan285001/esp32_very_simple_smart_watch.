@@ -57,6 +57,7 @@ bool drawImageElementMasked(const FaceModel&, const FaceObject&, const uint8_t*,
 // itself is already represented by the deterministic stubs above.
 void beginImageRenderPass() {}
 void endImageRenderPass() {}
+void takeImageRenderPassStats(ImageRenderPassStats& stats) { stats = {}; }
 
 static FaceObject baseObject(FaceElementType type, const char* id) {
     FaceObject object{};
