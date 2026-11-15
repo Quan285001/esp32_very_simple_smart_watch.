@@ -67,16 +67,20 @@ public:
     void pushRgb565Row(int x, int y, uint16_t count, const uint16_t* pixels) override {
         if (pixels == nullptr || count == 0) return;
         if (offscreenActive) {
-            // Use TFT_eSprite's own pixel writer so its internal RGB565
-            // byte order, row stride, and clipping rules stay consistent with
-            // drawPixel()/pushSprite(). Direct getPointer() writes bypass those
-            // invariants and previously corrupted image-backed dirty tiles.
+            // TFT_eSprite stores 16-bit pixels byte-swapped in its backing
+            // buffer. Write the converted words directly using the sprite's
+            // allocated row stride (64), not the current cropped viewport width.
             const int localX = x - originX;
             const int localY = y - originY;
             if (localX < 0 || localY < 0 || localY >= offscreenHeight ||
                 localX + count > offscreenWidth) return;
+            uint16_t* spritePixels = static_cast<uint16_t*>(regionSprite.getPointer());
+            if (spritePixels == nullptr) return;
+            uint16_t* destination = spritePixels +
+                static_cast<size_t>(localY) * OFFSCREEN_TILE_SIZE + localX;
             for (uint16_t i = 0; i < count; ++i) {
-                regionSprite.drawPixel(localX + i, localY, pixels[i]);
+                const uint16_t pixel = pixels[i];
+                destination[i] = static_cast<uint16_t>((pixel >> 8) | (pixel << 8));
             }
             return;
         }
@@ -125,12 +129,26 @@ public:
 
     bool presentOffscreen() override {
         if (!offscreenActive) return false;
+        uint16_t* spritePixels = static_cast<uint16_t*>(regionSprite.getPointer());
+        if (spritePixels == nullptr) return false;
+
+        // The sprite buffer is already byte-swapped. Stream only the active
+        // tile rectangle, one row at a time, using the fixed allocated stride.
+        // This avoids TFT_eSprite's mutable cropped-window state between tiles.
         regionSprite.resetViewport();
-        const bool pushed = regionSprite.pushSprite(originX, originY, 0, 0,
-                                                    offscreenWidth, offscreenHeight);
+        const bool previousSwapBytes = tft.getSwapBytes();
+        tft.setSwapBytes(false);
+        for (int row = 0; row < offscreenHeight; ++row) {
+            const uint16_t* source = spritePixels +
+                static_cast<size_t>(row) * OFFSCREEN_TILE_SIZE;
+            tft.pushImage(originX, originY + row, offscreenWidth, 1,
+                          const_cast<uint16_t*>(source));
+        }
+        tft.setSwapBytes(previousSwapBytes);
+
         offscreenActive = false;
         originX = originY = offscreenWidth = offscreenHeight = 0;
-        return pushed;
+        return true;
     }
 
     void cancelOffscreen() override {
