@@ -1,5 +1,6 @@
 #include "face_renderer.h"
 #include "display_canvas.h"
+#include "../../src/watchface/elements/image.h"
 
 #include <assert.h>
 #include <iostream>
