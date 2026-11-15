@@ -40,6 +40,16 @@ void takeImageRenderPassStats(ImageRenderPassStats& stats) {
     completedImageRenderPassStats = {};
 }
 
+void setImageRenderPassCoverage(uint32_t handPixels, uint32_t imageOverlapPixels) {
+    if (!imageRenderPassActive) return;
+    activeImageRenderPassStats.handMaskPixels = handPixels;
+    activeImageRenderPassStats.imageOverlapPixels = imageOverlapPixels;
+}
+
+void recordImageRenderPassTile() {
+    if (imageRenderPassActive) ++activeImageRenderPassStats.tileCount;
+}
+
 bool drawImageElement(const FaceModel& face, const FaceObject& object) {
     const FaceAsset* asset = nullptr;
     for (uint8_t i = 0; i < face.assetCount; ++i) {
