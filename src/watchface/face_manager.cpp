@@ -132,17 +132,17 @@ FaceParseResult loadJsonFile(const char* path) {
     return result;
 }
 
-FaceRenderStatus renderActive(const struct tm& timeInfo, const WeatherData& weather) {
+FaceRenderStatus renderActive(const struct tm& timeInfo, int millisValue, const WeatherData& weather) {
     if (!activeFaceValid) return FaceRenderStatus::UnsupportedTransform;
-    const FaceRenderStatus status = renderWatchFace(activeFace, timeInfo, weather);
+    const FaceRenderStatus status = renderWatchFace(activeFace, timeInfo, millisValue, weather);
     if (status == FaceRenderStatus::Ok) activeFaceNeedsFullRender = false;
     return status;
 }
 
-FaceRenderStatus renderActiveDynamic(const struct tm& timeInfo, const WeatherData& weather) {
+FaceRenderStatus renderActiveDynamic(const struct tm& timeInfo, int millisValue, const WeatherData& weather) {
     if (!activeFaceValid) return FaceRenderStatus::UnsupportedTransform;
-    if (activeFaceNeedsFullRender) return renderActive(timeInfo, weather);
-    return renderWatchFaceDynamic(activeFace, timeInfo, weather);
+    if (activeFaceNeedsFullRender) return renderActive(timeInfo, millisValue, weather);
+    return renderWatchFaceDynamic(activeFace, timeInfo, millisValue, weather);
 }
 
 } // namespace FaceManager
