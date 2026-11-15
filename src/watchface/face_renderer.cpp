@@ -289,6 +289,17 @@ bool analogMaskPixel(int x, int y) {
     return (analogPixelMask[y][x >> 3] & static_cast<uint8_t>(1U << (x & 7))) != 0;
 }
 
+bool analogMaskIntersectsRect(int x, int y, int w, int h) {
+    const int right = x + w;
+    const int bottom = y + h;
+    for (int py = y; py < bottom; ++py) {
+        for (int px = x; px < right; ++px) {
+            if (analogMaskPixel(px, py)) return true;
+        }
+    }
+    return false;
+}
+
 void markAnalogMaskLine(int x0, int y0, int x1, int y1) {
     // Integer Bresenham: same one-pixel line footprint used by the clock hands.
     const int dx = abs(x1 - x0);
@@ -362,51 +373,54 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     markAnalogMaskHands(centerX, centerY, endpointX, endpointY);
 
-    // Preferred path: compose the complete dirty bounding region in RAM.
-    // This prevents the panel from displaying the cleared mask or partially
-    // replayed hands while the background and scene layers are reconstructed.
-    int dirtyLeft = displayWidth;
-    int dirtyTop = displayHeight;
-    int dirtyRight = -1;
-    int dirtyBottom = -1;
-    for (int y = 0; y < displayHeight; ++y) {
-        for (int x = 0; x < displayWidth; ++x) {
-            if (!analogMaskPixel(x, y)) continue;
-            if (x < dirtyLeft) dirtyLeft = x;
-            if (x > dirtyRight) dirtyRight = x;
-            if (y < dirtyTop) dirtyTop = y;
-            if (y > dirtyBottom) dirtyBottom = y;
-        }
-    }
+    // Compose only tiles touched by the old/new hand mask. A fixed 32x32
+    // sprite caps temporary memory at 2 KiB, regardless of the combined
+    // bounding box of all three hands.
+    constexpr int TILE_SIZE = 32;
+    bool tileCompositionSucceeded = true;
+    bool renderedAnyTile = false;
+    for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
+         tileY += TILE_SIZE) {
+        const int tileHeight = (tileY + TILE_SIZE - 1 > dirtyBottom)
+            ? dirtyBottom - tileY + 1 : TILE_SIZE;
+        for (int tileX = dirtyLeft; tileX <= dirtyRight; tileX += TILE_SIZE) {
+            const int tileWidth = (tileX + TILE_SIZE - 1 > dirtyRight)
+                ? dirtyRight - tileX + 1 : TILE_SIZE;
+            if (!analogMaskIntersectsRect(tileX, tileY, tileWidth, tileHeight)) continue;
 
-    if (dirtyRight >= dirtyLeft && dirtyBottom >= dirtyTop) {
-        const int dirtyWidth = dirtyRight - dirtyLeft + 1;
-        const int dirtyHeight = dirtyBottom - dirtyTop + 1;
-        if (canvas.beginOffscreen(dirtyLeft, dirtyTop, dirtyWidth, dirtyHeight,
-                                  face.backgroundColor)) {
-            canvas.setClipRect(dirtyLeft, dirtyTop, dirtyWidth, dirtyHeight);
+            if (!canvas.beginOffscreen(tileX, tileY, tileWidth, tileHeight,
+                                       face.backgroundColor)) {
+                tileCompositionSucceeded = false;
+                break;
+            }
+
             bool drawOk = true;
-            // Reconstruct every intersecting layer exactly once, preserving
-            // the scene's z-order. Image decoding writes into the same buffer.
+            // Reconstruct every intersecting layer once, in z-order, inside
+            // the tile. The sprite viewport clips all primitives to its bounds.
             for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
                 const FaceObject& candidate = face.objects[order[layer]];
                 if (candidate.visible &&
-                    intersects(candidate, dirtyLeft, dirtyTop, dirtyWidth, dirtyHeight) &&
+                    intersects(candidate, tileX, tileY, tileWidth, tileHeight) &&
                     !drawObject(face, candidate, timeInfo, weather)) {
                     drawOk = false;
                     break;
                 }
             }
-            canvas.resetClip();
+
             if (!drawOk) {
                 canvas.cancelOffscreen();
-                return false;
+                tileCompositionSucceeded = false;
+                break;
             }
-            if (canvas.presentOffscreen()) return true;
-            canvas.cancelOffscreen();
-            return false;
+            if (!canvas.presentOffscreen()) {
+                canvas.cancelOffscreen();
+                tileCompositionSucceeded = false;
+                break;
+            }
+            renderedAnyTile = true;
         }
     }
+    if (tileCompositionSucceeded && renderedAnyTile) return true;
 
     // Allocation fallback: retain the legacy pixel-mask restoration path.
     // It is less visually atomic, but avoids losing clock updates under RAM
