@@ -36,6 +36,7 @@ assert "never restore the background image directly to LCD GRAM" in FACE_RENDERE
 assert "static_cast<float>(millisValue) / 1000.0f" in FACE_RENDERER
 assert "renderWatchFaceDynamic(activeFace, timeInfo, millisValue, weather)" in (ROOT / "src" / "watchface" / "face_manager.cpp").read_text(encoding="utf-8")
 assert "cachedTime, static_cast<int>(elapsed), getWeatherSnapshot()" in (ROOT / "src" / "app" / "app_runtime.cpp").read_text(encoding="utf-8")
+assert "FaceManager::renderActive(timeinfo, 0, getWeatherSnapshot())" in (ROOT / "src" / "app" / "app_controller.cpp").read_text(encoding="utf-8")
 assert "lastCustomFaceSecond" not in (ROOT / "src" / "app" / "app_runtime.cpp").read_text(encoding="utf-8")
 assert "bool tileCompositionSucceeded = true;" in FACE_RENDERER
 
