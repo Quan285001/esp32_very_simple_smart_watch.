@@ -178,15 +178,21 @@ if any(position < 0 for position in positions) or positions != sorted(positions)
     print("ERROR: WFS RGB565LE rows are not byte-swapped before SPI output")
     sys.exit(1)
 
-# Offscreen sprite memory is byte-swapped by TFT_eSprite's drawPixel().
-# The backend writes the same representation directly for throughput, using
-# the allocated 64-pixel stride, then streams active rows with swapBytes=false.
-sprite_writer = "destination[i] = static_cast<uint16_t>((pixel >> 8) | (pixel << 8));"
-if sprite_writer not in display_source:
-    print("ERROR: RGB565 rows are not converted to TFT_eSprite's stored byte order")
-    sys.exit(1)
-if "static_cast<size_t>(localY) * OFFSCREEN_TILE_SIZE + localX" not in display_source:
-    print("ERROR: RGB565 sprite writes do not use the allocated sprite row stride")
+# TFT_eSprite::pushImage() performs the same input-byte conversion as
+# drawPixel() when swapBytes is enabled. The resulting sprite memory is already
+# in the representation expected by pushImage(..., swapBytes=false) on the TFT.
+offscreen_start = display_source.find("void pushRgb565Row(")
+offscreen_end = display_source.find("\\n    }", offscreen_start)
+offscreen_body = display_source[offscreen_start:offscreen_end + 6]
+offscreen_calls = [
+    "regionSprite.getSwapBytes()",
+    "regionSprite.setSwapBytes(true)",
+    "regionSprite.pushImage(localX, localY, count, 1,",
+    "regionSprite.setSwapBytes(previousSwapBytes)",
+]
+offscreen_positions = [offscreen_body.find(token) for token in offscreen_calls]
+if any(position < 0 for position in offscreen_positions) or offscreen_positions != sorted(offscreen_positions):
+    print("ERROR: offscreen RGB565 rows are not converted through TFT_eSprite::pushImage")
     sys.exit(1)
 if "tft.pushImage(originX, originY + row, offscreenWidth, 1," not in display_source:
     print("ERROR: offscreen tiles are not streamed row-by-row from the sprite buffer")
