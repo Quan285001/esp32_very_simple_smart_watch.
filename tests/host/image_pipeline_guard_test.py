@@ -28,7 +28,7 @@ assert "tft.pushImage(x, y, count, 1, const_cast<uint16_t*>(pixels));" in DISPLA
 assert "tft.setSwapBytes(previousSwapBytes);" in DISPLAY_BACKEND
 assert "regionSprite.pushImage(localX, localY, count, 1," in DISPLAY_BACKEND
 assert "regionSprite.setSwapBytes(true);" in DISPLAY_BACKEND
-assert "static_cast<uint16_t*>(regionSprite.getPointer())" not in DISPLAY_BACKEND
+assert "uint16_t* spritePixels = static_cast<uint16_t*>(regionSprite.getPointer());" in DISPLAY_BACKEND
 assert "tft.pushImage(originX, originY + row, offscreenWidth, 1," in DISPLAY_BACKEND
 assert "tft.resetViewport();" in DISPLAY_BACKEND
 assert "regionSprite.drawPixel(localX + i, localY, pixels[i]);" not in DISPLAY_BACKEND
