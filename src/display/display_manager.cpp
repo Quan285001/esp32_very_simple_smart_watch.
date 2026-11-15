@@ -136,6 +136,8 @@ public:
         // tile rectangle, one row at a time, using the fixed allocated stride.
         // This avoids TFT_eSprite's mutable cropped-window state between tiles.
         regionSprite.resetViewport();
+        // Do not let a stale physical-TFT viewport clip the tile transfer.
+        tft.resetViewport();
         const bool previousSwapBytes = tft.getSwapBytes();
         tft.setSwapBytes(false);
         for (int row = 0; row < offscreenHeight; ++row) {
