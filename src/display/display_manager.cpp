@@ -18,7 +18,7 @@ uint8_t fallbackTextScale(float fontSize) {
 }
 
 class TftDisplayCanvas final : public DisplayCanvas {
-    static constexpr int OFFSCREEN_TILE_SIZE = 32;
+    static constexpr int OFFSCREEN_TILE_SIZE = 64;
     TFT_eSprite regionSprite{&tft};
     bool regionSpriteReady = false;
     bool offscreenActive = false;
