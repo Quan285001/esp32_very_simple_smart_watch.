@@ -318,7 +318,7 @@ void drawAnalogClockFace(struct tm timeinfo, int millisValue,
             TILE_SIZE, TILE_SIZE) != nullptr;
     }
 
-    if (!rendererReady) {
+    if (!(backgroundCacheReady && workingTileReady)) {
         drawFallbackDirect(timeinfo, timeText, days[wday], date,
                            connectionLabel, hands);
         previousHands = hands;
