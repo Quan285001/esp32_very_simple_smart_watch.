@@ -281,7 +281,7 @@ void loop() {
                 const uint32_t averageRenderUs = facePerfFrameCount
                     ? facePerfTotalRenderUs / facePerfFrameCount : 0;
                 Serial.printf(
-                    "[FACE_PERF] fps=%lu avg=%luus max=%luus tiles=%lu img_tiles=%lu hand_px=%lu overlap_px=%lu overlap_pct=%lu rows=%lu bytes=%lu opens=%lu open=%luus seek=%luus read=%luus decode=%luus\n",
+                    "[FACE_PERF] fps=%lu avg=%luus max=%luus tiles=%lu img_tiles=%lu hand_px=%lu overlap_px=%lu overlap_pct=%lu rows=%lu bytes=%lu opens=%lu open=%luus seek=%luus read=%luus decode=%luus cache_hit=%lu cache_miss=%lu\n",
                     static_cast<unsigned long>(facePerfFrameCount * 1000UL / windowMs),
                     static_cast<unsigned long>(averageRenderUs),
                     static_cast<unsigned long>(facePerfMaxRenderUs),
@@ -308,7 +308,7 @@ void loop() {
                                             (static_cast<uint64_t>(windowMs) * 1000ULL))
                     : 0;
                 Serial.printf(
-                    "[SYS_PERF] cpu_mhz=%u render_cpu_pct=%lu heap_free=%lu heap_min=%lu largest_block=%lu hand_valid=%u center=(%d,%d) hour=(%d,%d) minute=(%d,%d) second=(%d,%d)\\n",
+                    "[SYS_PERF] cpu_mhz=%u render_cpu_pct=%lu heap_free=%lu heap_min=%lu largest_block=%lu hand_valid=%u center=(%d,%d) hour=(%d,%d) minute=(%d,%d) second=(%d,%d)\n",
                     static_cast<unsigned int>(ESP.getCpuFreqMHz()),
                     static_cast<unsigned long>(renderCpuPercent),
                     static_cast<unsigned long>(memory.freeHeap),
