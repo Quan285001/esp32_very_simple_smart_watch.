@@ -388,11 +388,9 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     if (dirtyRight < dirtyLeft || dirtyBottom < dirtyTop) return true;
 
-    // Image layers are restored with the exact pixel mask below. Rebuilding
-    // an entire offscreen tile over a photographic background can repeatedly
-    // decode and transfer large image strips, causing visible tearing/cloning.
-    // Keep the tiled compositor for faces without an image under this dirty
-    // region; use masked restoration when any visible image overlaps it.
+    // Determine whether an image intersects the dirty bounds for diagnostics
+    // and to preserve the conservative overlap calculation. All layers are
+    // nevertheless reconstructed in the offscreen tile before one LCD push.
     bool hasIntersectingImageLayer = false;
     for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
         const FaceObject& candidate = face.objects[order[layer]];
@@ -405,7 +403,11 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
 
     constexpr int TILE_SIZE = 64;
-    bool tileCompositionSucceeded = !hasIntersectingImageLayer;
+    // Always compose into the offscreen tile, including image-backed faces.
+    // Image rows now go through TFT_eSprite::drawPixel(), which preserves
+    // the sprite's native RGB565 storage semantics. This avoids the multi-pass
+    // LCD writes of pixel-mask fallback without reintroducing raw-buffer corruption.
+    bool tileCompositionSucceeded = true;
     bool renderedAnyTile = false;
     for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
          tileY += TILE_SIZE) {

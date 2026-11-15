@@ -67,22 +67,16 @@ public:
     void pushRgb565Row(int x, int y, uint16_t count, const uint16_t* pixels) override {
         if (pixels == nullptr || count == 0) return;
         if (offscreenActive) {
-            // TFT_eSprite stores RGB565 words byte-swapped in its backing
-            // memory (the same representation produced by drawPixel()).
-            // Write that representation explicitly instead of routing image
-            // rows through the inherited pushImage/swapBytes state.
+            // Use TFT_eSprite's own pixel writer so its internal RGB565
+            // byte order, row stride, and clipping rules stay consistent with
+            // drawPixel()/pushSprite(). Direct getPointer() writes bypass those
+            // invariants and previously corrupted image-backed dirty tiles.
             const int localX = x - originX;
             const int localY = y - originY;
             if (localX < 0 || localY < 0 || localY >= offscreenHeight ||
                 localX + count > offscreenWidth) return;
-            uint16_t* spritePixels =
-                static_cast<uint16_t*>(regionSprite.getPointer());
-            if (spritePixels == nullptr) return;
-            const int spriteStride = OFFSCREEN_TILE_SIZE;
             for (uint16_t i = 0; i < count; ++i) {
-                const uint16_t pixel = pixels[i];
-                spritePixels[localY * spriteStride + localX + i] =
-                    static_cast<uint16_t>((pixel >> 8) | (pixel << 8));
+                regionSprite.drawPixel(localX + i, localY, pixels[i]);
             }
             return;
         }
