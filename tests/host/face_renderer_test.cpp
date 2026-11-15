@@ -58,6 +58,8 @@ bool drawImageElementMasked(const FaceModel&, const FaceObject&, const uint8_t*,
 void beginImageRenderPass() {}
 void endImageRenderPass() {}
 void takeImageRenderPassStats(ImageRenderPassStats& stats) { stats = {}; }
+void setImageRenderPassCoverage(uint32_t, uint32_t) {}
+void recordImageRenderPassTile() {}
 
 static FaceObject baseObject(FaceElementType type, const char* id) {
     FaceObject object{};
