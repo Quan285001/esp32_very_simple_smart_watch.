@@ -171,9 +171,21 @@ ordered_calls = [
     "tft.pushImage(x, y, count, 1, pixels)",
     "tft.setSwapBytes(previousSwapBytes)",
 ]
-positions = [backend_body.find(token) for token in ordered_calls]
-if any(position < 0 for position in positions) or positions != sorted(positions):
+# Locate the physical-TFT branch separately from the sprite-memory branch.
+physical_start = display_source.find("const bool previousSwapBytes = tft.getSwapBytes();", backend_start)
+physical_end = display_source.find("\n        }", physical_start)
+physical_body = display_source[physical_start:physical_end]
+positions = [physical_body.find(token) for token in ordered_calls]
+if physical_start < 0 or any(position < 0 for position in positions) or positions != sorted(positions):
     print("ERROR: WFS RGB565LE rows are not byte-swapped before SPI output")
     sys.exit(1)
 
-print("WFS RGB565LE native words are byte-swapped into the SPI pixel order.")
+sprite_writer = [
+    "static_cast<uint16_t*>(regionSprite.getPointer())",
+    "static_cast<uint16_t>((pixel >> 8) | (pixel << 8))",
+]
+if any(token not in display_source for token in sprite_writer):
+    print("ERROR: RGB565 rows are not explicitly converted to TFT_eSprite storage order")
+    sys.exit(1)
+
+print("WFS RGB565LE native words are converted for both TFT SPI and sprite storage.")
