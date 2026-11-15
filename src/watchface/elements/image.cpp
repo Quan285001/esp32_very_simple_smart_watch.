@@ -16,6 +16,23 @@ uint8_t imageRenderPassSlot = FaceStorage::INVALID_SLOT;
 size_t imageRenderPassFileSize = 0;
 ImageRenderPassStats activeImageRenderPassStats = {};
 ImageRenderPassStats completedImageRenderPassStats = {};
+
+constexpr uint16_t IMAGE_TILE_CACHE_EDGE = 64;
+struct ImageTileCache {
+    uint16_t pixels[IMAGE_TILE_CACHE_EDGE * IMAGE_TILE_CACHE_EDGE];
+    uint8_t slot;
+    uint16_t assetWidth;
+    uint16_t assetHeight;
+    uint16_t sourceLeft;
+    uint16_t sourceTop;
+    uint16_t width;
+    uint16_t height;
+    int16_t screenX;
+    int16_t screenY;
+    size_t packageOffset;
+    bool valid;
+};
+ImageTileCache imageTileCache = {};
 }
 
 void beginImageRenderPass() {
@@ -115,7 +132,48 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
     }
 
     const size_t segmentPixels = static_cast<size_t>(sourceRight - sourceLeft);
+    const size_t segmentRows = static_cast<size_t>(sourceBottom - sourceTop);
+    const bool tileCacheable = clipW > 0 && clipH > 0 &&
+        segmentPixels <= IMAGE_TILE_CACHE_EDGE && segmentRows <= IMAGE_TILE_CACHE_EDGE;
+    const bool tileCacheHit = tileCacheable && imageTileCache.valid &&
+        imageTileCache.slot == slot &&
+        imageTileCache.packageOffset == asset->packageOffset &&
+        imageTileCache.assetWidth == asset->width &&
+        imageTileCache.assetHeight == asset->height &&
+        imageTileCache.sourceLeft == sourceLeft &&
+        imageTileCache.sourceTop == sourceTop &&
+        imageTileCache.width == segmentPixels &&
+        imageTileCache.height == segmentRows &&
+        imageTileCache.screenX == x + sourceLeft &&
+        imageTileCache.screenY == y + sourceTop;
+    if (imageRenderPassActive) {
+        ++activeImageRenderPassStats.drawCalls;
+        if (tileCacheHit) {
+            ++activeImageRenderPassStats.tileCacheHits;
+            for (size_t rowIndex = 0; rowIndex < segmentRows; ++rowIndex) {
+                getDisplayCanvas().pushRgb565Row(
+                    x + sourceLeft, y + sourceTop + static_cast<int>(rowIndex),
+                    static_cast<uint16_t>(segmentPixels),
+                    imageTileCache.pixels + rowIndex * IMAGE_TILE_CACHE_EDGE);
+            }
+            return true;
+        }
+        if (tileCacheable) ++activeImageRenderPassStats.tileCacheMisses;
+    }
     const size_t segmentBytes = segmentPixels * 2U;
+    if (tileCacheable) {
+        imageTileCache.valid = false;
+        imageTileCache.slot = slot;
+        imageTileCache.packageOffset = asset->packageOffset;
+        imageTileCache.assetWidth = asset->width;
+        imageTileCache.assetHeight = asset->height;
+        imageTileCache.sourceLeft = static_cast<uint16_t>(sourceLeft);
+        imageTileCache.sourceTop = static_cast<uint16_t>(sourceTop);
+        imageTileCache.width = static_cast<uint16_t>(segmentPixels);
+        imageTileCache.height = static_cast<uint16_t>(segmentRows);
+        imageTileCache.screenX = static_cast<int16_t>(x + sourceLeft);
+        imageTileCache.screenY = static_cast<int16_t>(y + sourceTop);
+    }
     uint8_t encodedRow[DisplayProfileConfig::MAX_BITMAP_WIDTH * 2] = {};
     uint16_t row[DisplayProfileConfig::MAX_BITMAP_WIDTH] = {};
     // Seek once to the first required source row, then stream complete rows
@@ -157,10 +215,16 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
             if (!imageRenderPassActive) file->close();
             return false;
         }
+        if (tileCacheable) {
+            memcpy(imageTileCache.pixels +
+                       static_cast<size_t>(rowIndex - sourceTop) * IMAGE_TILE_CACHE_EDGE,
+                   row, segmentBytes);
+        }
         getDisplayCanvas().pushRgb565Row(x + sourceLeft, y + rowIndex,
             static_cast<uint16_t>(segmentPixels), row);
     }
     if (!imageRenderPassActive) file->close();
+    if (tileCacheable) imageTileCache.valid = true;
     return true;
 }
 
