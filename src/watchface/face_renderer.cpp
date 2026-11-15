@@ -401,6 +401,9 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     constexpr int TILE_SIZE = 64;
     // Image rows are copied into the sprite through TFT_eSprite::pushImage(),
     // so every tile is fully composed before its rows are transferred to LCD.
+    // Keep the SPIFFS image file open across all dirty tiles in this update.
+    // Each tile still reads only its clipped image rows; no full-frame cache is allocated.
+    beginImageRenderPass();
     bool tileCompositionSucceeded = true;
     bool renderedAnyTile = false;
     for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
@@ -444,6 +447,7 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
             renderedAnyTile = true;
         }
     }
+    endImageRenderPass();
     if (tileCompositionSucceeded && renderedAnyTile) return true;
 
     // Pixel-mask restoration is used for image-overlap regions and as an
