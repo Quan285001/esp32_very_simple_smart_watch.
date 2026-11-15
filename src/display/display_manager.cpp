@@ -52,7 +52,7 @@ public:
         // ESP32-C3, swapBytes selects TFT_eSPI's pair-reordering SPI helper.
         // Sprite buffers are different: TFT_eSprite::drawPixel pre-swaps
         // their stored words, which is why pushSprite() explicitly uses false.
-         TftDisplayCanvas::target() uses the same RGB565LE conversion for the physical
+        // The active target uses the same RGB565LE conversion for physical
         // display and the off-screen sprite, so the final pushSprite preserves
         // the backend's normal RGB565 storage semantics.
         TFT_eSPI& drawTarget = target();
