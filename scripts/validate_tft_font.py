@@ -178,12 +178,15 @@ if any(position < 0 for position in positions) or positions != sorted(positions)
     print("ERROR: WFS RGB565LE rows are not byte-swapped before SPI output")
     sys.exit(1)
 
-sprite_writer = [
-    "static_cast<uint16_t*>(regionSprite.getPointer())",
-    "static_cast<uint16_t>((pixel >> 8) | (pixel << 8))",
-]
-if any(token not in display_source for token in sprite_writer):
-    print("ERROR: RGB565 rows are not explicitly converted to TFT_eSprite storage order")
+# Offscreen sprite rows must use TFT_eSprite's pixel writer. Its drawPixel()
+# implementation performs the required storage byte swap, and pushSprite()
+# disables a second swap when sending the completed tile to the TFT.
+sprite_writer = "regionSprite.drawPixel(localX + i, localY, pixels[i]);"
+if sprite_writer not in display_source:
+    print("ERROR: RGB565 rows do not use TFT_eSprite::drawPixel storage conversion")
+    sys.exit(1)
+if "static_cast<uint16_t*>(regionSprite.getPointer())" in display_source:
+    print("ERROR: raw sprite-buffer writes bypass TFT_eSprite RGB565 storage rules")
     sys.exit(1)
 
-print("WFS RGB565LE native words are converted for both TFT SPI and sprite storage.")
+print("WFS RGB565LE native words are converted for TFT SPI and TFT_eSprite storage.")
