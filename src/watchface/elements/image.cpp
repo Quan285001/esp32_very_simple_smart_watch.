@@ -104,7 +104,6 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
     fs::File* file = nullptr;
     size_t fileSize = 0;
     if (imageRenderPassActive) {
-        ++activeImageRenderPassStats.drawCalls;
         if (!imageRenderPassFile) {
             const uint32_t openStartedUs = micros();
             imageRenderPassFile = FaceStorage::openSlot(slot, "r");
