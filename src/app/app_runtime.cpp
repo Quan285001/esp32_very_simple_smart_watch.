@@ -56,6 +56,9 @@ uint32_t facePerfFrameCount = 0;
 uint32_t facePerfTotalRenderUs = 0;
 uint32_t facePerfMaxRenderUs = 0;
 uint32_t facePerfImageDrawCalls = 0;
+uint32_t facePerfImageTileCount = 0;
+uint32_t facePerfHandMaskPixels = 0;
+uint32_t facePerfImageOverlapPixels = 0;
 uint32_t facePerfImageRows = 0;
 uint32_t facePerfImageBytes = 0;
 uint32_t facePerfImageFileOpens = 0;
@@ -258,6 +261,9 @@ void loop() {
             facePerfTotalRenderUs += renderDurationUs;
             if (renderDurationUs > facePerfMaxRenderUs) facePerfMaxRenderUs = renderDurationUs;
             facePerfImageDrawCalls += imageStats.drawCalls;
+            facePerfImageTileCount += imageStats.tileCount;
+            facePerfHandMaskPixels += imageStats.handMaskPixels;
+            facePerfImageOverlapPixels += imageStats.imageOverlapPixels;
             facePerfImageRows += imageStats.rowsRead;
             facePerfImageBytes += imageStats.bytesRead;
             facePerfImageFileOpens += imageStats.fileOpens;
@@ -275,12 +281,12 @@ void loop() {
                     static_cast<unsigned long>(facePerfFrameCount * 1000UL / windowMs),
                     static_cast<unsigned long>(averageRenderUs),
                     static_cast<unsigned long>(facePerfMaxRenderUs),
-                    static_cast<unsigned long>(imageStats.tileCount),
+                    static_cast<unsigned long>(facePerfImageTileCount),
                     static_cast<unsigned long>(facePerfImageDrawCalls),
-                    static_cast<unsigned long>(imageStats.handMaskPixels),
-                    static_cast<unsigned long>(imageStats.imageOverlapPixels),
-                    static_cast<unsigned long>(imageStats.handMaskPixels
-                        ? imageStats.imageOverlapPixels * 100UL / imageStats.handMaskPixels : 0UL),
+                    static_cast<unsigned long>(facePerfHandMaskPixels),
+                    static_cast<unsigned long>(facePerfImageOverlapPixels),
+                    static_cast<unsigned long>(facePerfHandMaskPixels
+                        ? facePerfImageOverlapPixels * 100UL / facePerfHandMaskPixels : 0UL),
                     static_cast<unsigned long>(facePerfImageRows),
                     static_cast<unsigned long>(facePerfImageBytes),
                     static_cast<unsigned long>(facePerfImageFileOpens),
@@ -290,7 +296,9 @@ void loop() {
                     static_cast<unsigned long>(facePerfImageDecodeUs));
                 facePerfWindowStartedMs = now;
                 facePerfFrameCount = facePerfTotalRenderUs = facePerfMaxRenderUs = 0;
-                facePerfImageDrawCalls = facePerfImageRows = facePerfImageBytes = 0;
+                facePerfImageDrawCalls = facePerfImageTileCount = 0;
+                facePerfHandMaskPixels = facePerfImageOverlapPixels = 0;
+                facePerfImageRows = facePerfImageBytes = 0;
                 facePerfImageFileOpens = facePerfImageFileOpenUs = 0;
                 facePerfImageSeekUs = facePerfImageReadUs = facePerfImageDecodeUs = 0;
             }
