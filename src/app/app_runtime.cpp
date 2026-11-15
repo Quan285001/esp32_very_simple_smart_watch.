@@ -231,7 +231,7 @@ void loop() {
             const FaceRenderStatus status = FaceManager::renderActiveDynamic(
                 cachedTime, static_cast<int>(elapsed), getWeatherSnapshot());
             const uint32_t renderDurationUs = micros() - renderStartedUs;
-            // Emit only slow frames so normal one-second updates do not
+            // Emit only slow frames so normal smooth-frame updates do not
             // flood Serial or perturb the UI loop being measured.
             if (renderDurationUs >= 8000UL) {
                 Serial.printf("[PERF] Watch Face render=%lu us\n",
