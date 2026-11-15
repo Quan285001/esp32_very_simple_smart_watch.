@@ -31,7 +31,7 @@ for required in (
 # centered built-in analog sprite is drawn, otherwise stale custom pixels
 # remain visible around the sprite bounds.
 fallback_start = runtime.index("FaceManager::disableActive();", runtime.index("Custom renderer rejected"))
-fallback_end = runtime.index("lastCustomFaceSecond = cachedTime.tm_sec;", fallback_start)
+fallback_end = runtime.index("\n        } else {", fallback_start)
 fallback = runtime[fallback_start:fallback_end]
 assert "getDisplayCanvas().clearScreen(0x0000);" in fallback
 assert fallback.index("getDisplayCanvas().clearScreen(0x0000);") < fallback.index("drawAnalogClockFace(")
