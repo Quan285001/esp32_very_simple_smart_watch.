@@ -6,7 +6,7 @@ SOURCE = (ROOT / "src" / "watchface" / "elements" / "image.cpp").read_text(encod
 assert "asset->byteLength != static_cast<size_t>(asset->width) * asset->height * sizeof(uint16_t)" in SOURCE
 assert "const size_t fileSize = file.size();" in SOURCE
 assert "asset->byteLength > fileSize - asset->packageOffset" in SOURCE
-assert "file.seek(asset->packageOffset, fs::SeekSet)" in SOURCE
+assert "file->seek(offset, fs::SeekSet)" in SOURCE
 assert "decodeRgb565LittleEndianRow(encodedRow, segmentBytes, row, segmentPixels)" in SOURCE
 assert "getOffscreenBounds(clipX, clipY, clipW, clipH)" in SOURCE
 assert "beginImageRenderPass()" in SOURCE
