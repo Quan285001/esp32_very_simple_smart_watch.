@@ -8,6 +8,27 @@
 #include "../../storage/face_storage.h"
 #include "../../display/display_profile.h"
 
+namespace {
+fs::File imageRenderPassFile;
+bool imageRenderPassActive = false;
+uint8_t imageRenderPassSlot = FaceStorage::INVALID_SLOT;
+size_t imageRenderPassFileSize = 0;
+}
+
+void beginImageRenderPass() {
+    if (imageRenderPassActive) endImageRenderPass();
+    imageRenderPassActive = true;
+    imageRenderPassSlot = FaceStorage::INVALID_SLOT;
+    imageRenderPassFileSize = 0;
+}
+
+void endImageRenderPass() {
+    if (imageRenderPassFile) imageRenderPassFile.close();
+    imageRenderPassActive = false;
+    imageRenderPassSlot = FaceStorage::INVALID_SLOT;
+    imageRenderPassFileSize = 0;
+}
+
 bool drawImageElement(const FaceModel& face, const FaceObject& object) {
     const FaceAsset* asset = nullptr;
     for (uint8_t i = 0; i < face.assetCount; ++i) {
@@ -19,18 +40,6 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
     if (asset == nullptr || asset->width == 0 || asset->width > DisplayProfileConfig::MAX_BITMAP_WIDTH ||
         asset->height == 0 || asset->height > DisplayProfileConfig::MAX_BITMAP_HEIGHT ||
         asset->byteLength != static_cast<size_t>(asset->width) * asset->height * sizeof(uint16_t)) return false;
-
-    const uint8_t slot = FaceStorage::activeSlot();
-    if (slot > 1) return false;
-    fs::File file = FaceStorage::openSlot(slot, "r");
-    if (!file) return false;
-    const size_t fileSize = file.size();
-    if (asset->packageOffset > fileSize ||
-        asset->byteLength > fileSize - asset->packageOffset ||
-        !file.seek(asset->packageOffset, fs::SeekSet)) {
-        file.close();
-        return false;
-    }
 
     const int x = static_cast<int>(lroundf(object.transform.x));
     const int y = static_cast<int>(lroundf(object.transform.y));
@@ -45,10 +54,39 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
             ? clipX + clipW - x : asset->width;
         sourceBottom = clipY + clipH < y + asset->height
             ? clipY + clipH - y : asset->height;
-        if (sourceRight <= sourceLeft || sourceBottom <= sourceTop) {
-            file.close();
-            return true;
+        // Avoid opening or seeking the storage file when this image does not
+        // intersect the current composition tile.
+        if (sourceRight <= sourceLeft || sourceBottom <= sourceTop) return true;
+    }
+
+    const uint8_t slot = FaceStorage::activeSlot();
+    if (slot > 1) return false;
+
+    fs::File localFile;
+    fs::File* file = nullptr;
+    size_t fileSize = 0;
+    if (imageRenderPassActive) {
+        if (!imageRenderPassFile) {
+            imageRenderPassFile = FaceStorage::openSlot(slot, "r");
+            if (!imageRenderPassFile) return false;
+            imageRenderPassSlot = slot;
+            imageRenderPassFileSize = imageRenderPassFile.size();
+        } else if (imageRenderPassSlot != slot) {
+            return false;
         }
+        file = &imageRenderPassFile;
+        fileSize = imageRenderPassFileSize;
+    } else {
+        localFile = FaceStorage::openSlot(slot, "r");
+        if (!localFile) return false;
+        file = &localFile;
+        fileSize = localFile.size();
+    }
+
+    if (asset->packageOffset > fileSize ||
+        asset->byteLength > fileSize - asset->packageOffset) {
+        if (!imageRenderPassActive) file->close();
+        return false;
     }
 
     const size_t segmentPixels = static_cast<size_t>(sourceRight - sourceLeft);
@@ -59,19 +97,19 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
         const size_t offset = asset->packageOffset +
                               static_cast<size_t>(rowIndex) * rowBytes +
                               static_cast<size_t>(sourceLeft) * 2U;
-        if (!file.seek(offset, fs::SeekSet) ||
-            file.read(encodedRow, segmentBytes) != segmentBytes) {
-            file.close();
+        if (!file->seek(offset, fs::SeekSet) ||
+            file->read(encodedRow, segmentBytes) != segmentBytes) {
+            if (!imageRenderPassActive) file->close();
             return false;
         }
         if (!decodeRgb565LittleEndianRow(encodedRow, segmentBytes, row, segmentPixels)) {
-            file.close();
+            if (!imageRenderPassActive) file->close();
             return false;
         }
         getDisplayCanvas().pushRgb565Row(x + sourceLeft, y + rowIndex,
             static_cast<uint16_t>(segmentPixels), row);
     }
-    file.close();
+    if (!imageRenderPassActive) file->close();
     return true;
 }
 
