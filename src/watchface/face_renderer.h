@@ -17,3 +17,18 @@ FaceRenderStatus renderWatchFace(const FaceModel& face, const struct tm& timeInf
                                  int millisValue, const WeatherData& weather);
 FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& timeInfo,
                                         int millisValue, const WeatherData& weather);
+
+
+struct AnalogHandDebugSnapshot {
+    int centerX;
+    int centerY;
+    int hourX;
+    int hourY;
+    int minuteX;
+    int minuteY;
+    int secondX;
+    int secondY;
+    bool valid;
+};
+
+void getAnalogHandDebugSnapshot(AnalogHandDebugSnapshot& snapshot);
