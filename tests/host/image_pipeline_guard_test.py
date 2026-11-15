@@ -21,9 +21,9 @@ assert "const bool previousSwapBytes = tft.getSwapBytes();" in DISPLAY_BACKEND
 assert "tft.setSwapBytes(true);" in DISPLAY_BACKEND
 assert "tft.pushImage(x, y, count, 1, const_cast<uint16_t*>(pixels));" in DISPLAY_BACKEND
 assert "tft.setSwapBytes(previousSwapBytes);" in DISPLAY_BACKEND
-assert "static_cast<uint16_t*>(regionSprite.getPointer())" in DISPLAY_BACKEND
-assert "static_cast<size_t>(localY) * OFFSCREEN_TILE_SIZE + localX" in DISPLAY_BACKEND
-assert "destination[i] = static_cast<uint16_t>((pixel >> 8) | (pixel << 8));" in DISPLAY_BACKEND
+assert "regionSprite.pushImage(localX, localY, count, 1," in DISPLAY_BACKEND
+assert "regionSprite.setSwapBytes(true);" in DISPLAY_BACKEND
+assert "static_cast<uint16_t*>(regionSprite.getPointer())" not in DISPLAY_BACKEND
 assert "tft.pushImage(originX, originY + row, offscreenWidth, 1," in DISPLAY_BACKEND
 assert "tft.resetViewport();" in DISPLAY_BACKEND
 assert "regionSprite.drawPixel(localX + i, localY, pixels[i]);" not in DISPLAY_BACKEND
@@ -31,10 +31,9 @@ assert "static constexpr int OFFSCREEN_TILE_SIZE = 64;" in DISPLAY_BACKEND
 
 FACE_RENDERER = (ROOT / "src" / "watchface" / "face_renderer.cpp").read_text(encoding="utf-8")
 assert "bool tileCompositionSucceeded = true;" in FACE_RENDERER
-assert "Image-backed analog faces use the LCD GRAM as the persistent background." in FACE_RENDERER
-assert "backgroundImagePosition >= 0" in FACE_RENDERER
-assert "drawImageElementMasked(face, backgroundImage" in FACE_RENDERER
-assert "The full-canvas image occludes every layer below it." in FACE_RENDERER
+assert "Compose each dirty tile completely off-screen before presenting it." in FACE_RENDERER
+assert "never restore the background image directly to LCD GRAM" in FACE_RENDERER
+assert "bool tileCompositionSucceeded = true;" in FACE_RENDERER
 
 
 RGB565_HEADER = (ROOT / "src" / "watchface" / "elements" / "image_rgb565.h").read_text(encoding="utf-8")
