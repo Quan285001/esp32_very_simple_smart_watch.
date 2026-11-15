@@ -190,6 +190,7 @@ struct AnalogHandCacheEntry {
 };
 
 AnalogHandCacheEntry analogHandCache[FACE_MAX_OBJECTS] = {};
+AnalogHandDebugSnapshot analogHandDebugSnapshot = {};
 
 void invalidateDynamicTextCache() {
     memset(dynamicTextCache, 0, sizeof(dynamicTextCache));
@@ -366,6 +367,15 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
 
     int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
     if (!calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY)) return true;
+    analogHandDebugSnapshot.centerX = centerX;
+    analogHandDebugSnapshot.centerY = centerY;
+    analogHandDebugSnapshot.hourX = endpointX[0];
+    analogHandDebugSnapshot.hourY = endpointY[0];
+    analogHandDebugSnapshot.minuteX = endpointX[1];
+    analogHandDebugSnapshot.minuteY = endpointY[1];
+    analogHandDebugSnapshot.secondX = endpointX[2];
+    analogHandDebugSnapshot.secondY = endpointY[2];
+    analogHandDebugSnapshot.valid = true;
 
     memset(analogPixelMask, 0, sizeof(analogPixelMask));
     // Restore the previous stroke even if the object ID changed in this slot:
@@ -740,6 +750,10 @@ bool drawObject(const FaceModel& face, const FaceObject& object,
     }
     return false;
 }
+}
+
+void getAnalogHandDebugSnapshot(AnalogHandDebugSnapshot& snapshot) {
+    snapshot = analogHandDebugSnapshot;
 }
 
 FaceRenderStatus validateFaceModelForRenderer(const FaceModel& face) {
