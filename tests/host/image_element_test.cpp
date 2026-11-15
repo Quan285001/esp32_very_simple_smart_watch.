@@ -126,6 +126,7 @@ int main() {
 
     // Restore the 2x2 object geometry so the following malformed-file cases
     // exercise byte-length and file-range validation rather than size mismatch.
+    face = makeFace();
     object = makeImageObject();
 
 
