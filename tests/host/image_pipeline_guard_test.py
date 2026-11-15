@@ -25,6 +25,7 @@ assert "static_cast<uint16_t*>(regionSprite.getPointer())" in DISPLAY_BACKEND
 assert "static_cast<size_t>(localY) * OFFSCREEN_TILE_SIZE + localX" in DISPLAY_BACKEND
 assert "destination[i] = static_cast<uint16_t>((pixel >> 8) | (pixel << 8));" in DISPLAY_BACKEND
 assert "tft.pushImage(originX, originY + row, offscreenWidth, 1," in DISPLAY_BACKEND
+assert "tft.resetViewport();" in DISPLAY_BACKEND
 assert "regionSprite.drawPixel(localX + i, localY, pixels[i]);" not in DISPLAY_BACKEND
 assert "static constexpr int OFFSCREEN_TILE_SIZE = 64;" in DISPLAY_BACKEND
 
