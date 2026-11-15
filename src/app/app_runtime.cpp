@@ -250,6 +250,45 @@ void loop() {
                 Serial.printf("[PERF] Watch Face render=%lu us\n",
                               static_cast<unsigned long>(renderDurationUs));
             }
+            // Aggregate one-second diagnostics so serial output does not
+            // dominate the 40 ms render cadence being measured.
+            ImageRenderPassStats imageStats{};
+            takeImageRenderPassStats(imageStats);
+            ++facePerfFrameCount;
+            facePerfTotalRenderUs += renderDurationUs;
+            if (renderDurationUs > facePerfMaxRenderUs) facePerfMaxRenderUs = renderDurationUs;
+            facePerfImageDrawCalls += imageStats.drawCalls;
+            facePerfImageRows += imageStats.rowsRead;
+            facePerfImageBytes += imageStats.bytesRead;
+            facePerfImageFileOpens += imageStats.fileOpens;
+            facePerfImageFileOpenUs += imageStats.fileOpenUs;
+            facePerfImageSeekUs += imageStats.seekUs;
+            facePerfImageReadUs += imageStats.readUs;
+            facePerfImageDecodeUs += imageStats.decodeUs;
+            if (facePerfWindowStartedMs == 0) facePerfWindowStartedMs = now;
+            if (now - facePerfWindowStartedMs >= 1000UL) {
+                const uint32_t windowMs = now - facePerfWindowStartedMs;
+                const uint32_t averageRenderUs = facePerfFrameCount
+                    ? facePerfTotalRenderUs / facePerfFrameCount : 0;
+                Serial.printf(
+                    "[FACE_PERF] fps=%lu avg=%luus max=%luus img_tiles=%lu rows=%lu bytes=%lu opens=%lu open=%luus seek=%luus read=%luus decode=%luus\\n",
+                    static_cast<unsigned long>(facePerfFrameCount * 1000UL / windowMs),
+                    static_cast<unsigned long>(averageRenderUs),
+                    static_cast<unsigned long>(facePerfMaxRenderUs),
+                    static_cast<unsigned long>(facePerfImageDrawCalls),
+                    static_cast<unsigned long>(facePerfImageRows),
+                    static_cast<unsigned long>(facePerfImageBytes),
+                    static_cast<unsigned long>(facePerfImageFileOpens),
+                    static_cast<unsigned long>(facePerfImageFileOpenUs),
+                    static_cast<unsigned long>(facePerfImageSeekUs),
+                    static_cast<unsigned long>(facePerfImageReadUs),
+                    static_cast<unsigned long>(facePerfImageDecodeUs));
+                facePerfWindowStartedMs = now;
+                facePerfFrameCount = facePerfTotalRenderUs = facePerfMaxRenderUs = 0;
+                facePerfImageDrawCalls = facePerfImageRows = facePerfImageBytes = 0;
+                facePerfImageFileOpens = facePerfImageFileOpenUs = 0;
+                facePerfImageSeekUs = facePerfImageReadUs = facePerfImageDecodeUs = 0;
+            }
             if (status != FaceRenderStatus::Ok) {
                 Serial.printf("[FACE] Custom renderer rejected frame (%u); reverting to built-in face.\n",
                               static_cast<unsigned int>(status));
