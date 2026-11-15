@@ -52,6 +52,12 @@ bool drawImageElementMasked(const FaceModel&, const FaceObject&, const uint8_t*,
     return imageDrawSucceeds;
 }
 
+// Renderer host tests do not link the filesystem-backed image element module.
+// These no-op hooks satisfy the render-pass lifecycle calls; image drawing
+// itself is already represented by the deterministic stubs above.
+void beginImageRenderPass() {}
+void endImageRenderPass() {}
+
 static FaceObject baseObject(FaceElementType type, const char* id) {
     FaceObject object{};
     object.type=type;
