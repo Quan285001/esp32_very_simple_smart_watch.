@@ -391,7 +391,7 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     // Compose only tiles touched by the old/new hand mask. A fixed 32x32
     // sprite caps temporary memory at 2 KiB, regardless of the combined
     // bounding box of all three hands.
-    constexpr int TILE_SIZE = 32;
+    constexpr int TILE_SIZE = 64;
     bool tileCompositionSucceeded = true;
     bool renderedAnyTile = false;
     for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
