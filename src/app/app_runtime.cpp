@@ -271,7 +271,7 @@ void loop() {
                 const uint32_t averageRenderUs = facePerfFrameCount
                     ? facePerfTotalRenderUs / facePerfFrameCount : 0;
                 Serial.printf(
-                    "[FACE_PERF] fps=%lu avg=%luus max=%luus img_tiles=%lu rows=%lu bytes=%lu opens=%lu open=%luus seek=%luus read=%luus decode=%luus\\n",
+                    "[FACE_PERF] fps=%lu avg=%luus max=%luus img_tiles=%lu rows=%lu bytes=%lu opens=%lu open=%luus seek=%luus read=%luus decode=%luus\n",
                     static_cast<unsigned long>(facePerfFrameCount * 1000UL / windowMs),
                     static_cast<unsigned long>(averageRenderUs),
                     static_cast<unsigned long>(facePerfMaxRenderUs),
