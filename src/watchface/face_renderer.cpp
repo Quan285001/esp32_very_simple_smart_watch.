@@ -382,12 +382,18 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     int dirtyRight = -1;
     int dirtyBottom = -1;
     const FaceObject* backgroundImage = nullptr;
-    for (uint8_t i = 0; i < face.objectCount; ++i) {
-        const FaceObject& candidate = face.objects[i];
-        if (!candidate.visible || candidate.type != FaceElementType::Image ||
-            candidate.transform.zIndex >= object.transform.zIndex) continue;
-        if (backgroundImage == nullptr ||
-            candidate.transform.zIndex > backgroundImage->transform.zIndex) {
+    int clockLayerPosition = -1;
+    for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
+        if (order[layer] == objectIndex) {
+            clockLayerPosition = layer;
+            break;
+        }
+    }
+    // Select the topmost image layer below this clock using the renderer's
+    // actual sorted order (including stable ordering for equal zIndex values).
+    for (int layer = 0; layer < clockLayerPosition; ++layer) {
+        const FaceObject& candidate = face.objects[order[layer]];
+        if (candidate.visible && candidate.type == FaceElementType::Image) {
             backgroundImage = &candidate;
         }
     }
