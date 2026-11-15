@@ -15,6 +15,8 @@ struct ImageRenderPassStats {
     uint32_t seekUs;
     uint32_t readUs;
     uint32_t decodeUs;
+    uint32_t tileCacheHits;
+    uint32_t tileCacheMisses;
 };
 
 void beginImageRenderPass();
