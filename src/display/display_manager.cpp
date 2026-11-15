@@ -46,20 +46,23 @@ public:
     void pushRgb565Row(int x, int y, uint16_t count, const uint16_t* pixels) override {
         if (pixels == nullptr || count == 0) return;
 
+        if (offscreenActive) {
+            // Sprite storage uses native RGB565 words. Keep byte swapping off;
+            // pushSprite() later transfers the completed sprite buffer.
+            const bool previousSwapBytes = regionSprite.getSwapBytes();
+            regionSprite.setSwapBytes(false);
+            regionSprite.pushImage(x - originX, y - originY, count, 1, pixels);
+            regionSprite.setSwapBytes(previousSwapBytes);
+            return;
+        }
+
         // WFS assets are decoded from RGB565LE bytes into native uint16_t
-        // values. Their RAM representation is low-byte first, while the
-        // display expects each RGB565 pixel high-byte first on SPI. On the
-        // ESP32-C3, swapBytes selects TFT_eSPI's pair-reordering SPI helper.
-        // Sprite buffers are different: TFT_eSprite::drawPixel pre-swaps
-        // their stored words, which is why pushSprite() explicitly uses false.
-        // The active target uses the same RGB565LE conversion for physical
-        // display and the off-screen sprite, so the final pushSprite preserves
-        // the backend's normal RGB565 storage semantics.
-        TFT_eSPI& drawTarget = target();
-        const bool previousSwapBytes = drawTarget.getSwapBytes();
-        drawTarget.setSwapBytes(true);
-        drawTarget.pushImage(x - originX, y - originY, count, 1, pixels);
-        drawTarget.setSwapBytes(previousSwapBytes);
+        // values. The physical display expects each RGB565 pixel high-byte
+        // first on SPI, so the TFT path swaps the byte pair during transfer.
+        const bool previousSwapBytes = tft.getSwapBytes();
+        tft.setSwapBytes(true);
+        tft.pushImage(x, y, count, 1, pixels);
+        tft.setSwapBytes(previousSwapBytes);
     }
     void setClipRect(int x, int y, int w, int h) override {
         target().setViewport(x - originX, y - originY, w, h, false);
