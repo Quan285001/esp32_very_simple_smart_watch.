@@ -67,21 +67,20 @@ public:
     void pushRgb565Row(int x, int y, uint16_t count, const uint16_t* pixels) override {
         if (pixels == nullptr || count == 0) return;
         if (offscreenActive) {
-            // TFT_eSprite stores 16-bit pixels byte-swapped in its backing
-            // buffer. Write the converted words directly using the sprite's
-            // allocated row stride (64), not the current cropped viewport width.
             const int localX = x - originX;
             const int localY = y - originY;
             if (localX < 0 || localY < 0 || localY >= offscreenHeight ||
                 localX + count > offscreenWidth) return;
-            uint16_t* spritePixels = static_cast<uint16_t*>(regionSprite.getPointer());
-            if (spritePixels == nullptr) return;
-            uint16_t* destination = spritePixels +
-                static_cast<size_t>(localY) * OFFSCREEN_TILE_SIZE + localX;
-            for (uint16_t i = 0; i < count; ++i) {
-                const uint16_t pixel = pixels[i];
-                destination[i] = static_cast<uint16_t>((pixel >> 8) | (pixel << 8));
-            }
+
+            // Let TFT_eSprite perform the RGB565 byte-order conversion while
+            // copying the row into its own buffer. This avoids hand-written
+            // pointer arithmetic and keeps the LCD untouched until the
+            // complete tile has been composited.
+            const bool previousSwapBytes = regionSprite.getSwapBytes();
+            regionSprite.setSwapBytes(true);
+            regionSprite.pushImage(localX, localY, count, 1,
+                                   const_cast<uint16_t*>(pixels));
+            regionSprite.setSwapBytes(previousSwapBytes);
             return;
         }
         // WFS assets are decoded to native RGB565 words. The physical TFT
