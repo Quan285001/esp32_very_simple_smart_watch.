@@ -224,13 +224,13 @@ void loop() {
         }
 
         if (FaceManager::hasActiveFace()) {
-            static int lastCustomFaceSecond = -1;
-            // A newly applied/restored face must be drawn immediately, even
-            // when the current second has not changed since the previous face.
-            if (cachedTime.tm_sec != lastCustomFaceSecond ||
-                FaceManager::needsFullRender()) {
+            // Match the 40 ms clock cadence used by the built-in face. Passing
+            // elapsed milliseconds lets custom analog hands interpolate their
+            // angle instead of advancing only once at each whole second.
+            {
                 const uint32_t renderStartedUs = micros();
-                const FaceRenderStatus status = FaceManager::renderActiveDynamic(cachedTime, getWeatherSnapshot());
+                const FaceRenderStatus status = FaceManager::renderActiveDynamic(
+                    cachedTime, static_cast<int>(elapsed), getWeatherSnapshot());
                 const uint32_t renderDurationUs = micros() - renderStartedUs;
                 // Emit only slow frames so normal one-second updates do not
                 // flood Serial or perturb the UI loop being measured.
@@ -239,7 +239,6 @@ void loop() {
                                   static_cast<unsigned long>(renderDurationUs));
                 }
                 if (status == FaceRenderStatus::Ok) {
-                    lastCustomFaceSecond = cachedTime.tm_sec;
                 } else {
                     Serial.printf("[FACE] Custom renderer rejected frame (%u); reverting to built-in face.\n",
                                   static_cast<unsigned int>(status));
@@ -249,7 +248,6 @@ void loop() {
                     invalidateAnalogClockFace();
                     getDisplayCanvas().clearScreen(0x0000);
                     drawAnalogClockFace(cachedTime, static_cast<int>(elapsed), 0, 0);
-                    lastCustomFaceSecond = cachedTime.tm_sec;
                 }
             }
         } else {
