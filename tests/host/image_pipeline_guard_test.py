@@ -7,7 +7,9 @@ assert "asset->byteLength != static_cast<size_t>(asset->width) * asset->height *
 assert "const size_t fileSize = file.size();" in SOURCE
 assert "asset->byteLength > fileSize - asset->packageOffset" in SOURCE
 assert "file.seek(asset->packageOffset, fs::SeekSet)" in SOURCE
-assert "decodeRgb565LittleEndianRow(encodedRow, rowBytes, row, asset->width)" in SOURCE
+assert "decodeRgb565LittleEndianRow(encodedRow, segmentBytes, row, segmentPixels)" in SOURCE
+assert "getOffscreenBounds(clipX, clipY, clipW, clipH)" in SOURCE
+assert "static_cast<size_t>(sourceLeft) * 2U" in SOURCE
 assert "uint8_t encodedRow[DisplayProfileConfig::MAX_BITMAP_WIDTH * 2]" in SOURCE
 
 WEB_APP = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
@@ -19,6 +21,9 @@ assert "const bool previousSwapBytes = tft.getSwapBytes();" in DISPLAY_BACKEND
 assert "tft.setSwapBytes(true);" in DISPLAY_BACKEND
 assert "tft.pushImage(x, y, count, 1, pixels);" in DISPLAY_BACKEND
 assert "tft.setSwapBytes(previousSwapBytes);" in DISPLAY_BACKEND
+assert "regionSprite.setSwapBytes(true);" in DISPLAY_BACKEND
+assert "regionSprite.pushImage(x - originX, y - originY, count, 1," in DISPLAY_BACKEND
+assert "static constexpr int OFFSCREEN_TILE_SIZE = 32;" in DISPLAY_BACKEND
 
 RGB565_HEADER = (ROOT / "src" / "watchface" / "elements" / "image_rgb565.h").read_text(encoding="utf-8")
 assert "decodeRgb565LittleEndianRow" in RGB565_HEADER
