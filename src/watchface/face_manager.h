@@ -15,7 +15,7 @@ bool setActiveModel(const FaceModel& model);
 void disableActive();
 const FaceModel* getActiveFace();
 FaceParseResult loadJsonFile(const char* path);
-FaceRenderStatus renderActive(const struct tm& timeInfo, const WeatherData& weather);
-FaceRenderStatus renderActiveDynamic(const struct tm& timeInfo, const WeatherData& weather);
+FaceRenderStatus renderActive(const struct tm& timeInfo, int millisValue, const WeatherData& weather);
+FaceRenderStatus renderActiveDynamic(const struct tm& timeInfo, int millisValue, const WeatherData& weather);
 
 } // namespace FaceManager
