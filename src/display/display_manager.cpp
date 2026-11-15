@@ -18,10 +18,14 @@ uint8_t fallbackTextScale(float fontSize) {
 }
 
 class TftDisplayCanvas final : public DisplayCanvas {
+    static constexpr int OFFSCREEN_TILE_SIZE = 32;
     TFT_eSprite regionSprite{&tft};
+    bool regionSpriteReady = false;
     bool offscreenActive = false;
     int originX = 0;
     int originY = 0;
+    int offscreenWidth = 0;
+    int offscreenHeight = 0;
 
 public:
     uint16_t width() const override { return static_cast<uint16_t>(tft.width()); }
@@ -63,55 +67,81 @@ public:
     void pushRgb565Row(int x, int y, uint16_t count, const uint16_t* pixels) override {
         if (pixels == nullptr || count == 0) return;
         if (offscreenActive) {
-            // Sprite buffers store native RGB565 words; pushSprite() transfers
-            // the completed buffer without the physical-display byte swap.
-            regionSprite.setSwapBytes(false);
-            regionSprite.pushImage(x - originX, y - originY, count, 1, pixels);
+            // TFT_eSprite stores 16-bit pixels byte-swapped internally so its
+            // pushSprite() can transfer the buffer with TFT swapBytes disabled.
+            const bool previousSwapBytes = regionSprite.getSwapBytes();
+            regionSprite.setSwapBytes(true);
+            regionSprite.pushImage(x - originX, y - originY, count, 1,
+                                   const_cast<uint16_t*>(pixels));
+            regionSprite.setSwapBytes(previousSwapBytes);
             return;
         }
-        // WFS assets are decoded from RGB565LE bytes into native uint16_t
-        // values. The physical display expects high-byte-first SPI transfer.
+        // WFS assets are decoded to native RGB565 words. The physical TFT
+        // path therefore needs byte swapping while writing the SPI stream.
         const bool previousSwapBytes = tft.getSwapBytes();
         tft.setSwapBytes(true);
-        tft.pushImage(x, y, count, 1, pixels);
+        tft.pushImage(x, y, count, 1, const_cast<uint16_t*>(pixels));
         tft.setSwapBytes(previousSwapBytes);
     }
 
-    // The off-screen sprite itself is exactly the dirty rectangle, so its
-    // bounds provide clipping without a second viewport implementation.
     void setClipRect(int x, int y, int w, int h) override {
-        if (offscreenActive) return;
-        tft.setViewport(x, y, w, h, false);
+        if (offscreenActive) {
+            regionSprite.setViewport(x - originX, y - originY, w, h, false);
+        } else {
+            tft.setViewport(x, y, w, h, false);
+        }
     }
     void resetClip() override {
-        if (!offscreenActive) tft.resetViewport();
+        if (offscreenActive) {
+            regionSprite.setViewport(0, 0, offscreenWidth, offscreenHeight, false);
+        } else {
+            tft.resetViewport();
+        }
     }
 
     bool beginOffscreen(int x, int y, int w, int h, uint16_t background) override {
         if (offscreenActive || w <= 0 || h <= 0 ||
+            w > OFFSCREEN_TILE_SIZE || h > OFFSCREEN_TILE_SIZE ||
             x < 0 || y < 0 || x + w > width() || y + h > height()) return false;
-        regionSprite.setColorDepth(16);
-        if (regionSprite.createSprite(w, h) == nullptr) return false;
+        if (!regionSpriteReady) {
+            regionSprite.setColorDepth(16);
+            regionSpriteReady = regionSprite.createSprite(OFFSCREEN_TILE_SIZE,
+                                                          OFFSCREEN_TILE_SIZE) != nullptr;
+            if (!regionSpriteReady) return false;
+        }
         originX = x;
         originY = y;
+        offscreenWidth = w;
+        offscreenHeight = h;
         offscreenActive = true;
+        regionSprite.setViewport(0, 0, w, h, false);
         regionSprite.fillSprite(background);
         return true;
     }
 
     bool presentOffscreen() override {
         if (!offscreenActive) return false;
-        regionSprite.pushSprite(originX, originY);
-        regionSprite.deleteSprite();
+        regionSprite.resetViewport();
+        const bool pushed = regionSprite.pushSprite(originX, originY, 0, 0,
+                                                    offscreenWidth, offscreenHeight);
         offscreenActive = false;
-        originX = originY = 0;
-        return true;
+        originX = originY = offscreenWidth = offscreenHeight = 0;
+        return pushed;
     }
 
     void cancelOffscreen() override {
-        if (offscreenActive) regionSprite.deleteSprite();
+        if (offscreenActive) regionSprite.resetViewport();
         offscreenActive = false;
-        originX = originY = 0;
+        originX = originY = offscreenWidth = offscreenHeight = 0;
+    }
+
+    bool getOffscreenBounds(int& x, int& y, int& w, int& h) const override {
+        if (!offscreenActive) return false;
+        x = originX;
+        y = originY;
+        w = offscreenWidth;
+        h = offscreenHeight;
+        return true;
     }
 
     void drawText(const char* text, int x, int y, int w, int h,
