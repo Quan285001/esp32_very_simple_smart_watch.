@@ -23,7 +23,7 @@ assert "tft.pushImage(x, y, count, 1, const_cast<uint16_t*>(pixels));" in DISPLA
 assert "tft.setSwapBytes(previousSwapBytes);" in DISPLAY_BACKEND
 assert "static_cast<uint16_t*>(regionSprite.getPointer())" in DISPLAY_BACKEND
 assert "static_cast<uint16_t>((pixel >> 8) | (pixel << 8))" in DISPLAY_BACKEND
-assert "static constexpr int OFFSCREEN_TILE_SIZE = 32;" in DISPLAY_BACKEND
+assert "static constexpr int OFFSCREEN_TILE_SIZE = 64;" in DISPLAY_BACKEND
 
 RGB565_HEADER = (ROOT / "src" / "watchface" / "elements" / "image_rgb565.h").read_text(encoding="utf-8")
 assert "decodeRgb565LittleEndianRow" in RGB565_HEADER
