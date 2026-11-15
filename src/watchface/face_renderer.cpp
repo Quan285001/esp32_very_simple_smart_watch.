@@ -362,6 +362,55 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     markAnalogMaskHands(centerX, centerY, endpointX, endpointY);
 
+    // Preferred path: compose the complete dirty bounding region in RAM.
+    // This prevents the panel from displaying the cleared mask or partially
+    // replayed hands while the background and scene layers are reconstructed.
+    int dirtyLeft = displayWidth;
+    int dirtyTop = displayHeight;
+    int dirtyRight = -1;
+    int dirtyBottom = -1;
+    for (int y = 0; y < displayHeight; ++y) {
+        for (int x = 0; x < displayWidth; ++x) {
+            if (!analogMaskPixel(x, y)) continue;
+            if (x < dirtyLeft) dirtyLeft = x;
+            if (x > dirtyRight) dirtyRight = x;
+            if (y < dirtyTop) dirtyTop = y;
+            if (y > dirtyBottom) dirtyBottom = y;
+        }
+    }
+
+    if (dirtyRight >= dirtyLeft && dirtyBottom >= dirtyTop) {
+        const int dirtyWidth = dirtyRight - dirtyLeft + 1;
+        const int dirtyHeight = dirtyBottom - dirtyTop + 1;
+        if (canvas.beginOffscreen(dirtyLeft, dirtyTop, dirtyWidth, dirtyHeight,
+                                  face.backgroundColor)) {
+            canvas.setClipRect(dirtyLeft, dirtyTop, dirtyWidth, dirtyHeight);
+            bool drawOk = true;
+            // Reconstruct every intersecting layer exactly once, preserving
+            // the scene's z-order. Image decoding writes into the same buffer.
+            for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
+                const FaceObject& candidate = face.objects[order[layer]];
+                if (candidate.visible &&
+                    intersects(candidate, dirtyLeft, dirtyTop, dirtyWidth, dirtyHeight) &&
+                    !drawObject(face, candidate, timeInfo, weather)) {
+                    drawOk = false;
+                    break;
+                }
+            }
+            canvas.resetClip();
+            if (!drawOk) {
+                canvas.cancelOffscreen();
+                return false;
+            }
+            if (canvas.presentOffscreen()) return true;
+            canvas.cancelOffscreen();
+            return false;
+        }
+    }
+
+    // Allocation fallback: retain the legacy pixel-mask restoration path.
+    // It is less visually atomic, but avoids losing clock updates under RAM
+    // pressure. The normal path above never clears pixels directly on the TFT.
     // First clear only marked pixels. Then replay scene layers in z-order.
     for (int y = 0; y < displayHeight; ++y) {
         int x = 0;
