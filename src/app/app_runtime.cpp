@@ -275,7 +275,12 @@ void loop() {
                     static_cast<unsigned long>(facePerfFrameCount * 1000UL / windowMs),
                     static_cast<unsigned long>(averageRenderUs),
                     static_cast<unsigned long>(facePerfMaxRenderUs),
+                    static_cast<unsigned long>(imageStats.tileCount),
                     static_cast<unsigned long>(facePerfImageDrawCalls),
+                    static_cast<unsigned long>(imageStats.handMaskPixels),
+                    static_cast<unsigned long>(imageStats.imageOverlapPixels),
+                    static_cast<unsigned long>(imageStats.handMaskPixels
+                        ? imageStats.imageOverlapPixels * 100UL / imageStats.handMaskPixels : 0UL),
                     static_cast<unsigned long>(facePerfImageRows),
                     static_cast<unsigned long>(facePerfImageBytes),
                     static_cast<unsigned long>(facePerfImageFileOpens),
