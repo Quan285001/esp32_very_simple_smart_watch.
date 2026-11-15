@@ -19,6 +19,7 @@
 #include "../display/display_manager.h"
 #include "../display/display_canvas.h"
 #include "../watchface/face_manager.h"
+#include "../watchface/elements/image.h"
 #include "../communication/transfer_manager.h"
 
 extern void handleBLECommands();
@@ -50,6 +51,18 @@ uint32_t lastMenuFrameMs = 0;
 uint32_t lastWeatherFrameMs = 0;
 bool weatherFaceInitialized = false;
 bool bootUiReady = false;
+uint32_t facePerfWindowStartedMs = 0;
+uint32_t facePerfFrameCount = 0;
+uint32_t facePerfTotalRenderUs = 0;
+uint32_t facePerfMaxRenderUs = 0;
+uint32_t facePerfImageDrawCalls = 0;
+uint32_t facePerfImageRows = 0;
+uint32_t facePerfImageBytes = 0;
+uint32_t facePerfImageFileOpens = 0;
+uint32_t facePerfImageFileOpenUs = 0;
+uint32_t facePerfImageSeekUs = 0;
+uint32_t facePerfImageReadUs = 0;
+uint32_t facePerfImageDecodeUs = 0;
 }
 
 void loop() {
