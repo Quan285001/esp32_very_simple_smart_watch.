@@ -381,9 +381,34 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     int dirtyTop = displayHeight;
     int dirtyRight = -1;
     int dirtyBottom = -1;
+    const FaceObject* backgroundImage = nullptr;
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        const FaceObject& candidate = face.objects[i];
+        if (!candidate.visible || candidate.type != FaceElementType::Image ||
+            candidate.transform.zIndex >= object.transform.zIndex) continue;
+        if (backgroundImage == nullptr ||
+            candidate.transform.zIndex > backgroundImage->transform.zIndex) {
+            backgroundImage = &candidate;
+        }
+    }
+    const int imageLeft = backgroundImage
+        ? static_cast<int>(lroundf(backgroundImage->transform.x)) : 0;
+    const int imageTop = backgroundImage
+        ? static_cast<int>(lroundf(backgroundImage->transform.y)) : 0;
+    const int imageRight = backgroundImage
+        ? imageLeft + static_cast<int>(lroundf(backgroundImage->transform.width)) : 0;
+    const int imageBottom = backgroundImage
+        ? imageTop + static_cast<int>(lroundf(backgroundImage->transform.height)) : 0;
+    uint32_t handMaskPixels = 0;
+    uint32_t imageOverlapPixels = 0;
     for (int y = 0; y < displayHeight; ++y) {
         for (int x = 0; x < displayWidth; ++x) {
             if (!analogMaskPixel(x, y)) continue;
+            ++handMaskPixels;
+            if (backgroundImage != nullptr && x >= imageLeft && x < imageRight &&
+                y >= imageTop && y < imageBottom) {
+                ++imageOverlapPixels;
+            }
             if (x < dirtyLeft) dirtyLeft = x;
             if (x > dirtyRight) dirtyRight = x;
             if (y < dirtyTop) dirtyTop = y;
@@ -404,6 +429,7 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     // Keep the SPIFFS image file open across all dirty tiles in this update.
     // Each tile still reads only its clipped image rows; no full-frame cache is allocated.
     beginImageRenderPass();
+    setImageRenderPassCoverage(handMaskPixels, imageOverlapPixels);
     bool tileCompositionSucceeded = true;
     bool renderedAnyTile = false;
     for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
@@ -414,6 +440,7 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
             const int tileWidth = (tileX + TILE_SIZE - 1 > dirtyRight)
                 ? dirtyRight - tileX + 1 : TILE_SIZE;
             if (!analogMaskIntersectsRect(tileX, tileY, tileWidth, tileHeight)) continue;
+            recordImageRenderPassTile();
 
             if (!canvas.beginOffscreen(tileX, tileY, tileWidth, tileHeight,
                                        face.backgroundColor)) {
