@@ -66,6 +66,8 @@ uint32_t facePerfImageFileOpenUs = 0;
 uint32_t facePerfImageSeekUs = 0;
 uint32_t facePerfImageReadUs = 0;
 uint32_t facePerfImageDecodeUs = 0;
+uint32_t facePerfImageCacheHits = 0;
+uint32_t facePerfImageCacheMisses = 0;
 }
 
 void loop() {
@@ -271,6 +273,8 @@ void loop() {
             facePerfImageSeekUs += imageStats.seekUs;
             facePerfImageReadUs += imageStats.readUs;
             facePerfImageDecodeUs += imageStats.decodeUs;
+            facePerfImageCacheHits += imageStats.tileCacheHits;
+            facePerfImageCacheMisses += imageStats.tileCacheMisses;
             if (facePerfWindowStartedMs == 0) facePerfWindowStartedMs = now;
             if (now - facePerfWindowStartedMs >= 1000UL) {
                 const uint32_t windowMs = now - facePerfWindowStartedMs;
@@ -293,7 +297,28 @@ void loop() {
                     static_cast<unsigned long>(facePerfImageFileOpenUs),
                     static_cast<unsigned long>(facePerfImageSeekUs),
                     static_cast<unsigned long>(facePerfImageReadUs),
-                    static_cast<unsigned long>(facePerfImageDecodeUs));
+                    static_cast<unsigned long>(facePerfImageDecodeUs),
+                    static_cast<unsigned long>(facePerfImageCacheHits),
+                    static_cast<unsigned long>(facePerfImageCacheMisses));
+                const MemoryMonitor::Snapshot memory = SystemDiagnostics::captureMemory();
+                AnalogHandDebugSnapshot hands{};
+                getAnalogHandDebugSnapshot(hands);
+                const uint32_t renderCpuPercent = windowMs
+                    ? static_cast<uint32_t>((static_cast<uint64_t>(facePerfTotalRenderUs) * 100ULL) /
+                                            (static_cast<uint64_t>(windowMs) * 1000ULL))
+                    : 0;
+                Serial.printf(
+                    "[SYS_PERF] cpu_mhz=%u render_cpu_pct=%lu heap_free=%lu heap_min=%lu largest_block=%lu hand_valid=%u center=(%d,%d) hour=(%d,%d) minute=(%d,%d) second=(%d,%d)\\n",
+                    static_cast<unsigned int>(ESP.getCpuFreqMHz()),
+                    static_cast<unsigned long>(renderCpuPercent),
+                    static_cast<unsigned long>(memory.freeHeap),
+                    static_cast<unsigned long>(memory.minimumFreeHeap),
+                    static_cast<unsigned long>(memory.largestFreeBlock),
+                    hands.valid ? 1U : 0U,
+                    hands.centerX, hands.centerY,
+                    hands.hourX, hands.hourY,
+                    hands.minuteX, hands.minuteY,
+                    hands.secondX, hands.secondY);
                 facePerfWindowStartedMs = now;
                 facePerfFrameCount = facePerfTotalRenderUs = facePerfMaxRenderUs = 0;
                 facePerfImageDrawCalls = facePerfImageTileCount = 0;
@@ -301,6 +326,7 @@ void loop() {
                 facePerfImageRows = facePerfImageBytes = 0;
                 facePerfImageFileOpens = facePerfImageFileOpenUs = 0;
                 facePerfImageSeekUs = facePerfImageReadUs = facePerfImageDecodeUs = 0;
+                facePerfImageCacheHits = facePerfImageCacheMisses = 0;
             }
             if (status != FaceRenderStatus::Ok) {
                 Serial.printf("[FACE] Custom renderer rejected frame (%u); reverting to built-in face.\n",
