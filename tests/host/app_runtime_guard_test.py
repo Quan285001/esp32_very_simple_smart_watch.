@@ -20,8 +20,10 @@ for required in (
     "drawWeatherFaceData(",
     "micros() - renderStartedUs",
     "renderDurationUs >= 8000UL",
-    "FaceManager::needsFullRender()",
-    "cachedTime.tm_sec != lastCustomFaceSecond ||",
+    "FaceManager::hasActiveFace()",
+    "FaceManager::renderActiveDynamic(",
+    "static_cast<int>(elapsed), getWeatherSnapshot()",
+    "now - lastClockDrawMs >= 40",
 ):
     assert required in runtime, required
 
