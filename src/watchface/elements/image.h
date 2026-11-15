@@ -5,6 +5,9 @@
 
 struct ImageRenderPassStats {
     uint32_t drawCalls;
+    uint32_t tileCount;
+    uint32_t handMaskPixels;
+    uint32_t imageOverlapPixels;
     uint32_t rowsRead;
     uint32_t bytesRead;
     uint32_t fileOpens;
@@ -17,6 +20,8 @@ struct ImageRenderPassStats {
 void beginImageRenderPass();
 void endImageRenderPass();
 void takeImageRenderPassStats(ImageRenderPassStats& stats);
+void setImageRenderPassCoverage(uint32_t handPixels, uint32_t imageOverlapPixels);
+void recordImageRenderPassTile();
 bool drawImageElement(const FaceModel& face, const FaceObject& object);
 bool drawImageElementMasked(const FaceModel& face, const FaceObject& object,
                             const uint8_t* pixelMask, uint16_t maskWidth,
