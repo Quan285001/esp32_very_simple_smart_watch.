@@ -34,19 +34,42 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
 
     const int x = static_cast<int>(lroundf(object.transform.x));
     const int y = static_cast<int>(lroundf(object.transform.y));
+    const size_t rowBytes = static_cast<size_t>(asset->width) * 2U;
+    int clipX = 0, clipY = 0, clipW = 0, clipH = 0;
+    int sourceLeft = 0, sourceTop = 0;
+    int sourceRight = asset->width, sourceBottom = asset->height;
+    if (getDisplayCanvas().getOffscreenBounds(clipX, clipY, clipW, clipH)) {
+        sourceLeft = clipX > x ? clipX - x : 0;
+        sourceTop = clipY > y ? clipY - y : 0;
+        sourceRight = clipX + clipW < x + asset->width
+            ? clipX + clipW - x : asset->width;
+        sourceBottom = clipY + clipH < y + asset->height
+            ? clipY + clipH - y : asset->height;
+        if (sourceRight <= sourceLeft || sourceBottom <= sourceTop) {
+            file.close();
+            return true;
+        }
+    }
+
+    const size_t segmentPixels = static_cast<size_t>(sourceRight - sourceLeft);
+    const size_t segmentBytes = segmentPixels * 2U;
     uint8_t encodedRow[DisplayProfileConfig::MAX_BITMAP_WIDTH * 2] = {};
     uint16_t row[DisplayProfileConfig::MAX_BITMAP_WIDTH] = {};
-    const size_t rowBytes = static_cast<size_t>(asset->width) * 2U;
-    for (uint16_t rowIndex = 0; rowIndex < asset->height; ++rowIndex) {
-        if (file.read(encodedRow, rowBytes) != rowBytes) {
+    for (int rowIndex = sourceTop; rowIndex < sourceBottom; ++rowIndex) {
+        const size_t offset = asset->packageOffset +
+                              static_cast<size_t>(rowIndex) * rowBytes +
+                              static_cast<size_t>(sourceLeft) * 2U;
+        if (!file.seek(offset, fs::SeekSet) ||
+            file.read(encodedRow, segmentBytes) != segmentBytes) {
             file.close();
             return false;
         }
-        if (!decodeRgb565LittleEndianRow(encodedRow, rowBytes, row, asset->width)) {
+        if (!decodeRgb565LittleEndianRow(encodedRow, segmentBytes, row, segmentPixels)) {
             file.close();
             return false;
         }
-        getDisplayCanvas().pushRgb565Row(x, y + rowIndex, asset->width, row);
+        getDisplayCanvas().pushRgb565Row(x + sourceLeft, y + rowIndex,
+            static_cast<uint16_t>(segmentPixels), row);
     }
     file.close();
     return true;
