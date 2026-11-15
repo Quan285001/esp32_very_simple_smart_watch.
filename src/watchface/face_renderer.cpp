@@ -388,20 +388,6 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     if (dirtyRight < dirtyLeft || dirtyBottom < dirtyTop) return true;
 
-    // Determine whether an image intersects the dirty bounds for diagnostics
-    // and to preserve the conservative overlap calculation. All layers are
-    // nevertheless reconstructed in the offscreen tile before one LCD push.
-    bool hasIntersectingImageLayer = false;
-    for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
-        const FaceObject& candidate = face.objects[order[layer]];
-        if (candidate.visible && candidate.type == FaceElementType::Image &&
-            intersects(candidate, dirtyLeft, dirtyTop,
-                       dirtyRight - dirtyLeft + 1, dirtyBottom - dirtyTop + 1)) {
-            hasIntersectingImageLayer = true;
-            break;
-        }
-    }
-
     constexpr int TILE_SIZE = 64;
     // Always compose into the offscreen tile, including image-backed faces.
     // Image rows now go through TFT_eSprite::drawPixel(), which preserves
