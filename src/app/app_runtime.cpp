@@ -227,28 +227,25 @@ void loop() {
             // Match the 40 ms clock cadence used by the built-in face. Passing
             // elapsed milliseconds lets custom analog hands interpolate their
             // angle instead of advancing only once at each whole second.
-            {
-                const uint32_t renderStartedUs = micros();
-                const FaceRenderStatus status = FaceManager::renderActiveDynamic(
-                    cachedTime, static_cast<int>(elapsed), getWeatherSnapshot());
-                const uint32_t renderDurationUs = micros() - renderStartedUs;
-                // Emit only slow frames so normal one-second updates do not
-                // flood Serial or perturb the UI loop being measured.
-                if (renderDurationUs >= 8000UL) {
-                    Serial.printf("[PERF] Watch Face render=%lu us\n",
-                                  static_cast<unsigned long>(renderDurationUs));
-                }
-                if (status == FaceRenderStatus::Ok) {
-                } else {
-                    Serial.printf("[FACE] Custom renderer rejected frame (%u); reverting to built-in face.\n",
-                                  static_cast<unsigned int>(status));
-                    FaceManager::disableActive();
-                    // The built-in face cache may predate the custom face.
-                    // Force a complete tile refresh after switching renderers.
-                    invalidateAnalogClockFace();
-                    getDisplayCanvas().clearScreen(0x0000);
-                    drawAnalogClockFace(cachedTime, static_cast<int>(elapsed), 0, 0);
-                }
+            const uint32_t renderStartedUs = micros();
+            const FaceRenderStatus status = FaceManager::renderActiveDynamic(
+                cachedTime, static_cast<int>(elapsed), getWeatherSnapshot());
+            const uint32_t renderDurationUs = micros() - renderStartedUs;
+            // Emit only slow frames so normal one-second updates do not
+            // flood Serial or perturb the UI loop being measured.
+            if (renderDurationUs >= 8000UL) {
+                Serial.printf("[PERF] Watch Face render=%lu us\\n",
+                              static_cast<unsigned long>(renderDurationUs));
+            }
+            if (status != FaceRenderStatus::Ok) {
+                Serial.printf("[FACE] Custom renderer rejected frame (%u); reverting to built-in face.\\n",
+                              static_cast<unsigned int>(status));
+                FaceManager::disableActive();
+                // The built-in face cache may predate the custom face.
+                // Force a complete tile refresh after switching renderers.
+                invalidateAnalogClockFace();
+                getDisplayCanvas().clearScreen(0x0000);
+                drawAnalogClockFace(cachedTime, static_cast<int>(elapsed), 0, 0);
             }
         } else {
             drawAnalogClockFace(
