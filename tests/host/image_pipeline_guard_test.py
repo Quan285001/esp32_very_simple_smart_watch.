@@ -63,3 +63,8 @@ for field in ("width", "height", "byteLength", "offset"):
         f"package validator must reject non-integer asset metadata: {field}"
     )
 print("WFS image reader package-range and RGB565 byte-length guards passed.")
+
+assert "IMAGE_TILE_CACHE_EDGE = 64" in SOURCE
+assert "imageTileCache.tileCacheHits" not in SOURCE
+assert "tileCacheHits" in (ROOT / "src" / "watchface" / "elements" / "image.h").read_text(encoding="utf-8")
+assert "tileCacheMisses" in (ROOT / "src" / "watchface" / "elements" / "image.h").read_text(encoding="utf-8")
