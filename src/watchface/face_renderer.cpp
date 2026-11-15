@@ -388,78 +388,15 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     if (dirtyRight < dirtyLeft || dirtyBottom < dirtyTop) return true;
 
-    // Image-backed analog faces use the LCD GRAM as the persistent background.
-    // Restore the old/new hand mask directly from the lowest full-canvas image
-    // below this clock, then redraw only layers above that image. This avoids
-    // rebuilding image tiles and never clears the image area to a flat color.
-    int clockOrderPosition = -1;
-    for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
-        if (order[layer] == objectIndex) {
-            clockOrderPosition = layer;
-            break;
-        }
-    }
-    int backgroundImagePosition = -1;
-    if (clockOrderPosition > 0) {
-        for (int layer = 0; layer < clockOrderPosition; ++layer) {
-            const FaceObject& candidate = face.objects[order[layer]];
-            if (!candidate.visible || candidate.type != FaceElementType::Image) continue;
-            const int imageX = static_cast<int>(lroundf(candidate.transform.x));
-            const int imageY = static_cast<int>(lroundf(candidate.transform.y));
-            const int imageW = static_cast<int>(lroundf(candidate.transform.width));
-            const int imageH = static_cast<int>(lroundf(candidate.transform.height));
-            if (imageX <= 0 && imageY <= 0 &&
-                imageX + imageW >= displayWidth && imageY + imageH >= displayHeight) {
-                backgroundImagePosition = layer;
-                break;
-            }
-        }
-    }
-
-    if (backgroundImagePosition >= 0) {
-        const FaceObject& backgroundImage = face.objects[order[backgroundImagePosition]];
-        if (!drawImageElementMasked(face, backgroundImage,
-                &analogPixelMask[0][0], ANALOG_MASK_WIDTH, ANALOG_MASK_HEIGHT)) {
-            return false;
-        }
-
-        // The full-canvas image occludes every layer below it. Replay only
-        // layers above it, in their original z-order, and only inside marked
-        // hand pixels. Image overlays use the same exact RGB565 masked reader.
-        for (uint8_t layer = static_cast<uint8_t>(backgroundImagePosition + 1);
-             layer < face.objectCount; ++layer) {
-            const FaceObject& candidate = face.objects[order[layer]];
-            if (!candidate.visible) continue;
-            if (candidate.type == FaceElementType::Image) {
-                if (!drawImageElementMasked(face, candidate,
-                        &analogPixelMask[0][0], ANALOG_MASK_WIDTH, ANALOG_MASK_HEIGHT)) {
-                    return false;
-                }
-                continue;
-            }
-            for (int y = 0; y < displayHeight; ++y) {
-                int x = 0;
-                while (x < displayWidth) {
-                    while (x < displayWidth && !analogMaskPixel(x, y)) ++x;
-                    const int runStart = x;
-                    while (x < displayWidth && analogMaskPixel(x, y)) ++x;
-                    if (x <= runStart ||
-                        !intersects(candidate, runStart, y, x - runStart, 1)) continue;
-                    canvas.setClipRect(runStart, y, x - runStart, 1);
-                    const bool drawOk = drawObject(face, candidate, timeInfo, weather);
-                    canvas.resetClip();
-                    if (!drawOk) return false;
-                }
-            }
-        }
-        return true;
-    }
-
+    // Compose each dirty tile completely off-screen before presenting it.
+    // In particular, never restore the background image directly to LCD GRAM
+    // and then draw the hands in a second pass: that exposes an intermediate
+    // frame in which the old hands have disappeared but the new hands are
+    // not yet visible. The bounded sprite keeps RAM use independent of the
+    // full display size.
     constexpr int TILE_SIZE = 64;
-    // Always compose into the offscreen tile, including image-backed faces.
-    // Image rows now go through TFT_eSprite::drawPixel(), which preserves
-    // the sprite's native RGB565 storage semantics. This avoids the multi-pass
-    // LCD writes of pixel-mask fallback without reintroducing raw-buffer corruption.
+    // Image rows are copied into the sprite through TFT_eSprite::pushImage(),
+    // so every tile is fully composed before its rows are transferred to LCD.
     bool tileCompositionSucceeded = true;
     bool renderedAnyTile = false;
     for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
