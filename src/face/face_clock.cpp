@@ -78,6 +78,16 @@ void drawStaticBackground() {
     backgroundCache.drawString("UTC+7", FACE_CENTER - 40, FACE_CENTER - 10, 1);
 }
 
+void drawStaticBackgroundTile(TFT_eSprite& target, int tileX, int tileY) {
+    const int cx = FACE_CENTER - tileX;
+    const int cy = FACE_CENTER - tileY;
+    target.fillSprite(COLOR_BG);
+    target.fillCircle(cx, cy, 78, COLOR_INNER_BG);
+    target.setTextDatum(MC_DATUM);
+    target.setTextColor(COLOR_TEXT_ACCENT, COLOR_INNER_BG);
+    target.drawString("UTC+7", cx - 40, cy - 10, 1);
+}
+
 void markDirtyRect(bool dirty[TILE_ROWS][TILE_COLUMNS],
                    int x, int y, int w, int h) {
     if (w <= 0 || h <= 0) return;
@@ -322,7 +332,7 @@ void drawAnalogClockFace(struct tm timeinfo, int millisValue,
             TILE_SIZE, TILE_SIZE) != nullptr;
     }
 
-    if (!(backgroundCacheReady && workingTileReady)) {
+    if (!workingTileReady) {
         if (backgroundCacheReady) {
             // Keep the display update atomic even when the small tile buffer
             // cannot be allocated: reuse the existing full-size sprite as a
@@ -403,7 +413,13 @@ void drawAnalogClockFace(struct tm timeinfo, int millisValue,
             const int tileHeight =
                 (FACE_SIZE - tileY < TILE_SIZE) ? FACE_SIZE - tileY : TILE_SIZE;
 
-            copyBackgroundTile(tileX, tileY, tileWidth, tileHeight);
+            if (backgroundCacheReady) {
+                copyBackgroundTile(tileX, tileY, tileWidth, tileHeight);
+            } else {
+                // The 8 KiB tile can still render incrementally when the
+                // 50 KiB static cache cannot fit in the remaining heap.
+                drawStaticBackgroundTile(workingTile, tileX, tileY);
+            }
             drawDynamicLayers(workingTile, tileX, tileY, timeinfo,
                               timeText, days[wday], date,
                               connectionLabel, hands);
