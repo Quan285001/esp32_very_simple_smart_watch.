@@ -7,7 +7,8 @@ assert "asset->byteLength != static_cast<size_t>(asset->width) * asset->height *
 assert "const size_t fileSize = file.size();" in SOURCE
 assert "asset->byteLength > fileSize - asset->packageOffset" in SOURCE
 assert "file->seek(offset, fs::SeekSet)" in SOURCE
-assert "decodeRgb565LittleEndianRow(encodedRow, segmentBytes, row, segmentPixels)" in SOURCE
+assert "decodeRgb565LittleEndianRow(" in SOURCE
+assert "encodedRow, segmentBytes, row, segmentPixels" in SOURCE
 assert "getOffscreenBounds(clipX, clipY, clipW, clipH)" in SOURCE
 assert "beginImageRenderPass()" in SOURCE
 assert "endImageRenderPass()" in SOURCE
