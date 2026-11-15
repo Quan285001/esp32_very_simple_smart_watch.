@@ -373,6 +373,21 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     markAnalogMaskHands(centerX, centerY, endpointX, endpointY);
 
+    int dirtyLeft = displayWidth;
+    int dirtyTop = displayHeight;
+    int dirtyRight = -1;
+    int dirtyBottom = -1;
+    for (int y = 0; y < displayHeight; ++y) {
+        for (int x = 0; x < displayWidth; ++x) {
+            if (!analogMaskPixel(x, y)) continue;
+            if (x < dirtyLeft) dirtyLeft = x;
+            if (x > dirtyRight) dirtyRight = x;
+            if (y < dirtyTop) dirtyTop = y;
+            if (y > dirtyBottom) dirtyBottom = y;
+        }
+    }
+    if (dirtyRight < dirtyLeft || dirtyBottom < dirtyTop) return true;
+
     // Compose only tiles touched by the old/new hand mask. A fixed 32x32
     // sprite caps temporary memory at 2 KiB, regardless of the combined
     // bounding box of all three hands.
