@@ -138,8 +138,16 @@ int main() {
     assert(drawImageElement(face, object));
     assert(openSlotCount == 1);
     endImageRenderPass();
+    ImageRenderPassStats imageStats{};
+    takeImageRenderPassStats(imageStats);
+    assert(imageStats.drawCalls == 2);
+    assert(imageStats.rowsRead == 4);
+    assert(imageStats.bytesRead == 16);
+    assert(imageStats.fileOpens == 1);
     assert(drawImageElement(face, object));
     assert(openSlotCount == 2);
+    takeImageRenderPassStats(imageStats);
+    assert(imageStats.drawCalls == 0);
 
     // Reject malformed metadata and file ranges before touching the canvas.
     canvas.rows.clear();
