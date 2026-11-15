@@ -118,25 +118,27 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
     const size_t segmentBytes = segmentPixels * 2U;
     uint8_t encodedRow[DisplayProfileConfig::MAX_BITMAP_WIDTH * 2] = {};
     uint16_t row[DisplayProfileConfig::MAX_BITMAP_WIDTH] = {};
+    // Seek once to the first required source row, then stream complete rows
+    // sequentially. Re-seeking for every row is expensive on SPI flash filesystems.
+    const size_t firstRowOffset = asset->packageOffset +
+                                  static_cast<size_t>(sourceTop) * rowBytes;
+    const uint32_t seekStartedUs = imageRenderPassActive ? micros() : 0;
+    const bool seekSucceeded = file->seek(firstRowOffset, fs::SeekSet);
+    if (imageRenderPassActive) {
+        activeImageRenderPassStats.seekUs += micros() - seekStartedUs;
+    }
+    if (!seekSucceeded) {
+        if (!imageRenderPassActive) file->close();
+        return false;
+    }
+
     for (int rowIndex = sourceTop; rowIndex < sourceBottom; ++rowIndex) {
-        const size_t offset = asset->packageOffset +
-                              static_cast<size_t>(rowIndex) * rowBytes +
-                              static_cast<size_t>(sourceLeft) * 2U;
-        const uint32_t seekStartedUs = imageRenderPassActive ? micros() : 0;
-        const bool seekSucceeded = file->seek(offset, fs::SeekSet);
-        if (imageRenderPassActive) {
-            activeImageRenderPassStats.seekUs += micros() - seekStartedUs;
-        }
-        if (!seekSucceeded) {
-            if (!imageRenderPassActive) file->close();
-            return false;
-        }
         const uint32_t readStartedUs = imageRenderPassActive ? micros() : 0;
-        const size_t bytesRead = file->read(encodedRow, segmentBytes);
+        const size_t bytesRead = file->read(encodedRow, rowBytes);
         if (imageRenderPassActive) {
             activeImageRenderPassStats.readUs += micros() - readStartedUs;
         }
-        if (bytesRead != segmentBytes) {
+        if (bytesRead != rowBytes) {
             if (!imageRenderPassActive) file->close();
             return false;
         }
@@ -146,7 +148,8 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
         }
         const uint32_t decodeStartedUs = imageRenderPassActive ? micros() : 0;
         const bool decodeSucceeded = decodeRgb565LittleEndianRow(
-            encodedRow, segmentBytes, row, segmentPixels);
+            encodedRow + static_cast<size_t>(sourceLeft) * 2U,
+            segmentBytes, row, segmentPixels);
         if (imageRenderPassActive) {
             activeImageRenderPassStats.decodeUs += micros() - decodeStartedUs;
         }
