@@ -142,6 +142,9 @@ int main() {
     ImageRenderPassStats imageStats{};
     takeImageRenderPassStats(imageStats);
     assert(imageStats.drawCalls == 2);
+    assert(imageStats.tileCount == 0);
+    assert(imageStats.handMaskPixels == 0);
+    assert(imageStats.imageOverlapPixels == 0);
     assert(imageStats.rowsRead == 4);
     assert(imageStats.bytesRead == 16);
     assert(imageStats.fileOpens == 1);
