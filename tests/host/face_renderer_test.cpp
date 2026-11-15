@@ -97,17 +97,17 @@ int main() {
     face.objects[0].timeFormat[2]='h'; face.objects[0].timeFormat[3]='\0';
     face.objects[0].showSeconds=true;
     canvas.reset();
-    assert(renderWatchFace(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.size()==2 && canvas.calls[0]=="clear" && canvas.calls[1]=="text:01:05:09 PM");
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.empty()); // the initial full render already seeded the text cache
 
     face.objects[0]=baseObject(FaceElementType::Date,"date");
     const char* dateFormat="ddd, DD MMM YYYY";
     for(size_t i=0;dateFormat[i]&&i+1<sizeof(face.objects[0].dataFormat);++i)face.objects[0].dataFormat[i]=dateFormat[i];
     canvas.reset();
-    assert(renderWatchFace(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.back()=="text:SUN, 08 NOV 2026");
 
     face=baseFace(); face.objectCount=2;
@@ -116,7 +116,7 @@ int main() {
     face.objects[1]=baseObject(FaceElementType::Text,"bottom");
     for(size_t i=0;i<5;++i)face.objects[1].text[i]="Hello"[i];
     canvas.reset();
-    assert(renderWatchFace(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.size()==3);
     assert(canvas.calls[0]=="clear" && canvas.calls[1]=="text:Hello" && canvas.calls[2]=="fill");
 
@@ -148,7 +148,7 @@ int main() {
     face.objects[2].transform.x=0; face.objects[2].transform.y=0;
     face.objects[2].transform.width=10; face.objects[2].transform.height=10;
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.clipCalls==1 && canvas.resetCalls==1);
     assert(canvas.calls.size()==5);
     assert(canvas.calls[0]=="clip" && canvas.calls[1]=="fill" &&
@@ -157,21 +157,21 @@ int main() {
 
     // An unchanged minute-only clock must not clear/repaint its region.
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.empty());
 
     // A seconds tick should redraw only the changed second digits, not the
     // entire 100-pixel-wide digital clock region.
     timeInfo.tm_sec=10;
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.clipCalls==1 && canvas.clipW>0 && canvas.clipW<100);
     assert(canvas.clipX>50 && canvas.clipX<150);
     assert(canvas.calls.size()==4 && canvas.calls[2]=="text:13:05:10");
     timeInfo.tm_sec=9;
 
     // Dynamic redraw must restore intersecting layers above the changing element.
-    assert(renderWatchFace(face,timeInfo,weather)==FaceRenderStatus::Ok); // invalidate cache for the next face
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok); // invalidate cache for the next face
     face=baseFace(); face.objectCount=3;
     face.objects[0]=baseObject(FaceElementType::Shape,"lower");
     face.objects[0].transform.x=50; face.objects[0].transform.y=50;
@@ -191,7 +191,7 @@ int main() {
     face.objects[2].text[0]='T'; face.objects[2].text[1]='o';
     face.objects[2].text[2]='p';
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.size()==6);
     assert(canvas.calls[0]=="clip" && canvas.calls[1]=="fill" &&
            canvas.calls[2]=="fill" && canvas.calls[3]=="text:13:05" &&
@@ -219,18 +219,18 @@ int main() {
     timeInfo.tm_hour=13; timeInfo.tm_min=5; timeInfo.tm_sec=9;
     imageDrawSucceeds=true;
     canvas.reset();
-    assert(renderWatchFace(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     timeInfo.tm_sec=10;
     imageDrawSucceeds=false;
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::AssetReadFailed);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::AssetReadFailed);
     imageDrawSucceeds=true;
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.size()>=4 && canvas.calls.front()=="clip" &&
            canvas.calls.back()=="reset-clip");
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.empty());
     timeInfo.tm_sec=9;
 
@@ -241,13 +241,13 @@ int main() {
     face.objects[0].transform.width=100; face.objects[0].transform.height=100;
     timeInfo.tm_hour=13; timeInfo.tm_min=5; timeInfo.tm_sec=9;
     canvas.reset();
-    assert(renderWatchFace(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.empty()); // no hand movement, no redraw
     timeInfo.tm_sec=10;
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.clipCalls>1 && canvas.clipCalls==canvas.resetCalls);
     assert(canvas.allClipRowsOne);
     assert(canvas.calls.front()=="fill" && canvas.calls.back()=="reset-clip");
@@ -271,19 +271,19 @@ int main() {
     timeInfo.tm_hour=13; timeInfo.tm_min=5; timeInfo.tm_sec=9;
     imageDrawSucceeds=true;
     canvas.reset();
-    assert(renderWatchFace(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     timeInfo.tm_sec=10;
     imageDrawSucceeds=false;
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::AssetReadFailed);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::AssetReadFailed);
     imageDrawSucceeds=true;
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.clipCalls>1 && canvas.clipCalls==canvas.resetCalls);
     assert(canvas.allClipRowsOne);
     assert(std::find(canvas.calls.begin(), canvas.calls.end(), "image-mask") != canvas.calls.end());
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     assert(canvas.calls.empty());
     timeInfo.tm_sec=9;
 
