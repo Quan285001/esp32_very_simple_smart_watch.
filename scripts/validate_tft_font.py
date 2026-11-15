@@ -182,7 +182,7 @@ if any(position < 0 for position in positions) or positions != sorted(positions)
 # drawPixel() when swapBytes is enabled. The resulting sprite memory is already
 # in the representation expected by pushImage(..., swapBytes=false) on the TFT.
 offscreen_start = display_source.find("void pushRgb565Row(")
-offscreen_end = display_source.find("\\n    }", offscreen_start)
+offscreen_end = display_source.find("\n    }\n\n    void setClipRect", offscreen_start)
 offscreen_body = display_source[offscreen_start:offscreen_end + 6]
 offscreen_calls = [
     "regionSprite.getSwapBytes()",
