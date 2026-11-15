@@ -21,6 +21,8 @@ struct CapturedRow {
 class TestCanvas final : public DisplayCanvas {
 public:
     std::vector<CapturedRow> rows;
+    bool offscreenEnabled = false;
+    int offscreenX = 0, offscreenY = 0, offscreenW = 0, offscreenH = 0;
     uint16_t width() const override { return 240; }
     uint16_t height() const override { return 240; }
     void clearScreen(uint16_t) override {}
@@ -38,6 +40,11 @@ public:
     }
     void setClipRect(int, int, int, int) override {}
     void resetClip() override {}
+    bool getOffscreenBounds(int& x, int& y, int& w, int& h) const override {
+        if (!offscreenEnabled) return false;
+        x = offscreenX; y = offscreenY; w = offscreenW; h = offscreenH;
+        return true;
+    }
     void drawText(const char*, int, int, int, int, uint16_t, float, float, float,
                   uint16_t, float, CanvasTextAlignment) override {}
 };
@@ -152,6 +159,34 @@ int main() {
     assert(openSlotCount == 2);
     takeImageRenderPassStats(imageStats);
     assert(imageStats.drawCalls == 0);
+
+    // A bounded 64x64 tile cache reuses decoded RGB565 pixels on repeated
+    // composition of the same tile without reopening or rereading SPIFFS.
+    packageBytes = {
+        0x00, 0xF8, 0xE0, 0x07,
+        0x1F, 0x00, 0xFF, 0xFF
+    };
+    face = makeFace();
+    object = makeImageObject();
+    canvas.offscreenEnabled = true;
+    canvas.offscreenX = 11;
+    canvas.offscreenY = 23;
+    canvas.offscreenW = 2;
+    canvas.offscreenH = 2;
+    canvas.rows.clear();
+    openSlotCount = 0;
+    beginImageRenderPass();
+    assert(drawImageElement(face, object));
+    assert(drawImageElement(face, object));
+    endImageRenderPass();
+    takeImageRenderPassStats(imageStats);
+    assert(imageStats.tileCacheMisses == 1);
+    assert(imageStats.tileCacheHits == 1);
+    assert(imageStats.rowsRead == 2);
+    assert(imageStats.bytesRead == 8);
+    assert(openSlotCount == 1);
+    assert(canvas.rows.size() == 4);
+    canvas.offscreenEnabled = false;
 
     // Reject malformed metadata and file ranges before touching the canvas.
     canvas.rows.clear();
