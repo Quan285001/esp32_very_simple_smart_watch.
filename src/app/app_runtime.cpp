@@ -234,11 +234,11 @@ void loop() {
             // Emit only slow frames so normal one-second updates do not
             // flood Serial or perturb the UI loop being measured.
             if (renderDurationUs >= 8000UL) {
-                Serial.printf("[PERF] Watch Face render=%lu us\\n",
+                Serial.printf("[PERF] Watch Face render=%lu us\n",
                               static_cast<unsigned long>(renderDurationUs));
             }
             if (status != FaceRenderStatus::Ok) {
-                Serial.printf("[FACE] Custom renderer rejected frame (%u); reverting to built-in face.\\n",
+                Serial.printf("[FACE] Custom renderer rejected frame (%u); reverting to built-in face.\n",
                               static_cast<unsigned int>(status));
                 FaceManager::disableActive();
                 // The built-in face cache may predate the custom face.
