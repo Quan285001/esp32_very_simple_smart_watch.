@@ -29,6 +29,9 @@ public:
     }
     virtual bool presentOffscreen() { return false; }
     virtual void cancelOffscreen() {}
+    virtual bool getOffscreenBounds(int& x, int& y, int& w, int& h) const {
+        (void)x; (void)y; (void)w; (void)h; return false;
+    }
     virtual void drawText(const char* text, int x, int y, int w, int h,
                           uint16_t color, float fontSize, float scaleX, float scaleY,
                           uint16_t fontWeight, float letterSpacing,
