@@ -33,6 +33,9 @@ FACE_RENDERER = (ROOT / "src" / "watchface" / "face_renderer.cpp").read_text(enc
 assert "bool tileCompositionSucceeded = true;" in FACE_RENDERER
 assert "Compose each dirty tile completely off-screen before presenting it." in FACE_RENDERER
 assert "never restore the background image directly to LCD GRAM" in FACE_RENDERER
+assert "static_cast<float>(millisValue) / 1000.0f" in FACE_RENDERER
+assert "renderWatchFaceDynamic(activeFace, timeInfo, millisValue, weather)" in (ROOT / "src" / "watchface" / "face_manager.cpp").read_text(encoding="utf-8")
+assert "cachedTime, static_cast<int>(elapsed), getWeatherSnapshot()" in (ROOT / "src" / "app" / "app_runtime.cpp").read_text(encoding="utf-8")
 assert "bool tileCompositionSucceeded = true;" in FACE_RENDERER
 
 
