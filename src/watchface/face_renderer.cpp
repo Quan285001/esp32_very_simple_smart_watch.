@@ -388,11 +388,24 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     if (dirtyRight < dirtyLeft || dirtyBottom < dirtyTop) return true;
 
-    // Compose only tiles touched by the old/new hand mask. A fixed 32x32
-    // sprite caps temporary memory at 2 KiB, regardless of the combined
-    // bounding box of all three hands.
+    // Image layers are restored with the exact pixel mask below. Rebuilding
+    // an entire offscreen tile over a photographic background can repeatedly
+    // decode and transfer large image strips, causing visible tearing/cloning.
+    // Keep the tiled compositor for faces without an image under this dirty
+    // region; use masked restoration when any visible image overlaps it.
+    bool hasIntersectingImageLayer = false;
+    for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
+        const FaceObject& candidate = face.objects[order[layer]];
+        if (candidate.visible && candidate.type == FaceElementType::Image &&
+            intersects(candidate, dirtyLeft, dirtyTop,
+                       dirtyRight - dirtyLeft + 1, dirtyBottom - dirtyTop + 1)) {
+            hasIntersectingImageLayer = true;
+            break;
+        }
+    }
+
     constexpr int TILE_SIZE = 64;
-    bool tileCompositionSucceeded = true;
+    bool tileCompositionSucceeded = !hasIntersectingImageLayer;
     bool renderedAnyTile = false;
     for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
          tileY += TILE_SIZE) {
@@ -437,9 +450,9 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     }
     if (tileCompositionSucceeded && renderedAnyTile) return true;
 
-    // Allocation fallback: retain the legacy pixel-mask restoration path.
-    // It is less visually atomic, but avoids losing clock updates under RAM
-    // pressure. The normal path above never clears pixels directly on the TFT.
+    // Pixel-mask restoration is used for image-overlap regions and as an
+    // allocation fallback. It restores only old/new hand pixels, then replays
+    // intersecting scene layers in z-order, including exact RGB565 image runs.
     // First clear only marked pixels. Then replay scene layers in z-order.
     for (int y = 0; y < displayHeight; ++y) {
         int x = 0;
