@@ -1,6 +1,7 @@
 #include "image.h"
 #include "image_rgb565.h"
 
+#include <Arduino.h>
 #include <math.h>
 #include <string.h>
 
@@ -13,6 +14,8 @@ fs::File imageRenderPassFile;
 bool imageRenderPassActive = false;
 uint8_t imageRenderPassSlot = FaceStorage::INVALID_SLOT;
 size_t imageRenderPassFileSize = 0;
+ImageRenderPassStats activeImageRenderPassStats = {};
+ImageRenderPassStats completedImageRenderPassStats = {};
 }
 
 void beginImageRenderPass() {
@@ -20,6 +23,7 @@ void beginImageRenderPass() {
     imageRenderPassActive = true;
     imageRenderPassSlot = FaceStorage::INVALID_SLOT;
     imageRenderPassFileSize = 0;
+    activeImageRenderPassStats = {};
 }
 
 void endImageRenderPass() {
@@ -27,6 +31,13 @@ void endImageRenderPass() {
     imageRenderPassActive = false;
     imageRenderPassSlot = FaceStorage::INVALID_SLOT;
     imageRenderPassFileSize = 0;
+    completedImageRenderPassStats = activeImageRenderPassStats;
+    activeImageRenderPassStats = {};
+}
+
+void takeImageRenderPassStats(ImageRenderPassStats& stats) {
+    stats = completedImageRenderPassStats;
+    completedImageRenderPassStats = {};
 }
 
 bool drawImageElement(const FaceModel& face, const FaceObject& object) {
@@ -66,9 +77,13 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
     fs::File* file = nullptr;
     size_t fileSize = 0;
     if (imageRenderPassActive) {
+        ++activeImageRenderPassStats.drawCalls;
         if (!imageRenderPassFile) {
+            const uint32_t openStartedUs = micros();
             imageRenderPassFile = FaceStorage::openSlot(slot, "r");
+            activeImageRenderPassStats.fileOpenUs += micros() - openStartedUs;
             if (!imageRenderPassFile) return false;
+            ++activeImageRenderPassStats.fileOpens;
             imageRenderPassSlot = slot;
             imageRenderPassFileSize = imageRenderPassFile.size();
         } else if (imageRenderPassSlot != slot) {
@@ -97,12 +112,35 @@ bool drawImageElement(const FaceModel& face, const FaceObject& object) {
         const size_t offset = asset->packageOffset +
                               static_cast<size_t>(rowIndex) * rowBytes +
                               static_cast<size_t>(sourceLeft) * 2U;
-        if (!file->seek(offset, fs::SeekSet) ||
-            file->read(encodedRow, segmentBytes) != segmentBytes) {
+        const uint32_t seekStartedUs = imageRenderPassActive ? micros() : 0;
+        const bool seekSucceeded = file->seek(offset, fs::SeekSet);
+        if (imageRenderPassActive) {
+            activeImageRenderPassStats.seekUs += micros() - seekStartedUs;
+        }
+        if (!seekSucceeded) {
             if (!imageRenderPassActive) file->close();
             return false;
         }
-        if (!decodeRgb565LittleEndianRow(encodedRow, segmentBytes, row, segmentPixels)) {
+        const uint32_t readStartedUs = imageRenderPassActive ? micros() : 0;
+        const size_t bytesRead = file->read(encodedRow, segmentBytes);
+        if (imageRenderPassActive) {
+            activeImageRenderPassStats.readUs += micros() - readStartedUs;
+        }
+        if (bytesRead != segmentBytes) {
+            if (!imageRenderPassActive) file->close();
+            return false;
+        }
+        if (imageRenderPassActive) {
+            ++activeImageRenderPassStats.rowsRead;
+            activeImageRenderPassStats.bytesRead += static_cast<uint32_t>(bytesRead);
+        }
+        const uint32_t decodeStartedUs = imageRenderPassActive ? micros() : 0;
+        const bool decodeSucceeded = decodeRgb565LittleEndianRow(
+            encodedRow, segmentBytes, row, segmentPixels);
+        if (imageRenderPassActive) {
+            activeImageRenderPassStats.decodeUs += micros() - decodeStartedUs;
+        }
+        if (!decodeSucceeded) {
             if (!imageRenderPassActive) file->close();
             return false;
         }
