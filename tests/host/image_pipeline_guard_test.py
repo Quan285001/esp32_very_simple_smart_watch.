@@ -9,6 +9,11 @@ assert "asset->byteLength > fileSize - asset->packageOffset" in SOURCE
 assert "file.seek(asset->packageOffset, fs::SeekSet)" in SOURCE
 assert "decodeRgb565LittleEndianRow(encodedRow, segmentBytes, row, segmentPixels)" in SOURCE
 assert "getOffscreenBounds(clipX, clipY, clipW, clipH)" in SOURCE
+assert "beginImageRenderPass()" in SOURCE
+assert "endImageRenderPass()" in SOURCE
+assert "imageRenderPassFile = FaceStorage::openSlot(slot, \"r\")" in SOURCE
+assert "if (sourceRight <= sourceLeft || sourceBottom <= sourceTop) return true;" in SOURCE
+
 assert "static_cast<size_t>(sourceLeft) * 2U" in SOURCE
 assert "uint8_t encodedRow[DisplayProfileConfig::MAX_BITMAP_WIDTH * 2]" in SOURCE
 
