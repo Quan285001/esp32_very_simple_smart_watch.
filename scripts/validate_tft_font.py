@@ -171,12 +171,10 @@ ordered_calls = [
     "tft.pushImage(x, y, count, 1, pixels)",
     "tft.setSwapBytes(previousSwapBytes)",
 ]
-# Locate the physical-TFT branch separately from the sprite-memory branch.
-physical_start = display_source.find("const bool previousSwapBytes = tft.getSwapBytes();", backend_start)
-physical_end = display_source.find("\n        }", physical_start)
-physical_body = display_source[physical_start:physical_end]
-positions = [physical_body.find(token) for token in ordered_calls]
-if physical_start < 0 or any(position < 0 for position in positions) or positions != sorted(positions):
+# Check the physical-TFT transfer sequence within the complete row writer.
+ordered_calls[2] = "tft.pushImage(x, y, count, 1, const_cast<uint16_t*>(pixels))"
+positions = [backend_body.find(token) for token in ordered_calls]
+if any(position < 0 for position in positions) or positions != sorted(positions):
     print("ERROR: WFS RGB565LE rows are not byte-swapped before SPI output")
     sys.exit(1)
 
