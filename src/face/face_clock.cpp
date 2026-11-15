@@ -38,6 +38,7 @@ TFT_eSprite backgroundCache(&tft);
 TFT_eSprite workingTile(&tft);
 bool backgroundCacheReady = false;
 bool workingTileReady = false;
+bool backgroundCacheContainsStatic = false;
 bool fullRefreshPending = true;
 
 struct HandGeometry {
@@ -310,7 +311,10 @@ void drawAnalogClockFace(struct tm timeinfo, int millisValue,
         backgroundCache.setColorDepth(16);
         backgroundCacheReady = backgroundCache.createSprite(
             FACE_SIZE, FACE_SIZE) != nullptr;
-        if (backgroundCacheReady) drawStaticBackground();
+        if (backgroundCacheReady) {
+            drawStaticBackground();
+            backgroundCacheContainsStatic = true;
+        }
     }
     if (!workingTileReady) {
         workingTile.setColorDepth(16);
@@ -319,8 +323,23 @@ void drawAnalogClockFace(struct tm timeinfo, int millisValue,
     }
 
     if (!(backgroundCacheReady && workingTileReady)) {
-        drawFallbackDirect(timeinfo, timeText, days[wday], date,
-                           connectionLabel, hands);
+        if (backgroundCacheReady) {
+            // Keep the display update atomic even when the small tile buffer
+            // cannot be allocated: reuse the existing full-size sprite as a
+            // one-frame composition buffer, then perform one panel transfer.
+            drawStaticBackground();
+            drawDynamicLayers(backgroundCache, 0, 0, timeinfo,
+                              timeText, days[wday], date,
+                              connectionLabel, hands);
+            backgroundCache.pushSprite(FACE_ORIGIN_X, FACE_ORIGIN_Y);
+            backgroundCacheContainsStatic = false;
+        } else {
+            // Last-resort low-memory path when even the full frame sprite
+            // cannot be allocated.
+            drawFallbackDirect(timeinfo, timeText, days[wday], date,
+                               connectionLabel, hands);
+        }
+
         previousHands = hands;
         previousHandsValid = true;
         strncpy(previousTimeText, timeText, sizeof(previousTimeText) - 1);
@@ -334,6 +353,15 @@ void drawAnalogClockFace(struct tm timeinfo, int millisValue,
         previousIconHour = timeinfo.tm_hour;
         fullRefreshPending = true;
         return;
+    }
+
+    // A previous full-frame fallback used the cache as a composition buffer.
+    // Rebuild the immutable background before returning to dirty-tile updates.
+    if (!backgroundCacheContainsStatic) {
+        drawStaticBackground();
+        backgroundCacheContainsStatic = true;
+        fullRefreshPending = true;
+        previousHandsValid = false;
     }
 
     bool dirty[TILE_ROWS][TILE_COLUMNS] = {};
