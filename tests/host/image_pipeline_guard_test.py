@@ -31,6 +31,10 @@ assert "static constexpr int OFFSCREEN_TILE_SIZE = 64;" in DISPLAY_BACKEND
 
 FACE_RENDERER = (ROOT / "src" / "watchface" / "face_renderer.cpp").read_text(encoding="utf-8")
 assert "bool tileCompositionSucceeded = true;" in FACE_RENDERER
+assert "Image-backed analog faces use the LCD GRAM as the persistent background." in FACE_RENDERER
+assert "backgroundImagePosition >= 0" in FACE_RENDERER
+assert "drawImageElementMasked(face, backgroundImage" in FACE_RENDERER
+assert "The full-canvas image occludes every layer below it." in FACE_RENDERER
 
 
 RGB565_HEADER = (ROOT / "src" / "watchface" / "elements" / "image_rgb565.h").read_text(encoding="utf-8")
