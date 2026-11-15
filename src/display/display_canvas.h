@@ -22,6 +22,13 @@ public:
     virtual void pushRgb565Row(int x, int y, uint16_t count, const uint16_t* pixels) = 0;
     virtual void setClipRect(int x, int y, int w, int h) = 0;
     virtual void resetClip() = 0;
+    // Optional bounded off-screen composition. Backends without a framebuffer
+    // may return false; callers can then use their conservative fallback.
+    virtual bool beginOffscreen(int x, int y, int w, int h, uint16_t background) {
+        (void)x; (void)y; (void)w; (void)h; (void)background; return false;
+    }
+    virtual bool presentOffscreen() { return false; }
+    virtual void cancelOffscreen() {}
     virtual void drawText(const char* text, int x, int y, int w, int h,
                           uint16_t color, float fontSize, float scaleX, float scaleY,
                           uint16_t fontWeight, float letterSpacing,
