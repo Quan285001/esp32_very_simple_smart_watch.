@@ -6,7 +6,7 @@ SOURCE = (ROOT / "src" / "watchface" / "elements" / "image.cpp").read_text(encod
 assert "asset->byteLength != static_cast<size_t>(asset->width) * asset->height * sizeof(uint16_t)" in SOURCE
 assert "const size_t fileSize = file.size();" in SOURCE
 assert "asset->byteLength > fileSize - asset->packageOffset" in SOURCE
-assert "file->seek(offset, fs::SeekSet)" in SOURCE
+assert "file->seek(firstRowOffset, fs::SeekSet)" in SOURCE
 assert "decodeRgb565LittleEndianRow(" in SOURCE
 assert "encodedRow, segmentBytes, row, segmentPixels" in SOURCE
 assert "getOffscreenBounds(clipX, clipY, clipW, clipH)" in SOURCE
@@ -15,7 +15,8 @@ assert "endImageRenderPass()" in SOURCE
 assert "imageRenderPassFile = FaceStorage::openSlot(slot, \"r\")" in SOURCE
 assert "if (sourceRight <= sourceLeft || sourceBottom <= sourceTop) return true;" in SOURCE
 
-assert "static_cast<size_t>(sourceLeft) * 2U" in SOURCE
+assert "encodedRow + static_cast<size_t>(sourceLeft) * 2U" in SOURCE
+assert "file->read(encodedRow, rowBytes)" in SOURCE
 assert "uint8_t encodedRow[DisplayProfileConfig::MAX_BITMAP_WIDTH * 2]" in SOURCE
 
 WEB_APP = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
