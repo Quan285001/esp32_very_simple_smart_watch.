@@ -42,7 +42,7 @@ class FakeElement {
 }
 
 class FakeImage {
-  constructor() { this.naturalWidth = 1; this.naturalHeight = 1; }
+  constructor() { this.naturalWidth = 4; this.naturalHeight = 1; }
   set src(value) { this.source = value; }
   decode() { return Promise.resolve(); }
 }
@@ -316,9 +316,9 @@ assert.throws(() => decode(corrupted), /CRC mismatch/);
     canvas: { width: 240, height: 240, shape: 'circle', backgroundColor: '#080b10', clipToShape: true },
     objects: [
       { id: 'image_one', type: 'image', name: 'Image one', assetId: longPrefix + '1', visible: true, locked: false,
-        transform: { x: 0, y: 0, width: 2, height: 1, anchor: 'top-left', zIndex: 0 } },
+        transform: { x: 120, y: 120, width: 2, height: 1, anchor: 'top-left', zIndex: 0 } },
       { id: 'image_two', type: 'image', name: 'Image two', assetId: longPrefix + '2', visible: true, locked: false,
-        transform: { x: 2, y: 0, width: 2, height: 1, anchor: 'top-left', zIndex: 1 } },
+        transform: { x: 122, y: 120, width: 2, height: 1, anchor: 'top-left', zIndex: 1 } },
     ],
   };
   fakeImageAlpha = 255;
