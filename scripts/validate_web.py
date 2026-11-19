@@ -63,6 +63,13 @@ if "function applyDeviceProfile()" not in app_js or "WFSDeviceProfile.migrateObj
 if not any(asset.endswith("device-profile.js") for asset in parser.assets):
     errors.append("The shared Device Profile editor module must load before the application")
 
+if "const displaySize=240,center=120,radius=120" not in app_js or "cx*cx+cy*cy>=radius*radius" not in app_js:
+    errors.append("Upload image raster must be bounded by the circular 240px display aperture")
+if "if(px+0.5<drawX||px+0.5>=drawX+drawWidth" not in app_js:
+    errors.append("Upload crop must exclude pixels outside the fitted image bounds")
+if "return {x:left,y:top,width:outputWidth,height:outputHeight,bytes}" not in app_js:
+    errors.append("Upload image asset must use the cropped visible-pixel bounds")
+
 if errors:
     print("\n".join("ERROR: " + e for e in errors))
     sys.exit(1)
