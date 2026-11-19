@@ -304,21 +304,31 @@ async function convertImageToRgb565(object,design){
  const width=Number(transform.width),height=Number(transform.height);
  if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)
   throw Error(object.name+': image position or size is invalid');
- // Keep only the part intersecting the 240x240 display. The LCD's circular
- // aperture is applied below, so oversized source images are never rejected.
- const left=Math.max(0,Math.floor(x)),top=Math.max(0,Math.floor(y));
- const right=Math.min(240,Math.ceil(x+width)),bottom=Math.min(240,Math.ceil(y+height));
- const outputWidth=right-left,outputHeight=bottom-top;
- if(outputWidth<=0||outputHeight<=0)throw Error(object.name+': image is outside the visible watch area');
  const fitScale=Math.min(width/image.naturalWidth,height/image.naturalHeight);
  const drawWidth=image.naturalWidth*fitScale,drawHeight=image.naturalHeight*fitScale;
  const drawX=x+(width-drawWidth)/2,drawY=y+(height-drawHeight)/2;
+ const displaySize=240,center=120,radius=120;
+ // Export bounds are the raster pixels that can actually be seen: source-image
+ // coverage AND the circular LCD aperture. The editor keeps the original asset
+ // and transform; this crop is performed only for the upload package.
+ let left=displaySize,top=displaySize,right=0,bottom=0;
+ for(let py=0;py<displaySize;py++){
+  const cy=py+0.5-center;
+  for(let px=0;px<displaySize;px++){
+   const cx=px+0.5-center;
+   if(cx*cx+cy*cy>=radius*radius)continue;
+   if(px+0.5<drawX||px+0.5>=drawX+drawWidth||py+0.5<drawY||py+0.5>=drawY+drawHeight)continue;
+   left=Math.min(left,px);top=Math.min(top,py);right=Math.max(right,px+1);bottom=Math.max(bottom,py+1);
+  }
+ }
+ const outputWidth=right-left,outputHeight=bottom-top;
+ if(outputWidth<=0||outputHeight<=0)throw Error(object.name+': image is outside the visible watch area');
  const imagePosition=design.objects.indexOf(object),imageZ=transform.zIndex??0;
  const intersectsRoundDisplay=(rect)=>{
-  const nearestX=Math.max(rect.x,Math.min(120,rect.x+rect.width));
-  const nearestY=Math.max(rect.y,Math.min(120,rect.y+rect.height));
-  const dx=nearestX-120,dy=nearestY-120;
-  return dx*dx+dy*dy<120*120;
+  const nearestX=Math.max(rect.x,Math.min(center,rect.x+rect.width));
+  const nearestY=Math.max(rect.y,Math.min(center,rect.y+rect.height));
+  const dx=nearestX-center,dy=nearestY-center;
+  return dx*dx+dy*dy<radius*radius;
  };
  const visibleImageRect={x:drawX,y:drawY,width:drawWidth,height:drawHeight};
  const hasUnderlyingLayer=design.objects.some((candidate,index)=>{
@@ -333,28 +343,22 @@ async function convertImageToRgb565(object,design){
   const overlapRect={x:overlapLeft,y:overlapTop,width:overlapRight-overlapLeft,height:overlapBottom-overlapTop};
   return lowerOrder&&overlapRect.width>0&&overlapRect.height>0&&intersectsRoundDisplay(overlapRect);
  });
- // Inspect alpha at the exact output raster size and placement. Scaling every
- // source to an unrelated 240x240 square can report transparency in pixels
- // that are not actually rendered, or miss alpha after a different scale.
+ // Probe alpha only within the cropped raster and the circular aperture.
  const alphaCanvas=document.createElement('canvas');alphaCanvas.width=outputWidth;alphaCanvas.height=outputHeight;
  const alphaCtx=alphaCanvas.getContext('2d',{willReadFrequently:true});
- // Do not clip this probe: antialiased circle-edge coverage is a display mask,
- // not source-image transparency. The pixel-center test below applies the
- // circular visibility boundary without changing source alpha values.
  alphaCtx.drawImage(image,drawX-left,drawY-top,drawWidth,drawHeight);
  const sourcePixels=alphaCtx.getImageData(0,0,outputWidth,outputHeight).data;let hasTransparency=false;
  for(let i=3,pixel=0;i<sourcePixels.length;i+=4,pixel++){
-  const pixelX=left+(pixel%outputWidth)+0.5-120;
-  const pixelY=top+Math.floor(pixel/outputWidth)+0.5-120;
-  if(pixelX*pixelX+pixelY*pixelY<120*120&&sourcePixels[i]!==255){hasTransparency=true;break}
+  const pixelX=left+(pixel%outputWidth)+0.5-center;
+  const pixelY=top+Math.floor(pixel/outputWidth)+0.5-center;
+  if(pixelX*pixelX+pixelY*pixelY<radius*radius&&sourcePixels[i]!==255){hasTransparency=true;break}
  }
  if(hasTransparency&&object.visible!==false&&hasUnderlyingLayer)
   throw Error(object.name+': transparent overlay images are not supported yet; place the transparent image below every other visible layer');
  const canvas=document.createElement('canvas');canvas.width=outputWidth;canvas.height=outputHeight;
  const ctx=canvas.getContext('2d',{willReadFrequently:true});
  ctx.fillStyle=design.canvas.backgroundColor||'#000000';ctx.fillRect(0,0,outputWidth,outputHeight);
- // Clip in global watch coordinates: center (120,120), radius 120.
- ctx.save();ctx.beginPath();ctx.arc(120-left,120-top,120,0,Math.PI*2);ctx.clip();
+ ctx.save();ctx.beginPath();ctx.arc(center-left,center-top,radius,0,Math.PI*2);ctx.clip();
  ctx.drawImage(image,drawX-left,drawY-top,drawWidth,drawHeight);ctx.restore();
  const rgba=ctx.getImageData(0,0,outputWidth,outputHeight).data;
  const bytes=new Uint8Array(outputWidth*outputHeight*2);
@@ -363,7 +367,6 @@ async function convertImageToRgb565(object,design){
  }
  return {x:left,y:top,width:outputWidth,height:outputHeight,bytes};
 }
-
 function advancedFeatureErrors(design){
  const errors=[];
  if(design?.canvas?.shape&&design.canvas.shape!=='circle')errors.push('This device profile only supports a circular canvas');
