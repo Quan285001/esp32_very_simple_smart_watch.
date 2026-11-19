@@ -140,7 +140,7 @@ const fakeImageDocument = {
             pixels[i + 1] = 165;
             pixels[i + 2] = 0;
             pixels[i + 3] = imageSandbox.transparentPixel &&
-              !fillStyle && i === (imageSandbox.transparentPixelIndex ?? 10) * 4 ? 0 : 255;
+              !fillStyle && i === (imageSandbox.transparentPixelIndex ?? 20) * 4 ? 0 : 255;
           }
           return { data: pixels };
         },
@@ -166,12 +166,12 @@ const cropDesign = {
 };
 imageSandbox.convert(cropObject, cropDesign).then(async (converted) => {
   if (converted.x !== 0 || converted.y !== 100 ||
-      converted.width !== 30 || converted.height !== 30) {
+      converted.width !== 25 || converted.height !== 30) {
     throw new Error('Image crop must use the visible display intersection: ' +
       JSON.stringify({ x: converted.x, y: converted.y,
         width: converted.width, height: converted.height }));
   }
-  if (converted.bytes.length !== 30 * 30 * 2) {
+  if (converted.bytes.length !== 25 * 30 * 2) {
     throw new Error('Cropped image byte length does not match RGB565 dimensions');
   }
   for (let i = 0; i < converted.bytes.length; i += 2) {
