@@ -62,25 +62,6 @@ function setPreviewText(element,text,style,boxSize){
  const glyph=document.createElement('span');glyph.textContent=String(text??'');glyph.style.display='inline-block';glyph.style.whiteSpace='pre';glyph.style.transform='scale('+Math.max(.1,Number(style.scaleX)||1)+','+Math.max(.1,Number(style.scaleY)||1)+')';glyph.style.transformOrigin='center center';label.append(glyph);
  loadPreviewFont(style.fontFamily||'system-ui');element.append(label);
 }
- const label=document.createElement('div');
- label.textContent=String(text??'');
- Object.assign(label.style,{
-  width:'100%',height:'100%',display:'flex',
-  alignItems:'center',
-  justifyContent:style.textAlign==='left'?'flex-start':style.textAlign==='right'?'flex-end':'center',
-  whiteSpace:'pre-wrap',overflow:'hidden',lineHeight:'1',
-  fontFamily:style.fontFamily||'system-ui',
-  fontSize:((Number(style.fontSize)||16)/Math.max(1,Number(state.design?.canvas?.width)||240)*100)+'cqw',
-  fontWeight:String(Number(style.fontWeight)||400),
-  letterSpacing:(Number(style.letterSpacing)||0)+'px',
-  color:style.fill||'#ffffff',
-  textAlign:style.textAlign||'center',
-  transform:'scale('+Math.max(.1,Number(style.scaleX)||1)+','+Math.max(.1,Number(style.scaleY)||1)+')',
-  transformOrigin:'center center'
- });
- loadPreviewFont(style.fontFamily||'system-ui');
- element.append(label);
-}
 function renderWeatherPreview(element,object,style,transform){
  const fields=Array.isArray(object.weatherFields)?object.weatherFields:['temperature'];
  const showTemperature=fields.length===0||fields.includes('temperature'),showCondition=fields.includes('condition');
