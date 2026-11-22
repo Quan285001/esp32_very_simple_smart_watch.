@@ -53,7 +53,7 @@ function setDigitalClockPreview(element,text,style,boxSize){
  if(style.clockForm==='rounded'){label.style.fontFamily="'Manrope', 'Nunito Sans', system-ui";label.style.fontWeight=style.fontWeight||600;}
  if(style.clockForm==='thin'){label.style.fontWeight=200;label.style.letterSpacing='0.02em';}
  if(style.clockForm==='condensed'){label.style.fontFamily="'Rajdhani', 'Oswald', sans-serif";label.style.fontWeight=style.fontWeight||600;}
- if(style.clockForm==='segment'){label.style.fontFamily="'DSEG7 Classic', monospace";label.style.fontWeight=400;}
+ if(style.clockForm==='segment'){label.style.fontFamily="'Orbitron', monospace";label.style.fontWeight=600;label.style.letterSpacing='0.04em';}
  element.append(label);
 }
 function setPreviewText(element,text,style,boxSize){
