@@ -44,7 +44,7 @@
 :root[data-theme="light"] .object-row button{color:#536073}
 /* Keep the selection frame and resize handles visible outside the clipped circular preview. */
 .canvas-stage{overflow:visible}
-.selected-object-overlay{z-index:2147483647;overflow:visible}
+.selected-object-overlay{position:absolute;box-sizing:border-box;border:1.5px dashed #63a8ff!important;z-index:2147483647;overflow:visible;pointer-events:none;transform-origin:center center;filter:drop-shadow(0 0 1px #000);}
 .resize-handle{position:absolute;width:10px;height:10px;border:2px solid #fff;background:var(--accent);border-radius:3px;z-index:9999;touch-action:none}
 .resize-handle.nw{left:-5px;top:-5px;cursor:nwse-resize}
 .resize-handle.ne{right:-5px;top:-5px;cursor:nesw-resize}
