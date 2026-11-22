@@ -57,31 +57,24 @@ function setDigitalClockPreview(element,text,style,boxSize){
  element.append(label);
 }
 function setPreviewText(element,text,style,boxSize){
- const value=String(text??''),codes=[...new TextEncoder().encode(value)];
- const width=Math.max(1,roundFirmwarePixel(boxSize?.width??240)),height=Math.max(1,roundFirmwarePixel(boxSize?.height??240));
- const fontSize=Number(style.fontSize)||16,scaleX=(fontSize/8)*(Number(style.scaleX)||1),scaleY=(fontSize/8)*(Number(style.scaleY)||1),spacing=Number(style.letterSpacing)||0;
- const advance=6*scaleX+spacing,textWidth=Math.max(0,codes.length*advance-spacing),glyphHeight=8*scaleY;
- let cursorX=0;
- if(style.textAlign==='center'||!style.textAlign)cursorX=(width-textWidth)*0.5;
- else if(style.textAlign==='right')cursorX=width-textWidth;
- const drawY=(height-glyphHeight)*0.5;
- const bitmap=document.createElement('canvas');bitmap.width=width;bitmap.height=height;
- Object.assign(bitmap.style,{display:'block',width:'100%',height:'100%',imageRendering:'pixelated',flex:'0 0 100%'});
- const ctx=bitmap.getContext('2d');if(ctx){ctx.imageSmoothingEnabled=false;ctx.fillStyle=style.fill||'#ffffff';const bold=Number(style.fontWeight)>=600;
-  for(let index=0;index<codes.length;index++){let code=codes[index];if(code>175)code++;if(code>255)continue;const offset=code*10;
-   for(let row=0;row<8;row++){let runStart=-1;
-    for(let column=0;column<=6;column++){const pixelOn=column<5&&(parseInt(TFT_FONT1_GLYPHS.slice(offset+column*2,offset+column*2+2),16)&(1<<row))!==0;
-     if(pixelOn&&runStart<0)runStart=column;
-     else if(!pixelOn&&runStart>=0){const left=Math.floor(cursorX+runStart*scaleX),right=Math.ceil(cursorX+column*scaleX),top=Math.floor(drawY+row*scaleY),bottom=Math.ceil(drawY+(row+1)*scaleY);
-      if(right>left&&bottom>top){ctx.fillRect(left,top,right-left,bottom-top);if(bold&&left+1<width)ctx.fillRect(left+1,top,Math.min(right-left,width-left-1),bottom-top)}
-      runStart=-1;
-     }
-    }
-   }
-   cursorX+=advance;
-  }
- }
- element.append(bitmap)
+ const label=document.createElement('div');
+ label.textContent=String(text??'');
+ Object.assign(label.style,{
+  width:'100%',height:'100%',display:'flex',
+  alignItems:'center',
+  justifyContent:style.textAlign==='left'?'flex-start':style.textAlign==='right'?'flex-end':'center',
+  whiteSpace:'pre-wrap',overflow:'hidden',lineHeight:'1',
+  fontFamily:style.fontFamily||'system-ui',
+  fontSize:((Number(style.fontSize)||16)/Math.max(1,Number(boxSize?.width)||240)*100)+'cqw',
+  fontWeight:String(Number(style.fontWeight)||400),
+  letterSpacing:(Number(style.letterSpacing)||0)+'px',
+  color:style.fill||'#ffffff',
+  textAlign:style.textAlign||'center',
+  transform:'scale('+Math.max(.1,Number(style.scaleX)||1)+','+Math.max(.1,Number(style.scaleY)||1)+')',
+  transformOrigin:'center center'
+ });
+ loadPreviewFont(style.fontFamily||'system-ui');
+ element.append(label);
 }
 function renderWeatherPreview(element,object,style,transform){
  const fields=Array.isArray(object.weatherFields)?object.weatherFields:['temperature'];
