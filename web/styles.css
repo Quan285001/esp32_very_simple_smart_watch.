@@ -141,3 +141,5 @@ body[data-view]:not([data-view="editor"]) .sidebar [data-editor-tools]{display:n
 @media(max-width:520px){.profile-dialog form{padding:15px}.profile-form-grid{gap:0 8px}.profile-dialog-actions{flex-wrap:wrap}.profile-dialog-actions span{display:none}.profile-dialog-actions button{flex:1}}
 
 .safe-area-guides{position:absolute;z-index:2147483000;box-sizing:border-box;border:1px dashed #f4c86a;pointer-events:none;background:#f4c86a0b}
+
+.font-live-sample{margin:-2px 0 12px;padding:12px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);font-size:22px;line-height:1.25;text-align:center;overflow:hidden;white-space:nowrap;}
