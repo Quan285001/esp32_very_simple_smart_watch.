@@ -48,7 +48,7 @@ const TFT_FONT1_GLYPHS='00000000003e5b4f5b3e3e6b4f6b3e1c3e7c3e1c183c7e3c181c577d
 function setDigitalClockPreview(element,text,style,boxSize){
  const width=Math.max(1,roundFirmwarePixel(boxSize?.width??240));
  const label=document.createElement('div');label.textContent=String(text??'');label.style.cssText='width:100%;height:100%;display:flex;align-items:center;justify-content:'+((style.textAlign==='left')?'flex-start':(style.textAlign==='right'?'flex-end':'center'))+';white-space:nowrap;overflow:hidden;line-height:1; font-variant-numeric: '+(style.clockForm==='proportional'?'normal':'tabular-nums')+';';
- label.style.fontFamily=style.fontFamily||'system-ui';label.style.fontSize=((Number(style.fontSize)||16)/width*100)+'cqw';label.style.fontWeight=style.fontWeight||400;label.style.letterSpacing=(style.letterSpacing||0)+'px';label.style.color=style.fill||'#fff';
+ label.style.fontFamily=style.fontFamily||'system-ui';label.style.fontSize=((Number(style.fontSize)||16)/Math.max(1,Number(state.design?.canvas?.width)||240)*100)+'cqw';label.style.fontWeight=style.fontWeight||400;label.style.letterSpacing=(style.letterSpacing||0)+'px';label.style.color=style.fill||'#fff';
  if(style.clockForm==='pixel'){label.style.fontFamily="'Pixelify Sans', monospace";}
  if(style.clockForm==='rounded'){label.style.fontFamily="'Manrope', 'Nunito Sans', system-ui";label.style.fontWeight=style.fontWeight||600;}
  if(style.clockForm==='thin'){label.style.fontWeight=200;label.style.letterSpacing='0.02em';}
@@ -65,7 +65,7 @@ function setPreviewText(element,text,style,boxSize){
   justifyContent:style.textAlign==='left'?'flex-start':style.textAlign==='right'?'flex-end':'center',
   whiteSpace:'pre-wrap',overflow:'hidden',lineHeight:'1',
   fontFamily:style.fontFamily||'system-ui',
-  fontSize:((Number(style.fontSize)||16)/Math.max(1,Number(boxSize?.width)||240)*100)+'cqw',
+  fontSize:((Number(style.fontSize)||16)/Math.max(1,Number(state.design?.canvas?.width)||240)*100)+'cqw',
   fontWeight:String(Number(style.fontWeight)||400),
   letterSpacing:(Number(style.letterSpacing)||0)+'px',
   color:style.fill||'#ffffff',
