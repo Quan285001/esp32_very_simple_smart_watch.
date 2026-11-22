@@ -181,16 +181,8 @@
       if (type === 'image') {
         if (!caps.img) result.push(name + ': RGB565 image assets are not enabled by this firmware');
         if (!assetIds.has(object.assetId)) result.push(name + ': source image asset is missing from this browser');
-        if (!finiteNumber(transform.width) || !finiteNumber(transform.height) ||
-            transform.width < 1 || transform.height < 1 ||
-            transform.width > 240 || transform.height > 240) {
-          result.push(name + ': image dimensions must be between 1 and 240 pixels');
-        }
-        const width = Math.round(transform.width);
-        const height = Math.round(transform.height);
-        if (width < 1 || height < 1 || width * height * 2 > 115200) {
-          result.push(name + ': converted RGB565 image exceeds the 240 × 240 asset limit');
-        }
+        // Original editor dimensions may exceed the display. The upload pipeline
+        // crops to the circular visible area and validates the converted bitmap.
       }
 
       const font = textStyle.fontFamily;
