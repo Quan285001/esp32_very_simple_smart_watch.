@@ -143,3 +143,9 @@ body[data-view]:not([data-view="editor"]) .sidebar [data-editor-tools]{display:n
 .safe-area-guides{position:absolute;z-index:2147483000;box-sizing:border-box;border:1px dashed #f4c86a;pointer-events:none;background:#f4c86a0b}
 
 .font-live-sample{margin:-2px 0 12px;padding:12px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);font-size:22px;line-height:1.25;text-align:center;overflow:hidden;white-space:nowrap;}
+
+/* Option 1: keep the editor inspector in its own scroll area so the canvas stays in view. */
+@media(min-width:1051px){
+ body[data-view="editor"] .rightbar{position:sticky;top:64px;height:calc(100vh - 64px);max-height:calc(100vh - 64px);align-self:start;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;}
+ body[data-view="editor"] .rightbar{min-height:0;}
+}
