@@ -169,40 +169,35 @@ assert.throws(() => decode(corrupted), /CRC mismatch/);
 (async () => {
   const textPreview = new FakeElement('div');
   setPreviewText(textPreview, '12:34',
-    { fontSize: 16, scaleX: 1.2, scaleY: 0.8, textAlign: 'right' },
+    { fontSize: 16, scaleX: 1.2, scaleY: 0.8, textAlign: 'right', fontFamily: 'system-ui' },
     { width: 120, height: 32 });
-  const textBitmap = textPreview.children[0];
-  assert.equal(textBitmap.tagName, 'canvas',
-    'text preview must use a bitmap canvas instead of browser font rendering');
-  assert.equal(textBitmap.width, 120);
-  assert.equal(textBitmap.height, 32,
-    'text preview bitmap must match the rounded firmware object dimensions');
-  assert.equal(textBitmap.style.imageRendering, 'pixelated');
-  assert.ok(textBitmap.getContext().fillRects.length > 0,
-    'text preview must rasterize actual firmware glyph pixels');
+  const textLabel = textPreview.children[0];
+  assert.equal(textLabel.tagName, 'div',
+    'text preview must use the current browser-font label renderer');
+  assert.equal(textLabel.children[0].tagName, 'span');
+  assert.equal(textLabel.children[0].textContent, '12:34');
+  assert.equal(textLabel.children[0].style.transform, 'scale(1.2,0.8)');
+  assert.equal(textLabel.style.fontSize, (16 / 240 * 100) + 'cqw',
+    'text preview font size must scale with the logical canvas width');
+  assert.equal(textLabel.style.textAlign, 'right');
 
   const weatherPreview = new FakeElement('div');
   renderWeatherPreview(weatherPreview, { weatherFields: ['temperature', 'condition'] },
-    { fontSize: 40, scaleX: 1, scaleY: 1, textAlign: 'center' });
+    { fontSize: 40, scaleX: 1, scaleY: 1, textAlign: 'center', fontFamily: 'system-ui' });
   assert.equal(weatherPreview.children.length, 2,
     'combined weather preview must use separate temperature and condition rows');
-  const temperatureBitmap = weatherPreview.children[0].children[0];
-  const conditionBitmap = weatherPreview.children[1].children[0];
-  assert.equal(temperatureBitmap.tagName, 'canvas');
-  assert.equal(conditionBitmap.tagName, 'canvas');
-  assert.equal(temperatureBitmap.height, 139);
-  assert.equal(conditionBitmap.height, 125);
-  const maxGlyphHeight = bitmap => Math.max(...bitmap.getContext().fillRects.map(rect => rect[3]));
-  assert.ok(maxGlyphHeight(conditionBitmap) < maxGlyphHeight(temperatureBitmap),
-    'condition preview must use the smaller firmware text size');
+  const temperatureLabel = weatherPreview.children[0].children[0];
+  const conditionLabel = weatherPreview.children[1].children[0];
+  assert.equal(temperatureLabel.tagName, 'div');
+  assert.equal(conditionLabel.tagName, 'div');
+  assert.notEqual(conditionLabel.style.fontSize, temperatureLabel.style.fontSize,
+    'condition preview must use the smaller font size');
 
   const conditionOnly = new FakeElement('div');
   renderWeatherPreview(conditionOnly, { weatherFields: ['condition'] },
-    { fontSize: 16, scaleX: 1, scaleY: 1, textAlign: 'center' });
-  assert.equal(conditionOnly.children[0].tagName, 'canvas',
-    'condition-only weather preview must render a device-font bitmap');
-  assert.equal(conditionOnly.children[0].width, 240);
-  assert.ok(conditionOnly.children[0].getContext().fillRects.length > 0);
+    { fontSize: 16, scaleX: 1, scaleY: 1, textAlign: 'center', fontFamily: 'system-ui' });
+  assert.equal(conditionOnly.children[0].tagName, 'div',
+    'condition-only weather preview must use the browser-font label renderer');
   console.log('WFS Web text clipping and weather preview parity tests passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
 
