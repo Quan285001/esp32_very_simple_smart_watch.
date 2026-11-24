@@ -39,12 +39,14 @@ app_js = (ROOT / "web/app.js").read_text(encoding="utf-8")
 font_match = re.search(r"const TFT_FONT1_GLYPHS='([0-9a-f]+)'", app_js)
 if not font_match or len(font_match.group(1)) != 2560:
     errors.append("Firmware GLCD font table must contain all 256 five-byte glyphs")
-if "new TextEncoder().encode(value)" not in app_js or "TFT_FONT1_GLYPHS.slice(offset+column*2" not in app_js:
-    errors.append("Web text preview must use the firmware's byte-based GLCD glyph lookup")
-if "ctx.imageSmoothingEnabled=false" not in app_js:
-    errors.append("Web text preview must keep bitmap glyphs pixel-aligned")
-if "roundFirmwarePixel(boxSize?.width??240)" not in app_js or "bitmap.width=width;bitmap.height=height" not in app_js:
-    errors.append("Web text preview must rasterize on the same integer pixel grid as the device")
+if "function setPreviewText(element,text,style,boxSize)" not in app_js:
+    errors.append("Web text preview renderer is missing")
+if "loadPreviewFont(style.fontFamily||'system-ui')" not in app_js:
+    errors.append("Web text preview must load the selected font family")
+if "glyph.textContent=String(text??'')" not in app_js:
+    errors.append("Web text preview must render the selected text content")
+if "fontSize:((Number(style.fontSize)||16)/Math.max(1,Number(state.design?.canvas?.width)||240)*100)+'cqw'" not in app_js:
+    errors.append("Web text preview font size must scale against the active canvas width")
 if "setPreviewText(el,objectText(o),s,t)" not in app_js:
     errors.append("Text preview must use the firmware-rounded object dimensions")
 if "renderWeatherPreview(el,o,s,t)" not in app_js:
