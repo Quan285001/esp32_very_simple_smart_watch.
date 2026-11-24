@@ -50,6 +50,7 @@ const fakeDocument = {
 };
 const glyphSandbox = {
   state: { design: { canvas: { width: 240 } } },
+  loadPreviewFont() {},
   document: fakeDocument,
   TextEncoder,
   roundFirmwarePixel(value) { return Math.floor(Number(value) + 0.5); },
