@@ -644,22 +644,49 @@ void drawShape(const FaceObject& object) {
     const int y = static_cast<int>(lroundf(object.transform.y));
     const int w = static_cast<int>(lroundf(object.transform.width));
     const int h = static_cast<int>(lroundf(object.transform.height));
-    const bool hasStroke = object.strokeWidth > 0;
+    const int stroke = std::min<int>(object.strokeWidth, 32);
     switch (object.shapeKind) {
-        case 1:
-            getDisplayCanvas().fillCircle(x + w / 2, y + h / 2, (w < h ? w : h) / 2, object.fillColor);
-            if (hasStroke) getDisplayCanvas().drawCircle(x + w / 2, y + h / 2, (w < h ? w : h) / 2, object.strokeColor);
+        case 1: {
+            const int cx = x + w / 2, cy = y + h / 2;
+            const int radius = std::max(0, (w < h ? w : h) / 2);
+            getDisplayCanvas().fillCircle(cx, cy, radius, object.fillColor);
+            for (int inset = 0; inset < stroke && radius - inset >= 0; ++inset)
+                getDisplayCanvas().drawCircle(cx, cy, radius - inset, object.strokeColor);
             break;
-        case 2:
+        }
+        case 2: {
             getDisplayCanvas().fillRoundRect(x, y, w, h, object.cornerRadius, object.fillColor);
-            if (hasStroke) getDisplayCanvas().drawRoundRect(x, y, w, h, object.cornerRadius, object.strokeColor);
+            for (int inset = 0; inset < stroke && w - 2 * inset > 0 && h - 2 * inset > 0; ++inset) {
+                const int radius = std::max(0, static_cast<int>(object.cornerRadius) - inset);
+                getDisplayCanvas().drawRoundRect(x + inset, y + inset,
+                    w - 2 * inset, h - 2 * inset, radius, object.strokeColor);
+            }
             break;
-        case 3:
-            getDisplayCanvas().drawLine(x, y, x + w, y + h, hasStroke ? object.strokeColor : object.fillColor);
+        }
+        case 3: {
+            if (stroke == 0) {
+                getDisplayCanvas().drawLine(x, y, x + w, y + h, object.fillColor);
+                break;
+            }
+            const float length = sqrtf(static_cast<float>(w) * w + static_cast<float>(h) * h);
+            const float nx = length > 0.0f ? -static_cast<float>(h) / length : 0.0f;
+            const float ny = length > 0.0f ? static_cast<float>(w) / length : 0.0f;
+            const int first = -(stroke - 1) / 2;
+            const int last = stroke / 2;
+            for (int offset = first; offset <= last; ++offset) {
+                getDisplayCanvas().drawLine(
+                    x + static_cast<int>(lroundf(nx * offset)),
+                    y + static_cast<int>(lroundf(ny * offset)),
+                    x + w + static_cast<int>(lroundf(nx * offset)),
+                    y + h + static_cast<int>(lroundf(ny * offset)), object.strokeColor);
+            }
             break;
+        }
         default:
             getDisplayCanvas().fillRect(x, y, w, h, object.fillColor);
-            if (hasStroke) getDisplayCanvas().drawRect(x, y, w, h, object.strokeColor);
+            for (int inset = 0; inset < stroke && w - 2 * inset > 0 && h - 2 * inset > 0; ++inset)
+                getDisplayCanvas().drawRect(x + inset, y + inset,
+                    w - 2 * inset, h - 2 * inset, object.strokeColor);
             break;
     }
 }
