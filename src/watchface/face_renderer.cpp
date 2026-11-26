@@ -1,6 +1,7 @@
 #include "face_renderer.h"
 
 #include <math.h>
+#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -729,7 +730,8 @@ void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int mi
         const int backX = cx - static_cast<int>(cosf(angles[hand]) * tailLength);
         const int backY = cy - static_cast<int>(sinf(angles[hand]) * tailLength);
         getDisplayCanvas().drawLine(backX, backY, tipX, tipY, config.color);
-        const int strokeRadius = static_cast<int>(ceilf(config.width / 2.0f));
+        const int strokeRadius = config.width > 1.5f
+            ? static_cast<int>(lroundf((config.width - 1.0f) / 2.0f)) : 0;
         if (strokeRadius > 0) {
             const int steps = std::max(abs(tipX - backX), abs(tipY - backY));
             for (int step = 0; step <= steps; ++step) {
