@@ -305,32 +305,6 @@ bool analogMaskIntersectsRect(int x, int y, int w, int h) {
     return false;
 }
 
-void markAnalogMaskLine(int x0, int y0, int x1, int y1) {
-    // Integer Bresenham: same one-pixel line footprint used by the clock hands.
-    const int dx = abs(x1 - x0);
-    const int sx = x0 < x1 ? 1 : -1;
-    const int dy = -abs(y1 - y0);
-    const int sy = y0 < y1 ? 1 : -1;
-    int error = dx + dy;
-    for (;;) {
-        markAnalogMaskPixel(x0, y0);
-        if (x0 == x1 && y0 == y1) break;
-        const int twiceError = 2 * error;
-        if (twiceError >= dy) { error += dy; x0 += sx; }
-        if (twiceError <= dx) { error += dx; y0 += sy; }
-    }
-}
-
-void markAnalogMaskHub(int centerX, int centerY) {
-    // Slightly conservative around the filled-circle rasterization so
-    // no edge pixel from the previous hub can be left behind.
-    for (int dy = -4; dy <= 4; ++dy) {
-        for (int dx = -4; dx <= 4; ++dx) {
-            if (dx * dx + dy * dy <= 16) markAnalogMaskPixel(centerX + dx, centerY + dy);
-        }
-    }
-}
-
 void markAnalogMaskThickLine(int x0, int y0, int x1, int y1, int width) {
     const int radius = width > 1 ? (width + 1) / 2 : 0;
     const int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
