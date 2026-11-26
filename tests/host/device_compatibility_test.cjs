@@ -271,7 +271,7 @@ stringStrokeWidth.objects.push({
   transform: { x: 10, y: 10, width: 40, height: 40 },
   style: { fill: '#ffffff', strokeWidth: '1' }
 });
-assert.ok(errorsFor(stringStrokeWidth).some(error => error.includes('strokeWidth must be numeric')),
+assert.ok(errorsFor(stringStrokeWidth).some(error => error.includes('strokeWidth must be an integer')),
   'string shape stroke widths must be rejected before firmware parsing');
 
 
