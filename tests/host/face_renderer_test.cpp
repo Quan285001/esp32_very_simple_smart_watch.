@@ -16,13 +16,17 @@ public:
     int clipX = -1, clipY = -1, clipW = -1, clipH = -1;
     bool allClipRowsOne = true;
     std::vector<uint16_t> lineColors;
+    struct FillRectCall { int x; int y; int w; int h; uint16_t color; };
+    std::vector<FillRectCall> fillRectCalls;
     std::vector<int> circleFillRadii;
     std::vector<uint16_t> circleFillColors;
 
     uint16_t width() const override { return 240; }
     uint16_t height() const override { return 240; }
     void clearScreen(uint16_t) override { calls.push_back("clear"); }
-    void fillRect(int, int, int, int, uint16_t) override { calls.push_back("fill"); }
+    void fillRect(int x, int y, int w, int h, uint16_t color) override {
+        calls.push_back("fill"); fillRectCalls.push_back({x,y,w,h,color});
+    }
     void drawRect(int, int, int, int, uint16_t) override { calls.push_back("rect"); }
     void fillRoundRect(int, int, int, int, int, uint16_t) override { calls.push_back("round-fill"); }
     void drawRoundRect(int, int, int, int, int, uint16_t) override { calls.push_back("round"); }
@@ -44,7 +48,7 @@ public:
                   uint16_t, float, CanvasTextAlignment) override {
         calls.push_back(std::string("text:") + text);
     }
-    void reset() { calls.clear(); clipCalls=0; resetCalls=0; clipX=clipY=clipW=clipH=-1; allClipRowsOne=true; lineColors.clear(); circleFillRadii.clear(); circleFillColors.clear(); }
+    void reset() { calls.clear(); clipCalls=0; resetCalls=0; clipX=clipY=clipW=clipH=-1; allClipRowsOne=true; lineColors.clear(); fillRectCalls.clear(); circleFillRadii.clear(); circleFillColors.clear(); }
 };
 
 static TestCanvas canvas;
@@ -356,9 +360,17 @@ int main() {
     assert(std::count(canvas.calls.begin(),canvas.calls.end(),"round")==4);
 
     face.objects[0].shapeKind=3;
+    face.objects[0].transform.x=20;
+    face.objects[0].transform.y=30;
+    face.objects[0].transform.width=90;
+    face.objects[0].transform.height=5;
     canvas.reset();
     assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
-    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==4);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==0);
+    assert(canvas.fillRectCalls.size()==1);
+    assert(canvas.fillRectCalls[0].x==20 && canvas.fillRectCalls[0].y==30);
+    assert(canvas.fillRectCalls[0].w==91 && canvas.fillRectCalls[0].h==5);
+    assert(canvas.fillRectCalls[0].color==face.objects[0].fillColor);
 
     std::cout << "WFS Face renderer host tests passed.\n";
     return 0;
