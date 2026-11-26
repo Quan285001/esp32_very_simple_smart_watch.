@@ -230,3 +230,81 @@ button:disabled{
 .object-row{box-sizing:border-box;width:100%;min-width:0;}
 .object-row .obj-name{flex:1 1 0%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .object-row button{flex:0 0 auto;min-width:25px;}
+
+
+/* Tablet editor layout: keep Properties beside the preview when there is room. */
+@media (min-width:851px) and (max-width:1050px){
+  body[data-view="editor"] .workspace{
+    grid-template-columns:190px minmax(0,1fr) 286px;
+    min-width:0;
+  }
+  body[data-view="editor"] .sidebar,
+  body[data-view="editor"] .main,
+  body[data-view="editor"] .rightbar{
+    min-width:0;
+  }
+  body[data-view="editor"] .main{
+    padding-left:14px;
+    padding-right:14px;
+  }
+  body[data-view="editor"] .rightbar{
+    grid-column:auto;
+    display:block;
+    position:static;
+    top:auto;
+    align-self:stretch;
+    height:auto;
+    min-height:0;
+    max-height:none;
+    overflow:visible;
+    padding:14px 11px;
+    border-left:1px solid var(--line);
+    border-top:0;
+  }
+  body[data-view="editor"] .rightbar .panel-section{
+    min-width:0;
+    margin:0 0 10px;
+  }
+  body[data-view="editor"] #objectList{
+    max-height:280px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-gutter:stable;
+  }
+}
+
+/* Narrow tablets: avoid squeezing the canvas and inspector into unusable columns. */
+@media (min-width:701px) and (max-width:850px){
+  body[data-view="editor"] .workspace{
+    grid-template-columns:205px minmax(0,1fr);
+  }
+  body[data-view="editor"] .rightbar{
+    grid-column:2;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:10px;
+    position:static;
+    top:auto;
+    align-self:stretch;
+    height:auto;
+    min-height:0;
+    max-height:none;
+    overflow:visible;
+    padding:14px;
+    border-left:0;
+    border-top:1px solid var(--line);
+  }
+  body[data-view="editor"] .rightbar .panel-section{
+    min-width:0;
+    margin:0;
+  }
+  body[data-view="editor"] .rightbar .inspector{
+    grid-column:1/-1;
+  }
+  body[data-view="editor"] #objectList{
+    max-height:280px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    scrollbar-gutter:stable;
+  }
+}
