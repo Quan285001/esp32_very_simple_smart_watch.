@@ -226,3 +226,11 @@ subprocess.run(
 )
 
 print("WFS device compatibility preflight host tests passed.")
+
+subprocess.run(
+    ["node", str(ROOT / "tests" / "host" / "glyph_atlas_packer_test.cjs")],
+    cwd=ROOT,
+    check=True,
+)
+
+print("WFS alpha8 glyph atlas packing host tests passed.")
