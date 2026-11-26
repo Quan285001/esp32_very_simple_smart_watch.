@@ -474,7 +474,6 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
         const float lengths[] = {48.0f, 72.0f, 86.0f};
         const float widths[] = {5.0f, 3.0f, 1.5f};
         const float tails[] = {4.0f, 5.0f, 18.0f};
-        const char* colors[] = {"#f4f0e6", "#f4f0e6", "#ff0000"};
         for (int i = 0; i < 3; ++i) {
             FaceAnalogHandConfig& hand = target.analogHands[i];
             hand.length = lengths[i];
