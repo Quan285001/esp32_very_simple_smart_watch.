@@ -664,22 +664,10 @@ void drawShape(const FaceObject& object) {
             break;
         }
         case 3: {
-            if (stroke == 0) {
-                getDisplayCanvas().drawLine(x, y, x + w, y + h, object.fillColor);
-                break;
-            }
-            const float length = sqrtf(static_cast<float>(w) * w + static_cast<float>(h) * h);
-            const float nx = length > 0.0f ? -static_cast<float>(h) / length : 0.0f;
-            const float ny = length > 0.0f ? static_cast<float>(w) / length : 0.0f;
-            const int first = -(stroke - 1) / 2;
-            const int last = stroke / 2;
-            for (int offset = first; offset <= last; ++offset) {
-                getDisplayCanvas().drawLine(
-                    x + static_cast<int>(lroundf(nx * offset)),
-                    y + static_cast<int>(lroundf(ny * offset)),
-                    x + w + static_cast<int>(lroundf(nx * offset)),
-                    y + h + static_cast<int>(lroundf(ny * offset)), object.strokeColor);
-            }
+            // A line uses its bounding box as length × thickness. Keep the
+            // centerline horizontal; height controls thickness, not slope.
+            getDisplayCanvas().fillRect(
+                x, y, w + 1, std::max(1, h), object.fillColor);
             break;
         }
         default:
