@@ -225,11 +225,13 @@
           textStyle.visible === false) {
         result.push(name + ': advanced glyph styling is not supported yet');
       }
-      if (style.backgroundColor ||
-          (style.strokeWidth !== undefined &&
-           (!finiteNumber(style.strokeWidth) ||
-            (style.strokeWidth !== 0 && style.strokeWidth !== 1)))) {
-        result.push(name + ': strokeWidth must be numeric zero or one; separate background fill is not supported');
+      if (style.backgroundColor) {
+        result.push(name + ': separate shape background fills are not supported by this device');
+      }
+      if (style.strokeWidth !== undefined &&
+          (!finiteNumber(style.strokeWidth) || !Number.isInteger(style.strokeWidth) ||
+           style.strokeWidth < 0 || style.strokeWidth > 32)) {
+        result.push(name + ': strokeWidth must be an integer from 0 to 32 pixels');
       }
       if (hasOwn(style, 'cornerRadius')) {
         const radius = style.cornerRadius;
