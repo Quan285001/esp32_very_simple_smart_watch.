@@ -76,6 +76,11 @@ static FaceObject baseObject(FaceElementType type, const char* id) {
     object.glyphScaleY=1.0f;
     object.fontWeight=400;
     object.textColor=0xFFFF;
+    object.analogHands[0]={48.0f,5.0f,4.0f,0xFFFF,true};
+    object.analogHands[1]={72.0f,3.0f,5.0f,0xFFFF,true};
+    object.analogHands[2]={86.0f,1.5f,18.0f,0xF800,true};
+    object.analogCenterRadius=3.0f;
+    object.analogCenterColor=0xFFFF;
     object.fillColor=0x07E0;
     object.shapeKind=0;
     object.textAlign=FaceTextAlign::Center;
