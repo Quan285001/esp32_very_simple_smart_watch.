@@ -274,4 +274,18 @@ stringStrokeWidth.objects.push({
 assert.ok(errorsFor(stringStrokeWidth).some(error => error.includes('strokeWidth must be numeric')),
   'string shape stroke widths must be rejected before firmware parsing');
 
+
+const supportedWideStroke = structuredClone(fixture);
+supportedWideStroke.objects = [{
+  id: 'wide-outline', type: 'shape', name: 'Wide outline',
+  transform: { x: 10, y: 10, width: 40, height: 40 },
+  shape: 'rounded-rect', style: { fill: '#ffffff', stroke: '#ff0000', strokeWidth: 4, cornerRadius: 8 }
+}];
+assert.deepEqual(errorsFor(supportedWideStroke), [],
+  'integer shape outlines up to the supported width must pass preflight');
+const excessiveStroke = structuredClone(supportedWideStroke);
+excessiveStroke.objects[0].style.strokeWidth = 33;
+assert.ok(errorsFor(excessiveStroke).some(error => error.includes('stroke width must be an integer')),
+  'shape outlines above the firmware limit must be rejected before packaging');
+
 console.log('WFS device compatibility preflight tests passed.');
