@@ -1,0 +1,361 @@
+#include "transfer_manager.h"
+#include "transfer_sequence.h"
+
+#include <SPIFFS.h>
+#include <string.h>
+
+#include "../storage/storage_manager.h"
+#include "../storage/face_storage.h"
+#include "../watchface/face_manager.h"
+#include "../watchface/package_validator.h"
+#include "../system/diagnostics.h"
+
+namespace TransferManager {
+namespace {
+constexpr size_t MIN_PACKAGE_LENGTH = 64;
+constexpr uint32_t TRANSFER_IDLE_TIMEOUT_MS = 120000;
+WfsTransferSequence::InactivityTimer activityTimer;
+fs::File stagingFile;
+State currentState = State::Idle;
+Error currentError = Error::None;
+uint32_t currentTransferId = 0;
+uint32_t totalLength = 0;
+uint32_t receivedLength = 0;
+WfsTransferSequence::Receiver chunkSequence;
+uint8_t stagingSlot = FaceStorage::INVALID_SLOT;
+uint8_t previousActiveSlot = FaceStorage::INVALID_SLOT;
+uint8_t expectedDigest[32] = {};
+char expectedDesignId[FACE_ID_CAPACITY] = {};
+FaceModel verifiedFace{};
+uint32_t transferStartedAtMs = 0;
+MemoryMonitor::Snapshot transferStartMemory{};
+
+void fail(Error error) {
+    activityTimer.clear();
+    if (stagingFile) {
+        stagingFile.flush();
+        stagingFile.close();
+    }
+    currentError = error;
+    currentState = State::Failed;
+}
+
+void clearTransferFields() {
+    currentTransferId = 0;
+    totalLength = 0;
+    receivedLength = 0;
+    chunkSequence.reset();
+    stagingSlot = FaceStorage::INVALID_SLOT;
+    previousActiveSlot = FaceStorage::INVALID_SLOT;
+    memset(expectedDigest, 0, sizeof(expectedDigest));
+    memset(expectedDesignId, 0, sizeof(expectedDesignId));
+    verifiedFace = FaceModel{};
+    transferStartedAtMs = 0;
+    transferStartMemory = {};
+    activityTimer.clear();
+}
+}
+
+bool begin(uint32_t transferId, uint32_t packageLength,
+           const uint8_t expectedPayloadDigestValue[32], const char* designId) {
+    if (isBusyState(currentState)) {
+        currentError = Error::Busy;
+        return false;
+    }
+
+    // A previous completed/failed/cancelled attempt must not leak its
+    // transfer ID or staging-slot metadata into this new request. Keep the
+    // busy check first so an active session is never reset by a second begin.
+    clearTransferFields();
+    currentState = State::Idle;
+    currentError = Error::None;
+
+    if (transferId == 0 || packageLength < MIN_PACKAGE_LENGTH ||
+        expectedPayloadDigestValue == nullptr || designId == nullptr ||
+        designId[0] == '\0' || strlen(designId) >= sizeof(expectedDesignId)) {
+        currentState = State::Failed;
+        currentError = Error::InvalidRequest;
+        return false;
+    }
+    if (!StorageManager::isReady() || !FaceStorage::isReady()) {
+        currentState = State::Failed;
+        currentError = Error::StorageUnavailable;
+        return false;
+    }
+
+    previousActiveSlot = FaceStorage::activeSlot();
+    stagingSlot = FaceStorage::inactiveSlot();
+    const size_t reclaimable = FaceStorage::slotSize(stagingSlot);
+    const size_t availableAfterRemovingInactive = StorageManager::freeBytes() + reclaimable;
+    if (packageLength > availableAfterRemovingInactive) {
+        currentState = State::Failed;
+        currentError = Error::InsufficientStorage;
+        return false;
+    }
+
+    if (!FaceStorage::removeSlot(stagingSlot)) {
+        currentState = State::Failed;
+        currentError = Error::FileOpenFailed;
+        return false;
+    }
+    stagingFile = FaceStorage::openSlot(stagingSlot, "w");
+    if (!stagingFile) {
+        currentState = State::Failed;
+        currentError = Error::FileOpenFailed;
+        return false;
+    }
+
+    // Keep the exact slot reservation made before opening the staging file.
+    // Re-deriving it here could silently bind the file to a different slot if
+    // the persisted active pointer changed during setup.
+    currentTransferId = transferId;
+    totalLength = packageLength;
+    memcpy(expectedDigest, expectedPayloadDigestValue, sizeof(expectedDigest));
+    strncpy(expectedDesignId, designId, sizeof(expectedDesignId) - 1);
+    currentState = State::Receiving;
+    currentError = Error::None;
+    transferStartedAtMs = millis();
+    activityTimer.start(transferStartedAtMs);
+    transferStartMemory = SystemDiagnostics::captureMemory();
+    SystemDiagnostics::logMemory("WFS receive begin");
+    return true;
+}
+
+bool writeChunk(uint32_t transferId, uint32_t chunkIndex,
+                const uint8_t* bytes, size_t length) {
+    if (currentState != State::Receiving || transferId != currentTransferId) {
+        currentError = Error::WrongTransfer;
+        return false;
+    }
+    const WfsTransferSequence::Decision decision =
+        chunkSequence.inspect(chunkIndex, bytes, length);
+    if (decision == WfsTransferSequence::Decision::InvalidPayload) {
+        currentError = Error::ChunkInvalid;
+        return false;
+    }
+    if (decision == WfsTransferSequence::Decision::Duplicate) {
+        // ACK a byte-identical retransmission without writing it twice.
+        activityTimer.touch(millis());
+        currentError = Error::None;
+        return true;
+    }
+    if (decision == WfsTransferSequence::Decision::OutOfOrder) {
+        currentError = Error::WrongSequence;
+        return false;
+    }
+    if (static_cast<uint64_t>(receivedLength) + length > totalLength) {
+        currentError = Error::ChunkInvalid;
+        return false;
+    }
+    const size_t written = stagingFile.write(bytes, length);
+    if (written != length) {
+        fail(Error::WriteFailed);
+        return false;
+    }
+    stagingFile.flush();
+    if (!chunkSequence.commit(chunkIndex, bytes, length)) {
+        fail(Error::WrongSequence);
+        return false;
+    }
+    receivedLength += static_cast<uint32_t>(written);
+    activityTimer.touch(millis());
+    currentError = Error::None;
+    return true;
+}
+
+bool finish(uint32_t transferId) {
+    if (currentState != State::Receiving || transferId != currentTransferId) {
+        currentError = Error::WrongTransfer;
+        return false;
+    }
+    if (receivedLength != totalLength) {
+        fail(Error::LengthMismatch);
+        return false;
+    }
+
+    currentState = State::Verifying;
+    activityTimer.touch(millis());
+    const uint32_t verifyStartedAtMs = millis();
+    stagingFile.flush();
+    stagingFile.close();
+
+    fs::File packageFile = FaceStorage::openSlot(stagingSlot, "r");
+    PackageValidationError validationError = PackageValidationError::None;
+    const bool valid = packageFile &&
+        validateWfsPackage(packageFile, totalLength, expectedDigest,
+                           expectedDesignId, verifiedFace, validationError);
+    if (packageFile) packageFile.close();
+
+    const uint32_t verifyDurationMs = millis() - verifyStartedAtMs;
+    const uint32_t receiveDurationMs = verifyStartedAtMs - transferStartedAtMs;
+    const MemoryMonitor::Snapshot memoryAfterVerify = SystemDiagnostics::captureMemory();
+    const uint32_t minHeapDrop = transferStartMemory.minimumFreeHeap > memoryAfterVerify.minimumFreeHeap
+        ? transferStartMemory.minimumFreeHeap - memoryAfterVerify.minimumFreeHeap
+        : 0;
+    Serial.printf(
+        "[PERF] WFS receive=%lu ms verify=%lu ms bytes=%lu heap_start=%lu heap_after=%lu min_heap_drop=%lu\n",
+        static_cast<unsigned long>(receiveDurationMs),
+        static_cast<unsigned long>(verifyDurationMs),
+        static_cast<unsigned long>(totalLength),
+        static_cast<unsigned long>(transferStartMemory.freeHeap),
+        static_cast<unsigned long>(memoryAfterVerify.freeHeap),
+        static_cast<unsigned long>(minHeapDrop));
+    SystemDiagnostics::logMemory(valid ? "WFS verified" : "WFS verify failed");
+
+    if (!valid) {
+        Serial.printf("[TRANSFER] Package validation failed: %s.\n",
+                      packageValidationErrorName(validationError));
+        activityTimer.clear();
+        currentError = Error::PackageInvalid;
+        currentState = State::Failed;
+        return false;
+    }
+
+    currentState = State::Verified;
+    activityTimer.touch(millis());
+    currentError = Error::None;
+    return true;
+}
+
+bool apply(uint32_t transferId) {
+    if (currentState != State::Verified || transferId != currentTransferId) {
+        currentError = Error::WrongTransfer;
+        return false;
+    }
+
+    currentState = State::Applying;
+    activityTimer.clear();
+    const uint32_t applyStartedAtMs = millis();
+    const bool activated = FaceStorage::activateSlot(stagingSlot);
+    const bool modelInstalled = activated && FaceManager::setActiveModel(verifiedFace);
+    const uint32_t applyDurationMs = millis() - applyStartedAtMs;
+    if (!modelInstalled) {
+        // Restore the exact previous commit state. On a first install that
+        // means removing the active pointer, not leaving the new slot committed.
+        const bool rollbackRestored =
+            FaceStorage::restoreActiveSlot(previousActiveSlot);
+        if (!rollbackRestored) {
+            // FaceStorage disables further writes when the persisted pointer
+            // cannot be restored and verified. Make this critical condition
+            // visible separately from an ordinary model-install failure.
+            Serial.println("[TRANSFER] CRITICAL: active-slot rollback could not be verified; persistent face storage is disabled.");
+        }
+        Serial.printf("[PERF] WFS apply failed after %lu ms. rollback=%s\n",
+                      static_cast<unsigned long>(applyDurationMs),
+                      rollbackRestored ? "restored" : "FAILED");
+        SystemDiagnostics::logMemory("WFS apply failed");
+        currentState = State::Failed;
+        currentError = Error::ApplyFailed;
+        return false;
+    }
+
+    currentState = State::Complete;
+    currentError = Error::None;
+    Serial.printf("[TRANSFER] Active face installed: %s (%lu bytes).\n",
+                  verifiedFace.name, static_cast<unsigned long>(totalLength));
+    Serial.printf("[PERF] WFS apply=%lu ms total=%lu ms.\n",
+                  static_cast<unsigned long>(applyDurationMs),
+                  static_cast<unsigned long>(millis() - transferStartedAtMs));
+    SystemDiagnostics::logMemory("WFS apply complete");
+    return true;
+}
+
+bool cancel(uint32_t transferId) {
+    if (transferId != currentTransferId || !canCancel(currentState)) {
+        // A rejected cancel must not overwrite the active transfer's error.
+        return false;
+    }
+    activityTimer.clear();
+    if (stagingFile) {
+        stagingFile.close();
+    }
+    if (stagingSlot <= 1 && !FaceStorage::removeSlot(stagingSlot)) {
+        currentState = State::Failed;
+        currentError = Error::FileOpenFailed;
+        return false;
+    }
+    stagingSlot = FaceStorage::INVALID_SLOT;
+    currentState = State::Cancelled;
+    currentError = Error::None;
+    return true;
+}
+
+void service() {
+    if (currentState != State::Receiving && currentState != State::Verified) return;
+    if (!activityTimer.expired(millis(), TRANSFER_IDLE_TIMEOUT_MS)) return;
+
+    const uint32_t expiredTransferId = currentTransferId;
+    if (!cancel(expiredTransferId)) {
+        Serial.printf("[TRANSFER] CRITICAL: inactivity timeout cleanup failed: %s.\n",
+                      errorName(currentError));
+        return;
+    }
+    currentState = State::Failed;
+    currentError = Error::Timeout;
+    Serial.printf("[TRANSFER] Transfer %lu expired after %lu ms idle; staging slot discarded.\n",
+                  static_cast<unsigned long>(expiredTransferId),
+                  static_cast<unsigned long>(TRANSFER_IDLE_TIMEOUT_MS));
+}
+
+void abortSession() {
+    // A failed begin() can leave State::Failed without owning a transfer.
+    // Do not rewrite that request error as SessionLost or cancel transfer ID 0.
+    if (currentTransferId == 0 || !canCancel(currentState)) return;
+    const uint32_t transferId = currentTransferId;
+    if (!cancel(transferId)) {
+        // Preserve the concrete cleanup error (for example, a storage failure)
+        // instead of hiding it behind SessionLost. Failed is not a busy state,
+        // so the next begin() can retry inactive-slot cleanup.
+        currentState = State::Failed;
+        Serial.printf("[TRANSFER] CRITICAL: disconnect cleanup failed: %s.\n",
+                      errorName(currentError));
+        return;
+    }
+    currentError = Error::SessionLost;
+}
+
+Snapshot snapshot() {
+    return {currentState, currentError, currentTransferId,
+            totalLength, receivedLength, chunkSequence.nextIndex()};
+}
+
+bool isBusy() {
+    return isBusyState(currentState);
+}
+
+const char* stateName(State state) {
+    switch (state) {
+        case State::Idle: return "IDLE";
+        case State::Receiving: return "RECEIVING";
+        case State::Verifying: return "VERIFYING";
+        case State::Verified: return "VERIFIED";
+        case State::Applying: return "APPLYING";
+        case State::Complete: return "COMPLETE";
+        case State::Failed: return "FAILED";
+        case State::Cancelled: return "CANCELLED";
+        default: return "UNKNOWN";
+    }
+}
+
+const char* errorName(Error error) {
+    switch (error) {
+        case Error::None: return "NONE";
+        case Error::Busy: return "BUSY";
+        case Error::InvalidRequest: return "INVALID_REQUEST";
+        case Error::StorageUnavailable: return "STORAGE_UNAVAILABLE";
+        case Error::InsufficientStorage: return "INSUFFICIENT_STORAGE";
+        case Error::FileOpenFailed: return "FILE_OPEN_FAILED";
+        case Error::WrongTransfer: return "WRONG_TRANSFER";
+        case Error::WrongSequence: return "WRONG_SEQUENCE";
+        case Error::ChunkInvalid: return "CHUNK_INVALID";
+        case Error::WriteFailed: return "WRITE_FAILED";
+        case Error::LengthMismatch: return "LENGTH_MISMATCH";
+        case Error::PackageInvalid: return "PACKAGE_INVALID";
+        case Error::ApplyFailed: return "APPLY_FAILED";
+        case Error::SessionLost: return "SESSION_LOST";
+        case Error::Timeout: return "TIMEOUT";
+        default: return "UNKNOWN";
+    }
+}
+
+} // namespace TransferManager

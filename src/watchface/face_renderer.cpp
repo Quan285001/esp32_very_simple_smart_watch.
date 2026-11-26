@@ -1,0 +1,918 @@
+#include "face_renderer.h"
+
+#include <math.h>
+#include <algorithm>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include "../display/display_canvas.h"
+#include "../display/display_profile.h"
+#include "elements/image.h"
+
+namespace {
+constexpr float PI_F = 3.14159265358979323846f;
+
+void sortObjectIndices(const FaceModel& face, uint8_t* indices) {
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        indices[i] = i;
+        uint8_t j = i;
+        while (j > 0 &&
+               face.objects[indices[j - 1]].transform.zIndex >
+               face.objects[indices[j]].transform.zIndex) {
+            const uint8_t swap = indices[j - 1];
+            indices[j - 1] = indices[j];
+            indices[j] = swap;
+            --j;
+        }
+    }
+}
+
+
+
+bool isDynamic(FaceElementType type) {
+    return type == FaceElementType::DigitalClock ||
+           type == FaceElementType::AnalogClock ||
+           type == FaceElementType::Date ||
+           type == FaceElementType::Weather;
+}
+
+bool intersects(const FaceObject& object, int x, int y, int w, int h) {
+    const int ox = static_cast<int>(lroundf(object.transform.x));
+    const int oy = static_cast<int>(lroundf(object.transform.y));
+    const int ow = static_cast<int>(lroundf(object.transform.width));
+    const int oh = static_cast<int>(lroundf(object.transform.height));
+    return ox < x + w && ox + ow > x && oy < y + h && oy + oh > y;
+}
+
+FaceRenderStatus preflight(const FaceModel& face) {
+    const DisplayCanvas& canvas = getDisplayCanvas();
+    if (face.objectCount > DisplayProfileConfig::MAX_OBJECTS || face.objectCount > FACE_MAX_OBJECTS ||
+        face.assetCount > DisplayProfileConfig::MAX_ASSETS || face.assetCount > FACE_MAX_ASSETS ||
+        face.canvasWidth != canvas.width() || face.canvasHeight != canvas.height()) {
+        return FaceRenderStatus::UnsupportedTransform;
+    }
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        const FaceObject& object = face.objects[i];
+        if (object.transform.rotation != 0.0f || object.transform.opacity < 1.0f ||
+            object.letterSpacing != 0 || (object.fontWeight != 400 && object.fontWeight != 600) ||
+            !isfinite(object.fontSize) || object.fontSize <= 0.0f || object.fontSize > 256.0f ||
+            !isfinite(object.glyphScaleX) || !isfinite(object.glyphScaleY) ||
+            object.glyphScaleX < 0.1f || object.glyphScaleX > 8.0f ||
+            object.glyphScaleY < 0.1f || object.glyphScaleY > 8.0f) {
+            return FaceRenderStatus::UnsupportedTransform;
+        }
+        if (object.type == FaceElementType::Image) {
+            bool foundAsset = false;
+            for (uint8_t assetIndex = 0; assetIndex < face.assetCount; ++assetIndex) {
+                const FaceAsset& asset = face.assets[assetIndex];
+                if (strcmp(asset.id, object.assetId) == 0) {
+                    foundAsset = asset.width == static_cast<uint16_t>(lroundf(object.transform.width)) &&
+                                 asset.height == static_cast<uint16_t>(lroundf(object.transform.height));
+                    break;
+                }
+            }
+            if (!foundAsset) return FaceRenderStatus::UnsupportedAsset;
+        }
+        if (object.fontFamily[0] != '\0' &&
+            strcmp(object.fontFamily, "system-ui") != 0 &&
+            strcmp(object.fontFamily, "sans-serif") != 0 &&
+            strcmp(object.fontFamily, "inherit") != 0) {
+            return FaceRenderStatus::UnsupportedFont;
+        }
+    }
+    return FaceRenderStatus::Ok;
+}
+
+void drawTextInBounds(const char* text, const FaceObject& object, uint16_t color) {
+    getDisplayCanvas().drawText(
+        text,
+        static_cast<int>(lroundf(object.transform.x)),
+        static_cast<int>(lroundf(object.transform.y)),
+        static_cast<int>(lroundf(object.transform.width)),
+        static_cast<int>(lroundf(object.transform.height)),
+        color, object.fontSize, object.glyphScaleX, object.glyphScaleY,
+        object.fontWeight, object.letterSpacing,
+        object.textAlign == FaceTextAlign::Left ? CanvasTextAlignment::Left :
+        object.textAlign == FaceTextAlign::Right ? CanvasTextAlignment::Right :
+                                                   CanvasTextAlignment::Center);
+}
+
+void appendText(char* output, size_t capacity, const char* value) {
+    if (output == nullptr || value == nullptr || capacity == 0) return;
+    const size_t used = strlen(output);
+    if (used >= capacity - 1) return;
+    size_t count = strlen(value);
+    if (count > capacity - 1 - used) count = capacity - 1 - used;
+    memcpy(output + used, value, count);
+    output[used + count] = '\0';
+}
+
+void appendNumber(char* output, size_t capacity, int value, const char* format) {
+    char buffer[12] = {};
+    snprintf(buffer, sizeof(buffer), format, value);
+    appendText(output, capacity, buffer);
+}
+
+void formatTime(char* out, size_t capacity, const FaceObject& object,
+                const struct tm& timeInfo) {
+    const bool twelveHour = strcmp(object.timeFormat, "12h") == 0;
+    int hour = timeInfo.tm_hour;
+    const char* suffix = "";
+    if (twelveHour) {
+        suffix = hour >= 12 ? " PM" : " AM";
+        hour %= 12;
+        if (hour == 0) hour = 12;
+    }
+    const char* format = object.dataFormat[0] ? object.dataFormat : "HH:mm";
+    const bool formatHasSeconds = strstr(format, "ss") != nullptr;
+    out[0] = '\0';
+    for (const char* cursor = format; *cursor != '\0';) {
+        if (strncmp(cursor, "HH", 2) == 0) {
+            appendNumber(out, capacity, hour, "%02d"); cursor += 2;
+        } else if (strncmp(cursor, "mm", 2) == 0) {
+            appendNumber(out, capacity, timeInfo.tm_min, "%02d"); cursor += 2;
+        } else if (strncmp(cursor, "ss", 2) == 0) {
+            appendNumber(out, capacity, timeInfo.tm_sec, "%02d"); cursor += 2;
+        } else {
+            char literal[2] = {*cursor++, '\0'};
+            appendText(out, capacity, literal);
+        }
+    }
+    if (object.showSeconds && !formatHasSeconds) {
+        appendText(out, capacity, ":");
+        appendNumber(out, capacity, timeInfo.tm_sec, "%02d");
+    }
+    if (twelveHour) appendText(out, capacity, suffix);
+}
+
+void formatDate(char* out, size_t capacity, const FaceObject& object,
+                const struct tm& timeInfo) {
+    static const char* const weekdays[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+    static const char* const months[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+                                         "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+    const int weekday = (timeInfo.tm_wday >= 0 && timeInfo.tm_wday < 7) ? timeInfo.tm_wday : 0;
+    const int month = (timeInfo.tm_mon >= 0 && timeInfo.tm_mon < 12) ? timeInfo.tm_mon : 0;
+    const char* format = object.dataFormat[0] ? object.dataFormat : "ddd, DD MMM";
+    out[0] = '\0';
+    for (const char* cursor = format; *cursor != '\0';) {
+        if (strncmp(cursor, "YYYY", 4) == 0) {
+            appendNumber(out, capacity, timeInfo.tm_year + 1900, "%04d"); cursor += 4;
+        } else if (strncmp(cursor, "ddd", 3) == 0) {
+            appendText(out, capacity, weekdays[weekday]); cursor += 3;
+        } else if (strncmp(cursor, "MMM", 3) == 0) {
+            appendText(out, capacity, months[month]); cursor += 3;
+        } else if (strncmp(cursor, "MM", 2) == 0) {
+            appendNumber(out, capacity, month + 1, "%02d"); cursor += 2;
+        } else if (strncmp(cursor, "DD", 2) == 0) {
+            appendNumber(out, capacity, timeInfo.tm_mday, "%02d"); cursor += 2;
+        } else {
+            char literal[2] = {*cursor++, '\0'};
+            appendText(out, capacity, literal);
+        }
+    }
+}
+
+struct DynamicTextCacheEntry {
+    char objectId[FACE_ID_CAPACITY];
+    char value[FACE_TEXT_CAPACITY];
+    bool valid;
+};
+
+DynamicTextCacheEntry dynamicTextCache[FACE_MAX_OBJECTS] = {};
+
+struct AnalogHandCacheEntry {
+    char objectId[FACE_ID_CAPACITY];
+    int centerX;
+    int centerY;
+    int endpointX[3];
+    int endpointY[3];
+    bool valid;
+};
+
+AnalogHandCacheEntry analogHandCache[FACE_MAX_OBJECTS] = {};
+AnalogHandDebugSnapshot analogHandDebugSnapshot = {};
+
+void invalidateDynamicTextCache() {
+    memset(dynamicTextCache, 0, sizeof(dynamicTextCache));
+    memset(analogHandCache, 0, sizeof(analogHandCache));
+}
+
+bool calculateAnalogHandEndpoints(const FaceObject& object, const struct tm& timeInfo,
+                                  int millisValue, int& centerX, int& centerY,
+                                  int (&endpointX)[3], int (&endpointY)[3]) {
+    const int width = static_cast<int>(lroundf(object.transform.width));
+    const int height = static_cast<int>(lroundf(object.transform.height));
+    centerX = static_cast<int>(lroundf(object.transform.x)) + width / 2;
+    centerY = static_cast<int>(lroundf(object.transform.y)) + height / 2;
+    const int radius = (width < height ? width : height) / 2 - 2;
+    if (radius < 8) return false;
+
+    if (millisValue < 0) millisValue = 0;
+    if (millisValue > 999) millisValue = 999;
+    const float seconds = static_cast<float>(timeInfo.tm_sec) +
+                          static_cast<float>(millisValue) / 1000.0f;
+    const float minutes = static_cast<float>(timeInfo.tm_min) + seconds / 60.0f;
+    const float hours = static_cast<float>(timeInfo.tm_hour % 12) + minutes / 60.0f;
+    const float angles[3] = {
+        (hours * 30.0f - 90.0f) * PI_F / 180.0f,
+        (minutes * 6.0f - 90.0f) * PI_F / 180.0f,
+        (seconds * 6.0f - 90.0f) * PI_F / 180.0f
+    };
+    for (int hand = 0; hand < 3; ++hand) {
+        const float length = radius * (object.analogHands[hand].length / 100.0f);
+        endpointX[hand] = centerX + static_cast<int>(cosf(angles[hand]) * length);
+        endpointY[hand] = centerY + static_cast<int>(sinf(angles[hand]) * length);
+    }
+    return true;
+}
+
+bool analogHandsUnchanged(uint8_t objectIndex, const FaceObject& object,
+                          const struct tm& timeInfo, int millisValue,
+                          int& dirtyX, int& dirtyY, int& dirtyWidth, int& dirtyHeight) {
+    dirtyX = dirtyY = dirtyWidth = dirtyHeight = 0;
+    if (objectIndex >= FACE_MAX_OBJECTS) return false;
+
+    int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
+    if (!calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY)) {
+        return true;
+    }
+
+    AnalogHandCacheEntry& entry = analogHandCache[objectIndex];
+    const bool sameObject = entry.valid && strcmp(entry.objectId, object.id) == 0;
+    if (sameObject && entry.centerX == centerX && entry.centerY == centerY &&
+        memcmp(entry.endpointX, endpointX, sizeof(endpointX)) == 0 &&
+        memcmp(entry.endpointY, endpointY, sizeof(endpointY)) == 0) {
+        return true;
+    }
+
+    int minX = centerX, maxX = centerX, minY = centerY, maxY = centerY;
+    if (sameObject) {
+        minX = entry.centerX < minX ? entry.centerX : minX;
+        maxX = entry.centerX > maxX ? entry.centerX : maxX;
+        minY = entry.centerY < minY ? entry.centerY : minY;
+        maxY = entry.centerY > maxY ? entry.centerY : maxY;
+        for (int hand = 0; hand < 3; ++hand) {
+            if (entry.endpointX[hand] < minX) minX = entry.endpointX[hand];
+            if (entry.endpointX[hand] > maxX) maxX = entry.endpointX[hand];
+            if (entry.endpointY[hand] < minY) minY = entry.endpointY[hand];
+            if (entry.endpointY[hand] > maxY) maxY = entry.endpointY[hand];
+        }
+    }
+    for (int hand = 0; hand < 3; ++hand) {
+        if (endpointX[hand] < minX) minX = endpointX[hand];
+        if (endpointX[hand] > maxX) maxX = endpointX[hand];
+        if (endpointY[hand] < minY) minY = endpointY[hand];
+        if (endpointY[hand] > maxY) maxY = endpointY[hand];
+    }
+
+    const int padding = 4; // line thickness plus the center hub
+    dirtyX = minX - padding;
+    dirtyY = minY - padding;
+    dirtyWidth = maxX - minX + padding * 2 + 1;
+    dirtyHeight = maxY - minY + padding * 2 + 1;
+
+    // Do not commit the new endpoints here. The caller updates this cache
+    // only after the clipped redraw succeeds, so a failed draw cannot make
+    // the next frame incorrectly believe stale pixels are already current.
+    return false;
+}
+
+
+constexpr int ANALOG_MASK_WIDTH = 240;
+constexpr int ANALOG_MASK_HEIGHT = 240;
+constexpr int ANALOG_MASK_STRIDE = (ANALOG_MASK_WIDTH + 7) / 8;
+static uint8_t analogPixelMask[ANALOG_MASK_HEIGHT][ANALOG_MASK_STRIDE] = {};
+
+void markAnalogMaskPixel(int x, int y) {
+    if (x < 0 || x >= ANALOG_MASK_WIDTH || y < 0 || y >= ANALOG_MASK_HEIGHT) return;
+    analogPixelMask[y][x >> 3] |= static_cast<uint8_t>(1U << (x & 7));
+}
+
+bool analogMaskPixel(int x, int y) {
+    if (x < 0 || x >= ANALOG_MASK_WIDTH || y < 0 || y >= ANALOG_MASK_HEIGHT) return false;
+    return (analogPixelMask[y][x >> 3] & static_cast<uint8_t>(1U << (x & 7))) != 0;
+}
+
+bool analogMaskIntersectsRect(int x, int y, int w, int h) {
+    const int right = x + w;
+    const int bottom = y + h;
+    for (int py = y; py < bottom; ++py) {
+        for (int px = x; px < right; ++px) {
+            if (analogMaskPixel(px, py)) return true;
+        }
+    }
+    return false;
+}
+
+void markAnalogMaskThickLine(int x0, int y0, int x1, int y1, int width) {
+    const int radius = width > 1 ? (width + 1) / 2 : 0;
+    const int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    const int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int error = dx + dy;
+    for (;;) {
+        for (int oy = -radius; oy <= radius; ++oy) {
+            for (int ox = -radius; ox <= radius; ++ox) {
+                if (ox * ox + oy * oy <= radius * radius) markAnalogMaskPixel(x0 + ox, y0 + oy);
+            }
+        }
+        if (x0 == x1 && y0 == y1) break;
+        const int twiceError = 2 * error;
+        if (twiceError >= dy) { error += dy; x0 += sx; }
+        if (twiceError <= dx) { error += dx; y0 += sy; }
+    }
+}
+
+void markAnalogMaskHands(int centerX, int centerY,
+                         const int (&endpointX)[3], const int (&endpointY)[3],
+                         const FaceObject& object) {
+    for (int hand = 0; hand < 3; ++hand) {
+        if (!object.analogHands[hand].visible) continue;
+        const float angle = atan2f(static_cast<float>(endpointY[hand] - centerY),
+                                   static_cast<float>(endpointX[hand] - centerX));
+        const int tail = static_cast<int>(lroundf(
+            (std::min(object.transform.width, object.transform.height) / 2.0f - 2.0f) *
+            object.analogHands[hand].tail / 100.0f));
+        const int backX = centerX - static_cast<int>(cosf(angle) * tail);
+        const int backY = centerY - static_cast<int>(sinf(angle) * tail);
+        markAnalogMaskThickLine(backX, backY, endpointX[hand], endpointY[hand],
+                                static_cast<int>(ceilf(object.analogHands[hand].width)));
+    }
+    const int hub = static_cast<int>(ceilf(object.analogCenterRadius)) + 1;
+    for (int dy = -hub; dy <= hub; ++dy) {
+        for (int dx = -hub; dx <= hub; ++dx) {
+            if (dx * dx + dy * dy <= hub * hub) markAnalogMaskPixel(centerX + dx, centerY + dy);
+        }
+    }
+}
+
+void updateAnalogHandCache(uint8_t objectIndex, const FaceObject& object,
+                           const struct tm& timeInfo, int millisValue) {
+    if (objectIndex >= FACE_MAX_OBJECTS) return;
+    int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
+    if (!calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY)) return;
+    AnalogHandCacheEntry& entry = analogHandCache[objectIndex];
+    strncpy(entry.objectId, object.id, sizeof(entry.objectId) - 1);
+    entry.objectId[sizeof(entry.objectId) - 1] = '\0';
+    entry.centerX = centerX;
+    entry.centerY = centerY;
+    memcpy(entry.endpointX, endpointX, sizeof(endpointX));
+    memcpy(entry.endpointY, endpointY, sizeof(endpointY));
+    entry.valid = true;
+}
+
+bool drawObject(const FaceModel& face, const FaceObject& object,
+                const struct tm& timeInfo, const WeatherData& weather, int millisValue);
+
+bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
+                             const FaceObject& object, const struct tm& timeInfo,
+                             int millisValue, const WeatherData& weather,
+                             const uint8_t* order) {
+    DisplayCanvas& canvas = getDisplayCanvas();
+    const int displayWidth = canvas.width();
+    const int displayHeight = canvas.height();
+    if (displayWidth > ANALOG_MASK_WIDTH || displayHeight > ANALOG_MASK_HEIGHT) return false;
+
+    int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
+    if (!calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY)) return true;
+    analogHandDebugSnapshot.centerX = centerX;
+    analogHandDebugSnapshot.centerY = centerY;
+    analogHandDebugSnapshot.hourX = endpointX[0];
+    analogHandDebugSnapshot.hourY = endpointY[0];
+    analogHandDebugSnapshot.minuteX = endpointX[1];
+    analogHandDebugSnapshot.minuteY = endpointY[1];
+    analogHandDebugSnapshot.secondX = endpointX[2];
+    analogHandDebugSnapshot.secondY = endpointY[2];
+    analogHandDebugSnapshot.valid = true;
+
+    memset(analogPixelMask, 0, sizeof(analogPixelMask));
+    // Restore the previous stroke even if the object ID changed in this slot:
+    // its old pixels are still on screen and must be removed.
+    if (objectIndex < FACE_MAX_OBJECTS && analogHandCache[objectIndex].valid) {
+        const AnalogHandCacheEntry& previous = analogHandCache[objectIndex];
+        markAnalogMaskHands(previous.centerX, previous.centerY,
+                            previous.endpointX, previous.endpointY, object);
+    }
+    markAnalogMaskHands(centerX, centerY, endpointX, endpointY, object);
+
+    int dirtyLeft = displayWidth;
+    int dirtyTop = displayHeight;
+    int dirtyRight = -1;
+    int dirtyBottom = -1;
+    const FaceObject* backgroundImage = nullptr;
+    int clockLayerPosition = -1;
+    for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
+        if (order[layer] == objectIndex) {
+            clockLayerPosition = layer;
+            break;
+        }
+    }
+    // Select the topmost image layer below this clock using the renderer's
+    // actual sorted order (including stable ordering for equal zIndex values).
+    for (int layer = 0; layer < clockLayerPosition; ++layer) {
+        const FaceObject& candidate = face.objects[order[layer]];
+        if (candidate.visible && candidate.type == FaceElementType::Image) {
+            backgroundImage = &candidate;
+        }
+    }
+    const int imageLeft = backgroundImage
+        ? static_cast<int>(lroundf(backgroundImage->transform.x)) : 0;
+    const int imageTop = backgroundImage
+        ? static_cast<int>(lroundf(backgroundImage->transform.y)) : 0;
+    const int imageRight = backgroundImage
+        ? imageLeft + static_cast<int>(lroundf(backgroundImage->transform.width)) : 0;
+    const int imageBottom = backgroundImage
+        ? imageTop + static_cast<int>(lroundf(backgroundImage->transform.height)) : 0;
+    uint32_t handMaskPixels = 0;
+    uint32_t imageOverlapPixels = 0;
+    for (int y = 0; y < displayHeight; ++y) {
+        for (int x = 0; x < displayWidth; ++x) {
+            if (!analogMaskPixel(x, y)) continue;
+            ++handMaskPixels;
+            if (backgroundImage != nullptr && x >= imageLeft && x < imageRight &&
+                y >= imageTop && y < imageBottom) {
+                ++imageOverlapPixels;
+            }
+            if (x < dirtyLeft) dirtyLeft = x;
+            if (x > dirtyRight) dirtyRight = x;
+            if (y < dirtyTop) dirtyTop = y;
+            if (y > dirtyBottom) dirtyBottom = y;
+        }
+    }
+    if (dirtyRight < dirtyLeft || dirtyBottom < dirtyTop) return true;
+
+    // Compose each dirty tile completely off-screen before presenting it.
+    // In particular, never restore the background image directly to LCD GRAM
+    // and then draw the hands in a second pass: that exposes an intermediate
+    // frame in which the old hands have disappeared but the new hands are
+    // not yet visible. The bounded sprite keeps RAM use independent of the
+    // full display size.
+    constexpr int TILE_SIZE = 64;
+    // Image rows are copied into the sprite through TFT_eSprite::pushImage(),
+    // so every tile is fully composed before its rows are transferred to LCD.
+    // Keep the SPIFFS image file open across all dirty tiles in this update.
+    // Each tile still reads only its clipped image rows; no full-frame cache is allocated.
+    beginImageRenderPass();
+    setImageRenderPassCoverage(handMaskPixels, imageOverlapPixels);
+    bool tileCompositionSucceeded = true;
+    bool renderedAnyTile = false;
+    for (int tileY = dirtyTop; tileY <= dirtyBottom && tileCompositionSucceeded;
+         tileY += TILE_SIZE) {
+        const int tileHeight = (tileY + TILE_SIZE - 1 > dirtyBottom)
+            ? dirtyBottom - tileY + 1 : TILE_SIZE;
+        for (int tileX = dirtyLeft; tileX <= dirtyRight; tileX += TILE_SIZE) {
+            const int tileWidth = (tileX + TILE_SIZE - 1 > dirtyRight)
+                ? dirtyRight - tileX + 1 : TILE_SIZE;
+            if (!analogMaskIntersectsRect(tileX, tileY, tileWidth, tileHeight)) continue;
+            recordImageRenderPassTile();
+
+            if (!canvas.beginOffscreen(tileX, tileY, tileWidth, tileHeight,
+                                       face.backgroundColor)) {
+                tileCompositionSucceeded = false;
+                break;
+            }
+
+            bool drawOk = true;
+            // Reconstruct every intersecting layer once, in z-order, inside
+            // the tile. The sprite viewport clips all primitives to its bounds.
+            for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
+                const FaceObject& candidate = face.objects[order[layer]];
+                if (candidate.visible &&
+                    intersects(candidate, tileX, tileY, tileWidth, tileHeight) &&
+                    !drawObject(face, candidate, timeInfo, weather, millisValue)) {
+                    drawOk = false;
+                    break;
+                }
+            }
+
+            if (!drawOk) {
+                canvas.cancelOffscreen();
+                tileCompositionSucceeded = false;
+                break;
+            }
+            if (!canvas.presentOffscreen()) {
+                canvas.cancelOffscreen();
+                tileCompositionSucceeded = false;
+                break;
+            }
+            renderedAnyTile = true;
+        }
+    }
+    endImageRenderPass();
+    if (tileCompositionSucceeded && renderedAnyTile) return true;
+
+    // Pixel-mask restoration is used for image-overlap regions and as an
+    // allocation fallback. It restores only old/new hand pixels, then replays
+    // intersecting scene layers in z-order, including exact RGB565 image runs.
+    // First clear only marked pixels. Then replay scene layers in z-order.
+    for (int y = 0; y < displayHeight; ++y) {
+        int x = 0;
+        while (x < displayWidth) {
+            while (x < displayWidth && !analogMaskPixel(x, y)) ++x;
+            const int start = x;
+            while (x < displayWidth && analogMaskPixel(x, y)) ++x;
+            if (x > start) canvas.fillRect(start, y, x - start, 1, face.backgroundColor);
+        }
+    }
+
+    for (uint8_t layer = 0; layer < face.objectCount; ++layer) {
+        const FaceObject& candidate = face.objects[order[layer]];
+        if (!candidate.visible) continue;
+        if (candidate.type == FaceElementType::Image) {
+            if (!drawImageElementMasked(face, candidate,
+                    &analogPixelMask[0][0], ANALOG_MASK_WIDTH, ANALOG_MASK_HEIGHT)) return false;
+            continue;
+        }
+        for (int y = 0; y < displayHeight; ++y) {
+            int x = 0;
+            while (x < displayWidth) {
+                while (x < displayWidth && !analogMaskPixel(x, y)) ++x;
+                const int start = x;
+                while (x < displayWidth && analogMaskPixel(x, y)) ++x;
+                if (x <= start || !intersects(candidate, start, y, x - start, 1)) continue;
+                canvas.setClipRect(start, y, x - start, 1);
+                const bool drawOk = drawObject(face, candidate, timeInfo, weather, millisValue);
+                canvas.resetClip();
+                if (!drawOk) return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool formatDynamicTextValue(char* value, size_t capacity, const FaceObject& object,
+                            const struct tm& timeInfo, const WeatherData& weather) {
+    if (value == nullptr || capacity == 0) return false;
+    value[0] = '\0';
+    switch (object.type) {
+        case FaceElementType::DigitalClock:
+            formatTime(value, capacity, object, timeInfo);
+            return true;
+        case FaceElementType::Date:
+            formatDate(value, capacity, object, timeInfo);
+            return true;
+        case FaceElementType::Weather:
+            if (!weather.valid) {
+                snprintf(value, capacity, "unavailable:%.244s", object.text);
+            } else {
+                snprintf(value, capacity, "%d|%s|%u|%u",
+                         weather.currentTemp, weather.conditionText,
+                         object.showWeatherTemperature ? 1U : 0U,
+                         object.showWeatherCondition ? 1U : 0U);
+            }
+            return true;
+        default:
+            return false;
+    }
+}
+
+void commitDynamicTextCache(uint8_t objectIndex, const FaceObject& object,
+                            const struct tm& timeInfo, const WeatherData& weather) {
+    if (objectIndex >= FACE_MAX_OBJECTS) return;
+    char value[FACE_TEXT_CAPACITY] = {};
+    if (!formatDynamicTextValue(value, sizeof(value), object, timeInfo, weather)) return;
+
+    DynamicTextCacheEntry& entry = dynamicTextCache[objectIndex];
+    strncpy(entry.objectId, object.id, sizeof(entry.objectId) - 1);
+    entry.objectId[sizeof(entry.objectId) - 1] = '\0';
+    strncpy(entry.value, value, sizeof(entry.value) - 1);
+    entry.value[sizeof(entry.value) - 1] = '\0';
+    entry.valid = true;
+}
+
+bool dynamicTextUnchanged(uint8_t objectIndex, const FaceObject& object,
+                          const struct tm& timeInfo, const WeatherData& weather,
+                          int& dirtyX, int& dirtyWidth) {
+    dirtyX = static_cast<int>(lroundf(object.transform.x));
+    dirtyWidth = static_cast<int>(lroundf(object.transform.width));
+    if (objectIndex >= FACE_MAX_OBJECTS) return false;
+
+    char value[FACE_TEXT_CAPACITY] = {};
+    const bool textElement = object.type == FaceElementType::DigitalClock ||
+                             object.type == FaceElementType::Date;
+    if (!formatDynamicTextValue(value, sizeof(value), object, timeInfo, weather)) return false;
+
+    DynamicTextCacheEntry& entry = dynamicTextCache[objectIndex];
+    const bool sameObject = entry.valid && strcmp(entry.objectId, object.id) == 0;
+    if (sameObject && strcmp(entry.value, value) == 0) return true;
+
+    // For fixed-width digital/date strings, repaint only the character cells
+    // that changed. The clipped redraw still restores every intersecting
+    // layer, but avoids blanking the entire clock box on each seconds tick.
+    if (textElement && sameObject) {
+        const size_t oldLength = strlen(entry.value);
+        const size_t newLength = strlen(value);
+        if (oldLength == newLength && newLength > 0) {
+            size_t first = newLength;
+            size_t last = 0;
+            for (size_t index = 0; index < newLength; ++index) {
+                if (entry.value[index] != value[index]) {
+                    if (first == newLength) first = index;
+                    last = index;
+                }
+            }
+            if (first < newLength) {
+                const float scaleX = (object.fontSize / 8.0f) * object.glyphScaleX;
+                const float advance = 6.0f * scaleX + object.letterSpacing;
+                const float textWidth = newLength * advance - object.letterSpacing;
+                float textStart = object.transform.x;
+                if (object.textAlign == FaceTextAlign::Center) {
+                    textStart += (object.transform.width - textWidth) * 0.5f;
+                } else if (object.textAlign == FaceTextAlign::Right) {
+                    textStart += object.transform.width - textWidth;
+                }
+                const int boundsLeft = static_cast<int>(lroundf(object.transform.x));
+                const int boundsRight = boundsLeft +
+                    static_cast<int>(lroundf(object.transform.width));
+                int left = static_cast<int>(floorf(textStart + first * advance)) - 1;
+                int right = static_cast<int>(ceilf(textStart + (last + 1) * advance)) + 1;
+                if (left < boundsLeft) left = boundsLeft;
+                if (right > boundsRight) right = boundsRight;
+                dirtyX = left;
+                dirtyWidth = right > left ? right - left : 0;
+            }
+        }
+    }
+
+    // Cache commit is deferred until the caller has completed the clipped
+    // redraw successfully. A failed draw must remain eligible for retry.
+    return false;
+}
+
+void drawShape(const FaceObject& object) {
+    const int x = static_cast<int>(lroundf(object.transform.x));
+    const int y = static_cast<int>(lroundf(object.transform.y));
+    const int w = static_cast<int>(lroundf(object.transform.width));
+    const int h = static_cast<int>(lroundf(object.transform.height));
+    const int stroke = std::min<int>(object.strokeWidth, 32);
+    switch (object.shapeKind) {
+        case 1: {
+            const int cx = x + w / 2, cy = y + h / 2;
+            const int radius = std::max(0, (w < h ? w : h) / 2);
+            getDisplayCanvas().fillCircle(cx, cy, radius, object.fillColor);
+            for (int inset = 0; inset < stroke && radius - inset >= 0; ++inset)
+                getDisplayCanvas().drawCircle(cx, cy, radius - inset, object.strokeColor);
+            break;
+        }
+        case 2: {
+            getDisplayCanvas().fillRoundRect(x, y, w, h, object.cornerRadius, object.fillColor);
+            for (int inset = 0; inset < stroke && w - 2 * inset > 0 && h - 2 * inset > 0; ++inset) {
+                const int radius = std::max(0, static_cast<int>(object.cornerRadius) - inset);
+                getDisplayCanvas().drawRoundRect(x + inset, y + inset,
+                    w - 2 * inset, h - 2 * inset, radius, object.strokeColor);
+            }
+            break;
+        }
+        case 3: {
+            // A line uses its bounding box as length × thickness. Keep the
+            // centerline horizontal; height controls thickness, not slope.
+            getDisplayCanvas().fillRect(
+                x, y, w + 1, std::max(1, h), object.fillColor);
+            break;
+        }
+        default:
+            getDisplayCanvas().fillRect(x, y, w, h, object.fillColor);
+            for (int inset = 0; inset < stroke && w - 2 * inset > 0 && h - 2 * inset > 0; ++inset)
+                getDisplayCanvas().drawRect(x + inset, y + inset,
+                    w - 2 * inset, h - 2 * inset, object.strokeColor);
+            break;
+    }
+}
+
+void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int millisValue) {
+    const int w = static_cast<int>(lroundf(object.transform.width));
+    const int h = static_cast<int>(lroundf(object.transform.height));
+    const int cx = static_cast<int>(lroundf(object.transform.x)) + w / 2;
+    const int cy = static_cast<int>(lroundf(object.transform.y)) + h / 2;
+    const int radius = (w < h ? w : h) / 2 - 2;
+    if (radius < 8) return;
+
+    const uint16_t color = object.textColor;
+    getDisplayCanvas().drawCircle(cx, cy, radius, color);
+    for (int tick = 0; tick < 12; ++tick) {
+        const float angle = (tick * 30.0f - 90.0f) * PI_F / 180.0f;
+        const int outerX = cx + static_cast<int>(cosf(angle) * (radius - 2));
+        const int outerY = cy + static_cast<int>(sinf(angle) * (radius - 2));
+        const int inset = tick % 3 == 0 ? 9 : 5;
+        const int innerX = cx + static_cast<int>(cosf(angle) * (radius - inset));
+        const int innerY = cy + static_cast<int>(sinf(angle) * (radius - inset));
+        getDisplayCanvas().drawLine(innerX, innerY, outerX, outerY, color);
+    }
+
+    if (millisValue < 0) millisValue = 0;
+    if (millisValue > 999) millisValue = 999;
+    const float seconds = static_cast<float>(timeInfo.tm_sec) +
+                          static_cast<float>(millisValue) / 1000.0f;
+    const float minutes = static_cast<float>(timeInfo.tm_min) + seconds / 60.0f;
+    const float hours = static_cast<float>(timeInfo.tm_hour % 12) + minutes / 60.0f;
+    const float angles[3] = {
+        (hours * 30.0f - 90.0f) * PI_F / 180.0f,
+        (minutes * 6.0f - 90.0f) * PI_F / 180.0f,
+        (seconds * 6.0f - 90.0f) * PI_F / 180.0f
+    };
+    for (int hand = 0; hand < 3; ++hand) {
+        const FaceAnalogHandConfig& config = object.analogHands[hand];
+        if (!config.visible) continue;
+        const int tipX = cx + static_cast<int>(cosf(angles[hand]) * radius * config.length / 100.0f);
+        const int tipY = cy + static_cast<int>(sinf(angles[hand]) * radius * config.length / 100.0f);
+        const int tailLength = static_cast<int>(lroundf(radius * config.tail / 100.0f));
+        const int backX = cx - static_cast<int>(cosf(angles[hand]) * tailLength);
+        const int backY = cy - static_cast<int>(sinf(angles[hand]) * tailLength);
+        getDisplayCanvas().drawLine(backX, backY, tipX, tipY, config.color);
+        const int strokeRadius = config.width > 1.5f
+            ? static_cast<int>(lroundf((config.width - 1.0f) / 2.0f)) : 0;
+        if (strokeRadius > 0) {
+            const int steps = std::max(abs(tipX - backX), abs(tipY - backY));
+            for (int step = 0; step <= steps; ++step) {
+                const float t = steps == 0 ? 0.0f : static_cast<float>(step) / steps;
+                const int px = backX + static_cast<int>(lroundf((tipX - backX) * t));
+                const int py = backY + static_cast<int>(lroundf((tipY - backY) * t));
+                getDisplayCanvas().fillCircle(px, py, strokeRadius, config.color);
+            }
+        }
+    }
+    getDisplayCanvas().fillCircle(cx, cy,
+        static_cast<int>(lroundf(object.analogCenterRadius)), object.analogCenterColor);
+}
+
+bool drawObject(const FaceModel& face, const FaceObject& object,
+                const struct tm& timeInfo, const WeatherData& weather, int millisValue) {
+    if (!object.visible) return true;
+    switch (object.type) {
+        case FaceElementType::Shape:
+            drawShape(object);
+            return true;
+        case FaceElementType::AnalogClock:
+            drawAnalogClock(object, timeInfo, millisValue);
+            return true;
+        case FaceElementType::DigitalClock: {
+            char value[FACE_TEXT_CAPACITY] = {};
+            formatTime(value, sizeof(value), object, timeInfo);
+            drawTextInBounds(value, object, object.textColor);
+            return true;
+        }
+        case FaceElementType::Date: {
+            char value[FACE_TEXT_CAPACITY] = {};
+            formatDate(value, sizeof(value), object, timeInfo);
+            drawTextInBounds(value, object, object.textColor);
+            return true;
+        }
+        case FaceElementType::Weather: {
+            if (!weather.valid) {
+                drawTextInBounds(object.text[0] ? object.text : "Weather unavailable",
+                                 object, object.textColor);
+                return true;
+            }
+            if (object.showWeatherTemperature && object.showWeatherCondition) {
+                char temperature[24] = {};
+                snprintf(temperature, sizeof(temperature), "%d C", weather.currentTemp);
+                FaceObject top = object;
+                top.transform.height = object.transform.height * 0.58f;
+                drawTextInBounds(temperature, top, object.textColor);
+                FaceObject bottom = object;
+                bottom.transform.y += object.transform.height * 0.48f;
+                bottom.transform.height = object.transform.height * 0.52f;
+                bottom.fontSize = object.fontSize > 12 ? object.fontSize / 2 : 8;
+                drawTextInBounds(weather.conditionText, bottom, object.textColor);
+            } else if (object.showWeatherCondition) {
+                drawTextInBounds(weather.conditionText, object, object.textColor);
+            } else {
+                char temperature[24] = {};
+                snprintf(temperature, sizeof(temperature), "%d C", weather.currentTemp);
+                drawTextInBounds(temperature, object, object.textColor);
+            }
+            return true;
+        }
+        case FaceElementType::Text:
+            drawTextInBounds(object.text, object, object.textColor);
+            return true;
+        case FaceElementType::Image:
+            return drawImageElement(face, object);
+    }
+    return false;
+}
+}
+
+void getAnalogHandDebugSnapshot(AnalogHandDebugSnapshot& snapshot) {
+    snapshot = analogHandDebugSnapshot;
+}
+
+FaceRenderStatus validateFaceModelForRenderer(const FaceModel& face) {
+    return preflight(face);
+}
+
+FaceRenderStatus renderWatchFace(const FaceModel& face, const struct tm& timeInfo,
+                                 int millisValue, const WeatherData& weather) {
+    invalidateDynamicTextCache();
+    const FaceRenderStatus status = preflight(face);
+    if (status != FaceRenderStatus::Ok) return status;
+
+    getDisplayCanvas().clearScreen(face.backgroundColor);
+    uint8_t order[FACE_MAX_OBJECTS] = {};
+    sortObjectIndices(face, order);
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        const FaceObject& object = face.objects[order[i]];
+        if (!drawObject(face, object, timeInfo, weather, millisValue)) {
+            invalidateDynamicTextCache();
+            return FaceRenderStatus::AssetReadFailed;
+        }
+        if (object.visible && object.type == FaceElementType::AnalogClock) {
+            int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
+            if (calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY) &&
+                order[i] < FACE_MAX_OBJECTS) {
+                AnalogHandCacheEntry& entry = analogHandCache[order[i]];
+                strncpy(entry.objectId, object.id, sizeof(entry.objectId) - 1);
+                entry.objectId[sizeof(entry.objectId) - 1] = '\0';
+                entry.centerX = centerX;
+                entry.centerY = centerY;
+                memcpy(entry.endpointX, endpointX, sizeof(endpointX));
+                memcpy(entry.endpointY, endpointY, sizeof(endpointY));
+                entry.valid = true;
+            }
+        } else if (object.visible &&
+                   (object.type == FaceElementType::DigitalClock ||
+                    object.type == FaceElementType::Date ||
+                    object.type == FaceElementType::Weather)) {
+            // Seed dynamic text state from the full initial render. Without
+            // this, the first periodic tick would repaint the whole text box.
+            commitDynamicTextCache(order[i], object, timeInfo, weather);
+        }
+    }
+    return FaceRenderStatus::Ok;
+}
+
+FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& timeInfo,
+                                        int millisValue, const WeatherData& weather) {
+    const FaceRenderStatus status = preflight(face);
+    if (status != FaceRenderStatus::Ok) return status;
+
+    uint8_t order[FACE_MAX_OBJECTS] = {};
+    sortObjectIndices(face, order);
+
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        const FaceObject& dynamicObject = face.objects[order[i]];
+        if (!dynamicObject.visible || !isDynamic(dynamicObject.type)) continue;
+        // Skip unchanged dynamic text. Analog clocks calculate a dirty union
+        // from the previous and current hand endpoints; text uses changed glyph cells.
+        int x = 0, y = 0, w = 0, h = 0;
+        if (dynamicObject.type == FaceElementType::AnalogClock) {
+            if (analogHandsUnchanged(order[i], dynamicObject, timeInfo, millisValue,
+                                     x, y, w, h)) continue;
+            if (!restoreAnalogHandPixels(face, order[i], dynamicObject, timeInfo,
+                                         millisValue, weather, order)) {
+                invalidateDynamicTextCache();
+                return FaceRenderStatus::AssetReadFailed;
+            }
+            updateAnalogHandCache(order[i], dynamicObject, timeInfo, millisValue);
+            continue;
+        }
+        int dirtyX = 0;
+        int dirtyWidth = 0;
+        if (dynamicTextUnchanged(order[i], dynamicObject, timeInfo, weather,
+                                 dirtyX, dirtyWidth)) continue;
+        x = dirtyX;
+        y = static_cast<int>(lroundf(dynamicObject.transform.y));
+        w = dirtyWidth;
+        h = static_cast<int>(lroundf(dynamicObject.transform.height));
+        if (w <= 0 || h <= 0) continue;
+
+        // Restore only the dirty region. A TFT viewport clips every
+        // intersecting layer to that same region so lower-z content is restored
+        // before the dynamic object and higher-z overlays are repainted.
+        const int clipLeft = x < 0 ? 0 : x;
+        const int clipTop = y < 0 ? 0 : y;
+        const int displayWidth = getDisplayCanvas().width();
+        const int displayHeight = getDisplayCanvas().height();
+        const int clipRight = x + w > displayWidth ? displayWidth : x + w;
+        const int clipBottom = y + h > displayHeight ? displayHeight : y + h;
+        if (clipRight <= clipLeft || clipBottom <= clipTop) {
+            if (dynamicObject.type != FaceElementType::AnalogClock) {
+                commitDynamicTextCache(order[i], dynamicObject, timeInfo, weather);
+            }
+            continue;
+        }
+
+        getDisplayCanvas().setClipRect(clipLeft, clipTop,
+                        clipRight - clipLeft, clipBottom - clipTop);
+        getDisplayCanvas().fillRect(x, y, w, h, face.backgroundColor);
+        bool drawOk = true;
+        for (uint8_t j = 0; j < face.objectCount; ++j) {
+            const FaceObject& candidate = face.objects[order[j]];
+            if (candidate.visible && intersects(candidate, x, y, w, h) &&
+                !drawObject(face, candidate, timeInfo, weather, millisValue)) {
+                drawOk = false;
+                break;
+            }
+        }
+        getDisplayCanvas().resetClip();
+        if (!drawOk) {
+            // A failed layer can leave pixels in any dynamic region partially
+            // restored. Force all dynamic elements to retry on the next tick.
+            invalidateDynamicTextCache();
+            return FaceRenderStatus::AssetReadFailed;
+        }
+
+        commitDynamicTextCache(order[i], dynamicObject, timeInfo, weather);
+    }
+    return FaceRenderStatus::Ok;
+}
