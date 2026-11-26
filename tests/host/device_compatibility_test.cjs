@@ -285,7 +285,7 @@ assert.deepEqual(errorsFor(supportedWideStroke), [],
   'integer shape outlines up to the supported width must pass preflight');
 const excessiveStroke = structuredClone(supportedWideStroke);
 excessiveStroke.objects[0].style.strokeWidth = 33;
-assert.ok(errorsFor(excessiveStroke).some(error => error.includes('stroke width must be an integer')),
+assert.ok(errorsFor(excessiveStroke).some(error => error.includes('strokeWidth must be an integer')),
   'shape outlines above the firmware limit must be rejected before packaging');
 
 console.log('WFS device compatibility preflight tests passed.');
