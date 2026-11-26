@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
     assert(model.objects[0].analogHands[0].length == 40.0f);
     assert(model.objects[0].analogHands[0].width == 6.0f);
     assert(model.objects[0].analogHands[0].tail == 8.0f);
-    assert(model.objects[0].analogHands[0].color == 0x110A);
+    assert(model.objects[0].analogHands[0].color == 0x11AA);
     assert(model.objects[0].analogHands[1].visible == false);
     assert(model.objects[0].analogHands[2].length == 90.0f);
     assert(model.objects[0].analogCenterRadius == 4.0f);
