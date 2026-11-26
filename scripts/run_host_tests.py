@@ -194,6 +194,12 @@ subprocess.run(
     check=True,
 )
 
+subprocess.run(
+    ["node", str(ROOT / "tests" / "host" / "web_image_compositor_test.cjs")],
+    cwd=ROOT,
+    check=True,
+)
+
 RGB565_TEST = ROOT / "tests" / "host" / "image_rgb565_test.cpp"
 
 with tempfile.TemporaryDirectory(prefix="wfs-rgb565-test-") as tmp:
