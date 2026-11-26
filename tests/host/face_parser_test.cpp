@@ -171,6 +171,42 @@ int main(int argc, char** argv) {
     result = parse(manyObjects, model);
     assert(!result && result.error == FaceParseError::TooManyObjects);
 
+    const std::string analogFace = R"JSON({
+      "schemaVersion":1,"designId":"analog-test","name":"Analog Test",
+      "deviceProfileId":"esp32-c3-gc9a01-240",
+      "canvas":{"width":240,"height":240,"shape":"circle","backgroundColor":"#000000"},
+      "objects":[{
+        "id":"analog","type":"analog-clock","clockMode":"analog","name":"Analog",
+        "transform":{"x":20,"y":20,"width":200,"height":200},
+        "handConfig":{
+          "hour":{"length":40,"width":6,"color":"#123456","tail":8,"visible":true},
+          "minute":{"length":75,"width":3,"color":"#abcdef","tail":5,"visible":false},
+          "second":{"length":90,"width":1.5,"color":"#ff0000","tail":20,"visible":true},
+          "centerColor":"#00ff00","centerRadius":4
+        }
+      }]
+    })JSON";
+    result = parse(analogFace, model);
+    assert(result && model.objects[0].type == FaceElementType::AnalogClock);
+    assert(model.objects[0].analogHands[0].length == 40.0f);
+    assert(model.objects[0].analogHands[0].width == 6.0f);
+    assert(model.objects[0].analogHands[0].tail == 8.0f);
+    assert(model.objects[0].analogHands[0].color == 0x110A);
+    assert(model.objects[0].analogHands[1].visible == false);
+    assert(model.objects[0].analogHands[2].length == 90.0f);
+    assert(model.objects[0].analogCenterRadius == 4.0f);
+    assert(model.objects[0].analogCenterColor == 0x07E0);
+
+    const std::string invalidHandWidth = replaceOnce(analogFace,
+        R"JSON("width":6)JSON", R"JSON("width":30)JSON");
+    result = parse(invalidHandWidth, model);
+    assert(!result && result.error == FaceParseError::UnsupportedProperty);
+    const std::string handConfigOnText = replaceOnce(TEXT_FACE,
+        R"JSON("text": "Hello")JSON",
+        R"JSON("text": "Hello", "handConfig":{"hour":{"length":50}})JSON");
+    result = parse(handConfigOnText, model);
+    assert(!result && result.error == FaceParseError::UnsupportedProperty);
+
     std::cout << "WFS Face parser host tests passed.\n";
     return 0;
 }
