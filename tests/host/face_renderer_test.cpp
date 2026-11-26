@@ -15,6 +15,9 @@ public:
     int resetCalls = 0;
     int clipX = -1, clipY = -1, clipW = -1, clipH = -1;
     bool allClipRowsOne = true;
+    std::vector<uint16_t> lineColors;
+    std::vector<int> circleFillRadii;
+    std::vector<uint16_t> circleFillColors;
 
     uint16_t width() const override { return 240; }
     uint16_t height() const override { return 240; }
@@ -23,9 +26,13 @@ public:
     void drawRect(int, int, int, int, uint16_t) override { calls.push_back("rect"); }
     void fillRoundRect(int, int, int, int, int, uint16_t) override { calls.push_back("round-fill"); }
     void drawRoundRect(int, int, int, int, int, uint16_t) override { calls.push_back("round"); }
-    void fillCircle(int, int, int, uint16_t) override { calls.push_back("circle-fill"); }
+    void fillCircle(int, int, int radius, uint16_t color) override {
+        calls.push_back("circle-fill"); circleFillRadii.push_back(radius); circleFillColors.push_back(color);
+    }
     void drawCircle(int, int, int, uint16_t) override { calls.push_back("circle"); }
-    void drawLine(int, int, int, int, uint16_t) override { calls.push_back("line"); }
+    void drawLine(int, int, int, int, uint16_t color) override {
+        calls.push_back("line"); lineColors.push_back(color);
+    }
     void pushRgb565Row(int, int, uint16_t, const uint16_t*) override { calls.push_back("image-row"); }
     void setClipRect(int x, int y, int w, int h) override {
         ++clipCalls; clipX=x; clipY=y; clipW=w; clipH=h;
@@ -37,7 +44,7 @@ public:
                   uint16_t, float, CanvasTextAlignment) override {
         calls.push_back(std::string("text:") + text);
     }
-    void reset() { calls.clear(); clipCalls=0; resetCalls=0; clipX=clipY=clipW=clipH=-1; allClipRowsOne=true; }
+    void reset() { calls.clear(); clipCalls=0; resetCalls=0; clipX=clipY=clipW=clipH=-1; allClipRowsOne=true; lineColors.clear(); circleFillRadii.clear(); circleFillColors.clear(); }
 };
 
 static TestCanvas canvas;
@@ -267,6 +274,28 @@ int main() {
     assert(canvas.allClipRowsOne);
     assert(canvas.calls.front()=="fill" && canvas.calls.back()=="reset-clip");
     timeInfo.tm_sec=9;
+
+    // Custom analog hand settings must control visibility, colors, stroke
+    // thickness, tails and the center cap in the actual firmware renderer.
+    face=baseFace(); face.objectCount=1;
+    face.objects[0]=baseObject(FaceElementType::AnalogClock,"analog-custom");
+    face.objects[0].transform.x=70; face.objects[0].transform.y=70;
+    face.objects[0].transform.width=100; face.objects[0].transform.height=100;
+    face.objects[0].analogHands[0]={40.0f,6.0f,8.0f,0x1234,false};
+    face.objects[0].analogHands[1]={70.0f,3.0f,5.0f,0x4567,false};
+    face.objects[0].analogHands[2]={90.0f,1.5f,20.0f,0xF800,true};
+    face.objects[0].analogCenterRadius=4.0f;
+    face.objects[0].analogCenterColor=0x07E0;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    // One second-hand stroke plus the 12 dial ticks; hidden hour/minute
+    // hands must not generate strokes.
+    assert(canvas.lineColors.size()==13);
+    assert(canvas.lineColors.back()==0xF800);
+    assert(!canvas.circleFillRadii.empty());
+    assert(canvas.circleFillRadii.back()==4);
+    assert(canvas.circleFillColors.back()==0x07E0);
+    assert(canvas.circleFillRadii.size()>10); // thick strokes are rasterized
 
     // An analog redraw that fails in a later overlapping layer must remain
     // retryable. The next successful frame must redraw the clock region and
