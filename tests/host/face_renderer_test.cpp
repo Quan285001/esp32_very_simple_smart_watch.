@@ -290,7 +290,8 @@ int main() {
     assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
     // One second-hand stroke plus the 12 dial ticks; hidden hour/minute
     // hands must not generate strokes.
-    assert(canvas.lineColors.size()==13);
+    assert(canvas.lineColors.size()==14);
+    assert(canvas.lineColors[12]==0x1234);
     assert(canvas.lineColors.back()==0xF800);
     assert(!canvas.circleFillRadii.empty());
     assert(canvas.circleFillRadii.back()==4);
