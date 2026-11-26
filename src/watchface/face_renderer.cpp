@@ -218,10 +218,10 @@ bool calculateAnalogHandEndpoints(const FaceObject& object, const struct tm& tim
         (minutes * 6.0f - 90.0f) * PI_F / 180.0f,
         (seconds * 6.0f - 90.0f) * PI_F / 180.0f
     };
-    const float lengths[3] = {radius * 0.48f, radius * 0.72f, radius * 0.86f};
     for (int hand = 0; hand < 3; ++hand) {
-        endpointX[hand] = centerX + static_cast<int>(cosf(angles[hand]) * lengths[hand]);
-        endpointY[hand] = centerY + static_cast<int>(sinf(angles[hand]) * lengths[hand]);
+        const float length = radius * (object.analogHands[hand].length / 100.0f);
+        endpointX[hand] = centerX + static_cast<int>(cosf(angles[hand]) * length);
+        endpointY[hand] = centerY + static_cast<int>(sinf(angles[hand]) * length);
     }
     return true;
 }
@@ -330,12 +330,45 @@ void markAnalogMaskHub(int centerX, int centerY) {
     }
 }
 
-void markAnalogMaskHands(int centerX, int centerY,
-                         const int (&endpointX)[3], const int (&endpointY)[3]) {
-    for (int hand = 0; hand < 3; ++hand) {
-        markAnalogMaskLine(centerX, centerY, endpointX[hand], endpointY[hand]);
+void markAnalogMaskThickLine(int x0, int y0, int x1, int y1, int width) {
+    const int radius = width > 1 ? (width + 1) / 2 : 0;
+    const int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    const int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int error = dx + dy;
+    for (;;) {
+        for (int oy = -radius; oy <= radius; ++oy) {
+            for (int ox = -radius; ox <= radius; ++ox) {
+                if (ox * ox + oy * oy <= radius * radius) markAnalogMaskPixel(x0 + ox, y0 + oy);
+            }
+        }
+        if (x0 == x1 && y0 == y1) break;
+        const int twiceError = 2 * error;
+        if (twiceError >= dy) { error += dy; x0 += sx; }
+        if (twiceError <= dx) { error += dx; y0 += sy; }
     }
-    markAnalogMaskHub(centerX, centerY);
+}
+
+void markAnalogMaskHands(int centerX, int centerY,
+                         const int (&endpointX)[3], const int (&endpointY)[3],
+                         const FaceObject& object) {
+    for (int hand = 0; hand < 3; ++hand) {
+        if (!object.analogHands[hand].visible) continue;
+        const float angle = atan2f(static_cast<float>(endpointY[hand] - centerY),
+                                   static_cast<float>(endpointX[hand] - centerX));
+        const int tail = static_cast<int>(lroundf(
+            (std::min(object.transform.width, object.transform.height) / 2.0f - 2.0f) *
+            object.analogHands[hand].tail / 100.0f));
+        const int backX = centerX - static_cast<int>(cosf(angle) * tail);
+        const int backY = centerY - static_cast<int>(sinf(angle) * tail);
+        markAnalogMaskThickLine(backX, backY, endpointX[hand], endpointY[hand],
+                                static_cast<int>(ceilf(object.analogHands[hand].width)));
+    }
+    const int hub = static_cast<int>(ceilf(object.analogCenterRadius)) + 1;
+    for (int dy = -hub; dy <= hub; ++dy) {
+        for (int dx = -hub; dx <= hub; ++dx) {
+            if (dx * dx + dy * dy <= hub * hub) markAnalogMaskPixel(centerX + dx, centerY + dy);
+        }
+    }
 }
 
 void updateAnalogHandCache(uint8_t objectIndex, const FaceObject& object,
@@ -383,9 +416,9 @@ bool restoreAnalogHandPixels(const FaceModel& face, uint8_t objectIndex,
     if (objectIndex < FACE_MAX_OBJECTS && analogHandCache[objectIndex].valid) {
         const AnalogHandCacheEntry& previous = analogHandCache[objectIndex];
         markAnalogMaskHands(previous.centerX, previous.centerY,
-                            previous.endpointX, previous.endpointY);
+                            previous.endpointX, previous.endpointY, object);
     }
-    markAnalogMaskHands(centerX, centerY, endpointX, endpointY);
+    markAnalogMaskHands(centerX, centerY, endpointX, endpointY, object);
 
     int dirtyLeft = displayWidth;
     int dirtyTop = displayHeight;
@@ -682,16 +715,33 @@ void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int mi
                           static_cast<float>(millisValue) / 1000.0f;
     const float minutes = static_cast<float>(timeInfo.tm_min) + seconds / 60.0f;
     const float hours = static_cast<float>(timeInfo.tm_hour % 12) + minutes / 60.0f;
-    const float hourAngle = (hours * 30.0f - 90.0f) * PI_F / 180.0f;
-    const float minuteAngle = (minutes * 6.0f - 90.0f) * PI_F / 180.0f;
-    const float secondAngle = (seconds * 6.0f - 90.0f) * PI_F / 180.0f;
-    getDisplayCanvas().drawLine(cx, cy, cx + static_cast<int>(cosf(hourAngle) * radius * 0.48f),
-                 cy + static_cast<int>(sinf(hourAngle) * radius * 0.48f), color);
-    getDisplayCanvas().drawLine(cx, cy, cx + static_cast<int>(cosf(minuteAngle) * radius * 0.72f),
-                 cy + static_cast<int>(sinf(minuteAngle) * radius * 0.72f), color);
-    getDisplayCanvas().drawLine(cx, cy, cx + static_cast<int>(cosf(secondAngle) * radius * 0.86f),
-                 cy + static_cast<int>(sinf(secondAngle) * radius * 0.86f), 0xF800);
-    getDisplayCanvas().fillCircle(cx, cy, 3, color);
+    const float angles[3] = {
+        (hours * 30.0f - 90.0f) * PI_F / 180.0f,
+        (minutes * 6.0f - 90.0f) * PI_F / 180.0f,
+        (seconds * 6.0f - 90.0f) * PI_F / 180.0f
+    };
+    for (int hand = 0; hand < 3; ++hand) {
+        const FaceAnalogHandConfig& config = object.analogHands[hand];
+        if (!config.visible) continue;
+        const int tipX = cx + static_cast<int>(cosf(angles[hand]) * radius * config.length / 100.0f);
+        const int tipY = cy + static_cast<int>(sinf(angles[hand]) * radius * config.length / 100.0f);
+        const int tailLength = static_cast<int>(lroundf(radius * config.tail / 100.0f));
+        const int backX = cx - static_cast<int>(cosf(angles[hand]) * tailLength);
+        const int backY = cy - static_cast<int>(sinf(angles[hand]) * tailLength);
+        getDisplayCanvas().drawLine(backX, backY, tipX, tipY, config.color);
+        const int strokeRadius = static_cast<int>(ceilf(config.width / 2.0f));
+        if (strokeRadius > 0) {
+            const int steps = std::max(abs(tipX - backX), abs(tipY - backY));
+            for (int step = 0; step <= steps; ++step) {
+                const float t = steps == 0 ? 0.0f : static_cast<float>(step) / steps;
+                const int px = backX + static_cast<int>(lroundf((tipX - backX) * t));
+                const int py = backY + static_cast<int>(lroundf((tipY - backY) * t));
+                getDisplayCanvas().fillCircle(px, py, strokeRadius, config.color);
+            }
+        }
+    }
+    getDisplayCanvas().fillCircle(cx, cy,
+        static_cast<int>(lroundf(object.analogCenterRadius)), object.analogCenterColor);
 }
 
 bool drawObject(const FaceModel& face, const FaceObject& object,
