@@ -223,3 +223,10 @@ button:disabled{
   :root[data-theme="system"] .mobile-tabs button{background:#fff}
   :root[data-theme="system"] .mobile-tabs button.active{background:#edf4e5}
 }
+
+
+/* Prevent long layer names from expanding the row and hiding its action buttons. */
+.object-list{min-width:0;}
+.object-row{box-sizing:border-box;width:100%;min-width:0;}
+.object-row .obj-name{flex:1 1 0%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.object-row button{flex:0 0 auto;min-width:25px;}
