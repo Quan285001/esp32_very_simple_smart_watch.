@@ -224,13 +224,35 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
     JsonObjectConst handConfig = source["handConfig"].as<JsonObjectConst>();
     if (source.containsKey("handConfig") && handConfig.isNull()) return true;
     if (!handConfig.isNull()) {
-        for (JsonPairConst pair : handConfig) {
-            const char* key = pair.key().c_str();
-            if (strcmp(key, "hour") != 0 && strcmp(key, "minute") != 0 &&
-                strcmp(key, "second") != 0) return true;
-            JsonObjectConst hand = pair.value().as<JsonObjectConst>();
-            if (hand.isNull() || hand.size() != 0) return true;
+        static const char* const handKeys[] = {"length", "width", "color", "tail", "visible"};
+        static const char* const configKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor"};
+        if (!hasOnlyKeys(handConfig, configKeys, sizeof(configKeys) / sizeof(configKeys[0]))) return true;
+        if (strcmp(source["type"] | "", "analog-clock") != 0) return true;
+        for (const char* handName : {"hour", "minute", "second"}) {
+            JsonObjectConst hand = handConfig[handName].as<JsonObjectConst>();
+            if (handConfig.containsKey(handName) &&
+                (hand.isNull() || !hasOnlyKeys(hand, handKeys, sizeof(handKeys) / sizeof(handKeys[0])))) return true;
+            if (hand.isNull()) continue;
+            for (const char* numberKey : {"length", "width", "tail"}) {
+                if (hand.containsKey(numberKey)) {
+                    const JsonVariantConst value = hand[numberKey];
+                    if ((!value.is<float>() && !value.is<int>() && !value.is<unsigned int>()) ||
+                        !isfinite(value.as<float>())) return true;
+                    const float number = value.as<float>();
+                    if ((strcmp(numberKey, "length") == 0 && (number < 0 || number > 100)) ||
+                        (strcmp(numberKey, "width") == 0 && (number < 0.25f || number > 16)) ||
+                        (strcmp(numberKey, "tail") == 0 && (number < 0 || number > 50))) return true;
+                }
+            }
+            if (hand.containsKey("color") && !hand["color"].is<const char*>()) return true;
+            if (hand.containsKey("visible") && !hand["visible"].is<bool>()) return true;
         }
+        if (handConfig.containsKey("centerRadius") &&
+            ((!handConfig["centerRadius"].is<float>() && !handConfig["centerRadius"].is<int>()) ||
+             !isfinite(handConfig["centerRadius"].as<float>()) ||
+             handConfig["centerRadius"].as<float>() < 0.5f ||
+             handConfig["centerRadius"].as<float>() > 12.0f)) return true;
+        if (handConfig.containsKey("centerColor") && !handConfig["centerColor"].is<const char*>()) return true;
     }
 
     JsonObjectConst binding = source["dataBinding"].as<JsonObjectConst>();
@@ -442,6 +464,51 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
     else if (target.type == FaceElementType::Shape) return false;
 
     if (!copyString(source["timeFormat"], target.timeFormat, sizeof(target.timeFormat), false)) return false;
+    JsonObjectConst handConfig = source["handConfig"].as<JsonObjectConst>();
+    if (!handConfig.isNull()) {
+        const char* names[] = {"hour", "minute", "second"};
+        const float lengths[] = {48.0f, 72.0f, 86.0f};
+        const float widths[] = {5.0f, 3.0f, 1.5f};
+        const float tails[] = {4.0f, 5.0f, 18.0f};
+        const char* colors[] = {"#f4f0e6", "#f4f0e6", "#ff0000"};
+        for (int i = 0; i < 3; ++i) {
+            FaceAnalogHandConfig& hand = target.analogHands[i];
+            hand.length = lengths[i];
+            hand.width = widths[i];
+            hand.tail = tails[i];
+            hand.color = 0xFFFF;
+            hand.visible = true;
+            JsonObjectConst config = handConfig[names[i]].as<JsonObjectConst>();
+            if (!config.isNull()) {
+                if (!readNumber(config["length"], hand.length, false, lengths[i]) ||
+                    !readNumber(config["width"], hand.width, false, widths[i]) ||
+                    !readNumber(config["tail"], hand.tail, false, tails[i]) ||
+                    !readColor(config["color"], hand.color, i == 2 ? 0xF800 : 0xFFFF)) return false;
+                hand.visible = config["visible"] | true;
+                if (hand.length < 0 || hand.length > 100 || hand.width < 0.25f ||
+                    hand.width > 16 || hand.tail < 0 || hand.tail > 50) return false;
+            } else {
+                const uint32_t rgb = (i == 2) ? 0xFF0000UL : 0xF4F0E6UL;
+                const uint8_t red = (rgb >> 16) & 0xFF, green = (rgb >> 8) & 0xFF, blue = rgb & 0xFF;
+                hand.color = static_cast<uint16_t>(((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3));
+            }
+        }
+        target.analogCenterRadius = 3.0f;
+        target.analogCenterColor = target.textColor;
+        if (!readNumber(handConfig["centerRadius"], target.analogCenterRadius, false, 3.0f) ||
+            !readColor(handConfig["centerColor"], target.analogCenterColor, target.textColor) ||
+            target.analogCenterRadius < 0.5f || target.analogCenterRadius > 12.0f) return false;
+    } else {
+        const float lengths[] = {48.0f, 72.0f, 86.0f};
+        const float widths[] = {5.0f, 3.0f, 1.5f};
+        const float tails[] = {4.0f, 5.0f, 18.0f};
+        for (int i = 0; i < 3; ++i) {
+            target.analogHands[i] = {lengths[i], widths[i], tails[i], i == 2 ? 0xF800 : 0xFFFF, true};
+        }
+        target.analogCenterRadius = 3.0f;
+        target.analogCenterColor = target.textColor;
+    }
+
     target.showSeconds = source["showSeconds"] | false;
     target.showWeatherTemperature = true;
     target.showWeatherCondition = false;
