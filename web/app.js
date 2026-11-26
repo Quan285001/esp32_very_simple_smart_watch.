@@ -395,6 +395,17 @@ async function compositeBottomImageLayers(design){
   minX=Math.min(minX,drawX);minY=Math.min(minY,drawY);
   maxX=Math.max(maxX,drawX+drawWidth);maxY=Math.max(maxY,drawY+drawHeight);
  }
+ let hasOverlap=false;
+ for(let i=0;i<layers.length&&!hasOverlap;i++){
+  for(let j=i+1;j<layers.length;j++){
+   const a=layers[i],b=layers[j];
+   if(Math.min(a.drawX+a.drawWidth,b.drawX+b.drawWidth)>Math.max(a.drawX,b.drawX)&&
+      Math.min(a.drawY+a.drawHeight,b.drawY+b.drawHeight)>Math.max(a.drawY,b.drawY)){
+    hasOverlap=true;break;
+   }
+  }
+ }
+ if(!hasOverlap)return null;
  const left=Math.max(0,Math.floor(minX)),top=Math.max(0,Math.floor(minY));
  const right=Math.min(displaySize,Math.ceil(maxX)),bottom=Math.min(displaySize,Math.ceil(maxY));
  const outputWidth=right-left,outputHeight=bottom-top;
