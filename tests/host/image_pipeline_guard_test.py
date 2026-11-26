@@ -29,8 +29,6 @@ assert "ctx.globalCompositeOperation='source-over'" in WEB_APP
 assert "ctx.arc(center-left,center-top,radius,0,Math.PI*2)" in WEB_APP
 assert "const composite=await compositeBottomImageLayers(packageDesign)" in WEB_APP
 assert "preconvertedImages.set(first.id,composite.converted)" in WEB_APP
-assert "restoreAnalogHandPixels" in FACE_RENDERER
-assert "Compose each dirty tile completely off-screen before presenting it." in FACE_RENDERER
 
 DISPLAY_BACKEND = (ROOT / "src" / "display" / "display_manager.cpp").read_text(encoding="utf-8")
 assert "const bool previousSwapBytes = tft.getSwapBytes();" in DISPLAY_BACKEND
@@ -46,6 +44,8 @@ assert "regionSprite.drawPixel(localX + i, localY, pixels[i]);" not in DISPLAY_B
 assert "static constexpr int OFFSCREEN_TILE_SIZE = 64;" in DISPLAY_BACKEND
 
 FACE_RENDERER = (ROOT / "src" / "watchface" / "face_renderer.cpp").read_text(encoding="utf-8")
+assert "restoreAnalogHandPixels" in FACE_RENDERER
+assert "Compose each dirty tile completely off-screen before presenting it." in FACE_RENDERER
 assert "bool tileCompositionSucceeded = true;" in FACE_RENDERER
 assert "Compose each dirty tile completely off-screen before presenting it." in FACE_RENDERER
 assert "never restore the background image directly to LCD GRAM" in FACE_RENDERER
