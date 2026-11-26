@@ -155,7 +155,7 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
     static const char* const bindingKeys[] = {
         "source", "format", "timezone", "fallbackText", "visibleWhenMissing"
     };
-    static const char* const handConfigKeys[] = {"hour", "minute", "second"};
+    static const char* const handConfigKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor"};
     static const char* const renderHintKeys[] = {
         "preferredUpdateMs", "staticLayer", "requiresAntialias", "requiresBitmap"
     };
