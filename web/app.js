@@ -372,7 +372,8 @@ function advancedFeatureErrors(design){
   if(o.glyphFallback&&o.glyphFallback!=='compatibility-error')errors.push(o.name+': selected glyph fallback mode is not supported');
   if(['fontId','width','height'].some(k=>Object.prototype.hasOwnProperty.call(s,k)))errors.push(o.name+': custom glyph font metrics are not supported yet');
   if((s.stroke&&s.stroke!=='none')||(Number(s.strokeWidth)||0)>0||s.backgroundColor||(s.backgroundShape&&s.backgroundShape!=='none')||(Number(s.backgroundRadius)||0)>0||(Number(s.opacity??1)<0.999)||(Number(s.rotation)||0)!==0||(s.visible===false)||(Number(s.zIndex)||0)!==0)errors.push(o.name+': advanced glyph styling is not supported yet');
-  if(style.backgroundColor||(Number(style.strokeWidth)!==0&&Number(style.strokeWidth)!==1&&style.strokeWidth!==undefined))errors.push(o.name+': this device supports only a one-pixel shape outline and no separate background fill');
+  if(style.backgroundColor)errors.push(o.name+': separate shape background fills are not supported by this device');
+  if(style.strokeWidth!==undefined&&(!Number.isInteger(style.strokeWidth)||style.strokeWidth<0||style.strokeWidth>32))errors.push(o.name+': shape stroke width must be an integer from 0 to 32 pixels');
 
   if(b.timezone||b.fallbackText||b.visibleWhenMissing===true)errors.push(o.name+': this data-binding option is not supported by the device');
   if(b.source&& !((o.type==='digital-clock'&&b.source==='time')||(o.type==='date'&&b.source==='date')||(o.type==='weather'&&b.source==='temperature')))errors.push(o.name+': this data binding is not supported by the device');
