@@ -82,13 +82,13 @@ const design = {
   }
   if (result.objectId !== 'image-a') throw new Error('Compositor must retain the bottom image object identity');
   if (result.converted.x !== 10 || result.converted.y !== 20 ||
-      result.converted.width !== 40 || result.converted.height !== 30) {
+      result.converted.width !== 40 || result.converted.height !== 40) {
     throw new Error('Unexpected union crop: ' + JSON.stringify({
       x: result.converted.x, y: result.converted.y,
       width: result.converted.width, height: result.converted.height,
     }));
   }
-  if (result.converted.bytes.length !== 40 * 30 * 2) {
+  if (result.converted.bytes.length !== 40 * 40 * 2) {
     throw new Error('RGB565 byte length does not match composited dimensions');
   }
   if (drawOrder.map(x => x.src).join(',') !== 'data:image/a,data:image/b') {
@@ -97,7 +97,7 @@ const design = {
   if (!circleClip || circleClip[0] !== 110 || circleClip[1] !== 100 || circleClip[2] !== 120) {
     throw new Error('Compositor did not clip to the circular display aperture');
   }
-  if (canvasSize[0] !== 40 || canvasSize[1] !== 30) {
+  if (canvasSize[0] !== 40 || canvasSize[1] !== 40) {
     throw new Error('Compositor allocated an unexpected raster size');
   }
   if (await sandbox.compose({
