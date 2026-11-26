@@ -291,9 +291,36 @@
       if (object.glyphFallback && object.glyphFallback !== 'compatibility-error') {
         result.push(name + ': selected glyph fallback mode is not supported');
       }
-      if (Object.values(handConfig).some(value =>
-          value && typeof value === 'object' && Object.keys(value).length > 0)) {
-        result.push(name + ': custom analog hand configuration is not supported yet');
+      if (Object.keys(handConfig).length && type !== 'analog-clock') {
+        result.push(name + ': handConfig is only valid on analog clocks');
+      }
+      const handDefaults = {
+        hour: {length:48,width:5,tail:4},
+        minute: {length:72,width:3,tail:5},
+        second: {length:86,width:1.5,tail:18}
+      };
+      for (const [handName, defaults] of Object.entries(handDefaults)) {
+        const hand = handConfig[handName] || {};
+        for (const [key, min, max] of [['length',0,100],['width',0.25,16],['tail',0,50]]) {
+          const value = hand[key] ?? defaults[key];
+          if (!Number.isFinite(Number(value)) || Number(value) < min || Number(value) > max) {
+            result.push(name + ': invalid ' + handName + ' hand ' + key + ' (supported range ' + min + '–' + max + ')');
+          }
+        }
+        if (hand.color !== undefined && !/^#[0-9a-f]{6}$/i.test(String(hand.color))) {
+          result.push(name + ': ' + handName + ' hand color must be #RRGGBB');
+        }
+        if (hand.visible !== undefined && typeof hand.visible !== 'boolean') {
+          result.push(name + ': ' + handName + ' hand visibility must be boolean');
+        }
+      }
+      if (handConfig.centerColor !== undefined && !/^#[0-9a-f]{6}$/i.test(String(handConfig.centerColor))) {
+        result.push(name + ': analog center color must be #RRGGBB');
+      }
+      if (handConfig.centerRadius !== undefined &&
+          (!Number.isFinite(Number(handConfig.centerRadius)) ||
+           Number(handConfig.centerRadius) < 0.5 || Number(handConfig.centerRadius) > 12)) {
+        result.push(name + ': analog center radius must be between 0.5 and 12 pixels');
       }
       if (renderHints.requiresAntialias === true || renderHints.requiresBitmap === true) {
         result.push(name + ': requested render hint is not supported by the device');
