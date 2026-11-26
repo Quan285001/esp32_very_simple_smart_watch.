@@ -23,6 +23,14 @@ assert "uint8_t encodedRow[DisplayProfileConfig::MAX_BITMAP_WIDTH * 2]" in SOURC
 WEB_APP = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
 assert "function writeRgb888AsRgb565LE(red,green,blue,output,offset)" in WEB_APP
 assert "writeRgb888AsRgb565LE(rgba[i],rgba[i+1],rgba[i+2],bytes,p)" in WEB_APP
+assert "async function compositeBottomImageLayers(design)" in WEB_APP
+assert "if(entry.object.type!=='image')break" in WEB_APP
+assert "ctx.globalCompositeOperation='source-over'" in WEB_APP
+assert "ctx.arc(center-left,center-top,radius,0,Math.PI*2)" in WEB_APP
+assert "const composite=await compositeBottomImageLayers(packageDesign)" in WEB_APP
+assert "preconvertedImages.set(first.id,composite.converted)" in WEB_APP
+assert "restoreAnalogHandPixels" in FACE_RENDERER
+assert "Compose each dirty tile completely off-screen before presenting it." in FACE_RENDERER
 
 DISPLAY_BACKEND = (ROOT / "src" / "display" / "display_manager.cpp").read_text(encoding="utf-8")
 assert "const bool previousSwapBytes = tft.getSwapBytes();" in DISPLAY_BACKEND
