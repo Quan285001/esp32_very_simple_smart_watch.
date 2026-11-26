@@ -281,7 +281,7 @@ int main() {
     face.objects[0]=baseObject(FaceElementType::AnalogClock,"analog-custom");
     face.objects[0].transform.x=70; face.objects[0].transform.y=70;
     face.objects[0].transform.width=100; face.objects[0].transform.height=100;
-    face.objects[0].analogHands[0]={40.0f,6.0f,8.0f,0x1234,false};
+    face.objects[0].analogHands[0]={40.0f,6.0f,8.0f,0x1234,true};
     face.objects[0].analogHands[1]={70.0f,3.0f,5.0f,0x4567,false};
     face.objects[0].analogHands[2]={90.0f,1.5f,20.0f,0xF800,true};
     face.objects[0].analogCenterRadius=4.0f;
