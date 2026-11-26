@@ -308,3 +308,59 @@ button:disabled{
     scrollbar-gutter:stable;
   }
 }
+
+
+/* Softer, consistent controls for the Studio inspector and action clusters. */
+.field input[type="number"]{
+  border-radius:10px;
+  border-color:#354153;
+  background:#111923;
+  transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease;
+  font-variant-numeric:tabular-nums;
+}
+.field input[type="number"]:hover{border-color:#526176}
+.field input[type="number"]:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px #8ebc5420;
+}
+:root[data-theme="light"] .field input[type="number"]{
+  background:#f7f9fb;
+  border-color:#d5dce5;
+}
+:root[data-theme="light"] .field input[type="number"]:hover{border-color:#aab6c5}
+:root[data-theme="light"] .field input[type="number"]:focus-visible{border-color:var(--accent)}
+:root[data-theme="dark"] .field label,
+:root[data-theme="dark"] .panel-heading h3,
+:root[data-theme="dark"] .side-title,
+:root[data-theme="dark"] .eyebrow{color:#aeb9c8}
+:root[data-theme="dark"] .object-row{color:#b9c4d2}
+:root[data-theme="dark"] .muted{color:#9eabba}
+@media(prefers-color-scheme:dark){
+  :root[data-theme="system"] .field label,
+  :root[data-theme="system"] .panel-heading h3,
+  :root[data-theme="system"] .side-title,
+  :root[data-theme="system"] .eyebrow{color:#aeb9c8}
+  :root[data-theme="system"] .object-row{color:#b9c4d2}
+  :root[data-theme="system"] .muted{color:#9eabba}
+}
+/* Existing action clusters share a subtle container without changing button behavior. */
+.top-actions,
+.canvas-toolbar .group:not(:first-child),
+.device-control-grid,
+.modal-actions,
+.profile-dialog-actions{
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:var(--panel2);
+  padding:4px;
+}
+.top-actions{gap:5px}
+.canvas-toolbar .group:not(:first-child){gap:5px}
+.device-control-grid{padding:8px}
+.modal-actions,.profile-dialog-actions{padding:7px}
+@media(max-width:700px){
+  .top-actions{border:0;background:transparent;padding:0}
+  .profile-dialog-actions{padding:6px}
+}
