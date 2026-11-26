@@ -332,6 +332,34 @@ int main() {
     assert(canvas.calls.empty());
     timeInfo.tm_sec=9;
 
+    // Shape outline width is rendered as multiple nested strokes, not
+    // silently collapsed to the DisplayCanvas one-pixel primitive.
+    face=baseFace(); face.objectCount=1;
+    face.objects[0]=baseObject(FaceElementType::Shape,"wide-outline");
+    face.objects[0].transform.x=40; face.objects[0].transform.y=40;
+    face.objects[0].transform.width=80; face.objects[0].transform.height=60;
+    face.objects[0].shapeKind=0;
+    face.objects[0].strokeWidth=4;
+    face.objects[0].strokeColor=0xF800;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"rect")==4);
+
+    face.objects[0].shapeKind=1;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"circle")==4);
+
+    face.objects[0].shapeKind=2;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"round")==4);
+
+    face.objects[0].shapeKind=3;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==4);
+
     std::cout << "WFS Face renderer host tests passed.\n";
     return 0;
 }
