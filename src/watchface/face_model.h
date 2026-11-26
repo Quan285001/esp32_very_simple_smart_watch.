@@ -38,6 +38,14 @@ struct FaceTransform {
     int16_t zIndex;
 };
 
+struct FaceAnalogHandConfig {
+    float length;
+    float width;
+    float tail;
+    uint16_t color;
+    bool visible;
+};
+
 struct FaceObject {
     char id[FACE_ID_CAPACITY];
     char name[FACE_NAME_CAPACITY];
@@ -68,6 +76,10 @@ struct FaceObject {
     bool showSeconds;
     bool showWeatherTemperature;
     bool showWeatherCondition;
+
+    FaceAnalogHandConfig analogHands[3]; // hour, minute, second
+    float analogCenterRadius;
+    uint16_t analogCenterColor;
 };
 
 struct FaceAsset {
