@@ -228,12 +228,16 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
         static const char* const configKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor"};
         if (!hasOnlyKeys(handConfig, configKeys, sizeof(configKeys) / sizeof(configKeys[0]))) return true;
         if (strcmp(source["type"] | "", "analog-clock") != 0) return true;
-        for (const char* handName : {"hour", "minute", "second"}) {
+        const char* handNames[] = {"hour", "minute", "second"};
+        for (int handIndex = 0; handIndex < 3; ++handIndex) {
+            const char* handName = handNames[handIndex];
             JsonObjectConst hand = handConfig[handName].as<JsonObjectConst>();
             if (handConfig.containsKey(handName) &&
                 (hand.isNull() || !hasOnlyKeys(hand, handKeys, sizeof(handKeys) / sizeof(handKeys[0])))) return true;
             if (hand.isNull()) continue;
-            for (const char* numberKey : {"length", "width", "tail"}) {
+            const char* numberKeys[] = {"length", "width", "tail"};
+            for (int numberIndex = 0; numberIndex < 3; ++numberIndex) {
+                const char* numberKey = numberKeys[numberIndex];
                 if (hand.containsKey(numberKey)) {
                     const JsonVariantConst value = hand[numberKey];
                     if ((!value.is<float>() && !value.is<int>() && !value.is<unsigned int>()) ||
