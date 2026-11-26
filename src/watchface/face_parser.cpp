@@ -483,7 +483,7 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
                 if (!readNumber(config["length"], hand.length, false, lengths[i]) ||
                     !readNumber(config["width"], hand.width, false, widths[i]) ||
                     !readNumber(config["tail"], hand.tail, false, tails[i]) ||
-                    !readColor(config["color"], hand.color, i == 2 ? 0xF800 : 0xFFFF)) return false;
+                    !readColor(config["color"], hand.color, i == 2 ? 0xF800 : 0xF7BC)) return false;
                 hand.visible = config["visible"] | true;
                 if (hand.length < 0 || hand.length > 100 || hand.width < 0.25f ||
                     hand.width > 16 || hand.tail < 0 || hand.tail > 50) return false;
@@ -503,7 +503,7 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
         const float widths[] = {5.0f, 3.0f, 1.5f};
         const float tails[] = {4.0f, 5.0f, 18.0f};
         for (int i = 0; i < 3; ++i) {
-            target.analogHands[i] = {lengths[i], widths[i], tails[i], i == 2 ? 0xF800 : 0xFFFF, true};
+            target.analogHands[i] = {lengths[i], widths[i], tails[i], i == 2 ? 0xF800 : 0xF7BC, true};
         }
         target.analogCenterRadius = 3.0f;
         target.analogCenterColor = target.textColor;
