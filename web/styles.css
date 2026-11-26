@@ -149,3 +149,77 @@ body[data-view]:not([data-view="editor"]) .sidebar [data-editor-tools]{display:n
  body[data-view="editor"] .rightbar{position:sticky;top:64px;height:calc(100vh - 64px);max-height:calc(100vh - 64px);align-self:start;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;}
  body[data-view="editor"] .rightbar{min-height:0;}
 }
+
+
+/* Consistent framed treatment for every interactive button in the Studio. */
+button{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--panel2);
+  color:var(--text);
+  transition:border-color .16s ease,background-color .16s ease,color .16s ease,box-shadow .16s ease;
+}
+button:hover:not(:disabled){
+  border-color:#65738a;
+}
+button:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+button:disabled{
+  cursor:not-allowed;
+}
+.nav-item{
+  border:1px solid var(--line);
+  background:transparent;
+}
+.nav-item:hover,.nav-item.active{
+  border-color:#3b4657;
+}
+.mode-switch button{
+  border:1px solid transparent;
+  background:transparent;
+  border-radius:7px;
+}
+.mode-switch button:hover:not(:disabled){
+  border-color:var(--line);
+  background:var(--panel2);
+}
+.mode-switch button.active{
+  border-color:var(--line);
+}
+.object-row button{
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:var(--panel2);
+  min-width:25px;
+  min-height:25px;
+}
+.object-row button:hover:not(:disabled){
+  color:var(--text);
+  background:#263142;
+}
+.mobile-tabs button{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--panel);
+  padding:6px 8px;
+}
+.mobile-tabs button.active{
+  border-color:var(--accent);
+  background:var(--panel2);
+}
+:root[data-theme="light"] .object-row button:hover:not(:disabled){
+  background:#e8edf2;
+}
+:root[data-theme="light"] .mobile-tabs button{
+  background:#fff;
+}
+:root[data-theme="light"] .mobile-tabs button.active{
+  background:#edf4e5;
+}
+@media(prefers-color-scheme:light){
+  :root[data-theme="system"] .object-row button:hover:not(:disabled){background:#e8edf2}
+  :root[data-theme="system"] .mobile-tabs button{background:#fff}
+  :root[data-theme="system"] .mobile-tabs button.active{background:#edf4e5}
+}
