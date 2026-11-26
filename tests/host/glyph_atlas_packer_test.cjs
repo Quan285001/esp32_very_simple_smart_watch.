@@ -28,9 +28,10 @@ assert.deepEqual(Array.from(atlas.pixels), [1, 2, 0, 10, 3, 4, 0, 20]);
 
 assert.throws(() => packGlyphBitmaps([glyph(65, 1, 1, [1], 1), glyph(65, 1, 1, [2], 1)]), /Duplicate/);
 assert.throws(() => packGlyphBitmaps([glyph(65, 2, 2, [1], 1)]), /bitmap length/);
-assert.throws(() => packGlyphBitmaps([glyph(65, 3, 3, Array(9).fill(1), 3)], {
-  maxWidth: 3, maxHeight: 2
-}), /height/);
+assert.throws(() => packGlyphBitmaps([
+  glyph(65, 2, 2, [1, 1, 1, 1], 2),
+  glyph(66, 2, 2, [2, 2, 2, 2], 2)
+], { maxWidth: 2, maxHeight: 2 }), /height/);
 assert.throws(() => packGlyphBitmaps([glyph(0x110000, 1, 1, [1], 1)]), /code point/);
 assert.throws(() => packGlyphBitmaps([glyph(65, 1, 1, [1], -1)]), /advance/);
 
