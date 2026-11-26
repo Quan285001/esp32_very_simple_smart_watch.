@@ -165,6 +165,23 @@ assert.ok(errorsFor(withObjectField('showSeconds', true, analogFace)).some(error
   'showSeconds on an analog clock must be rejected');
 assert.ok(errorsFor(withObjectField('showAmPm', false, analogFace)).some(error => error.includes('only valid on digital clocks')),
   'showAmPm on an analog clock must be rejected');
+const configuredAnalogFace = structuredClone(analogFace);
+configuredAnalogFace.objects[0].handConfig = {
+  hour: { length: 42, width: 6, color: '#123456', tail: 7, visible: true },
+  minute: { length: 78, width: 3, color: '#abcdef', tail: 4, visible: false },
+  second: { length: 90, width: 1.5, color: '#ff0000', tail: 18, visible: true },
+  centerColor: '#00ff00',
+  centerRadius: 4
+};
+assert.deepEqual(errorsFor(configuredAnalogFace), [],
+  'custom analog hand appearance must be accepted for firmware upload');
+const badAnalogHand = structuredClone(configuredAnalogFace);
+badAnalogHand.objects[0].handConfig.hour.width = 25;
+assert.ok(errorsFor(badAnalogHand).some(error => error.includes('hour hand width')),
+  'out-of-range analog hand widths must be rejected before packaging');
+const handConfigOnText = withObjectField('handConfig', { hour: { length: 50 } }, fixture);
+assert.ok(errorsFor(handConfigOnText).some(error => error.includes('only valid on analog clocks')),
+  'analog hand configuration must be rejected on non-analog objects');
 
 assert.ok(errorsFor(withObjectField('clockMode', '', fixture)).some(error => error.includes('clock mode')),
   'an explicitly empty clockMode must be rejected');
