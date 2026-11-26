@@ -496,18 +496,35 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "hour": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "minute": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "second": {
-              "type": "object",
-              "additionalProperties": true
-            }
+            "hour": {          "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "length": {"type":"number","minimum":0,"maximum":100},
+                "width": {"type":"number","minimum":0.25,"maximum":16},
+                "tail": {"type":"number","minimum":0,"maximum":50},
+                "color": {"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},
+                "visible": {"type":"boolean"}
+              }},
+            "minute": {          "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "length": {"type":"number","minimum":0,"maximum":100},
+                "width": {"type":"number","minimum":0.25,"maximum":16},
+                "tail": {"type":"number","minimum":0,"maximum":50},
+                "color": {"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},
+                "visible": {"type":"boolean"}
+              }},
+            "second": {          "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "length": {"type":"number","minimum":0,"maximum":100},
+                "width": {"type":"number","minimum":0.25,"maximum":16},
+                "tail": {"type":"number","minimum":0,"maximum":50},
+                "color": {"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},
+                "visible": {"type":"boolean"}
+              }},
+            "centerRadius": {"type":"number","minimum":0.5,"maximum":12},
+            "centerColor": {"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"}
           }
         },
         "text": {
