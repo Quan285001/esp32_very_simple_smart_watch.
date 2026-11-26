@@ -68,7 +68,7 @@ The Web editor stores projects and original images in browser IndexedDB. Export 
 - Analog clock
 - Date
 - Weather temperature and condition
-- Shapes: rectangle, circle, rounded rectangle and line
+- Shapes: rectangle, circle, rounded rectangle and line with configurable 0–32 px outlines
 - Image assets converted to RGB565 little-endian
 
 The current firmware target is one fixed 240×240 circular display. Partial opacity/alpha blending, arbitrary rotation, arbitrary fonts, compressed image decoding on-device and advanced weather fields are not supported. The editor's device-compatibility preflight rejects unsupported combinations before upload.
