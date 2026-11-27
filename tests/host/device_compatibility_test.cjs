@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const compatibility = require('../../web/device-compatibility.js');
+const presets = require('../../web/watch-face-presets.js');
 
 const root = path.resolve(__dirname, '../..');
 const appSource = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
@@ -78,6 +79,40 @@ for (const template of templateContext.templates) {
     }
   }
 }
+
+
+const referencePresets = presets.SPECS.filter(template => template.id.startsWith('ref-'));
+assert.deepEqual(referencePresets.map(template => template.id).sort(), [
+  'ref-classic-12', 'ref-chronometer-gmt', 'ref-minimal-arc', 'ref-split-dual-digit'
+].sort(), 'the four reference-aligned templates must be registered in the shared preset catalog');
+for (const template of referencePresets) {
+  const assetId = 'preset_art_' + template.id;
+  const generatedDesign = structuredClone(fixture);
+  generatedDesign.name = template.name;
+  generatedDesign.objects = presets.createObjects(template, assetId);
+  assert.deepEqual(errorsFor(generatedDesign, [assetId]), [],
+    template.name + ': generated WFS v1 preset must pass ESP32-C3 compatibility preflight');
+  assert.ok(generatedDesign.objects.length <= profile.nominalLimits.maxObjects,
+    template.name + ': generated object count must fit the device profile');
+  for (const object of generatedDesign.objects) {
+    assert.equal(object.transform.opacity, 1, template.name + ': object opacity must be fully opaque');
+    assert.equal(object.transform.rotation, 0, template.name + ': object rotation must be zero');
+    if (object.textStyle) {
+      assert.equal(object.textStyle.fontFamily, 'system-ui',
+        template.name + ': text must use the device-safe system font');
+      assert.ok([400, 600].includes(object.textStyle.fontWeight),
+        template.name + ': text weight must be supported by the firmware renderer');
+      assert.ok(!Object.hasOwn(object.textStyle, 'align'),
+        template.name + ': text alignment must use the schema textAlign property');
+    }
+  }
+}
+assert.match(appSource, /presetModule\.renderThumbnail\(t\)/,
+  'template cards must render preset-specific thumbnail artwork');
+assert.match(fs.readFileSync(path.join(root, 'web/styles.css'), 'utf8'), /\.template-thumb-image/,
+  'template cards must style the preset thumbnail image');
+assert.match(appSource, /async function pruneUnusedPresetAssets/,
+  'switching presets must retain reference-aware cleanup of unused artwork assets');
 
 const badCanvas = structuredClone(fixture);
 badCanvas.canvas.width = 320;
