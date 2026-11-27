@@ -1,12 +1,32 @@
 (function(){
 'use strict';
 const $=s=>document.querySelector(s);
-const faces=()=>[...(window.WfsTemplateFaces?.faces||[]).map(face=>({...face,uploadSupported:true})),...(window.WfsExtendedTemplateFaces?.faces||[]).map(face=>({...face,uploadSupported:false}))];
+const presetPreviewImages=new Map();
+const faces=()=>{
+ const original=(window.WfsTemplateFaces?.faces||[]).map(face=>({...face,uploadSupported:true}));
+ const extended=(window.WfsExtendedTemplateFaces?.faces||[]).map(face=>({...face,uploadSupported:false}));
+ const references=(window.WfsWatchFacePresets?.SPECS||[]).filter(spec=>spec.id.startsWith('ref-')).map(spec=>({
+  id:spec.id,category:spec.category,title:spec.name,subtitle:spec.description||'Reference-aligned design',
+  defaultBg:spec.bg,uploadSupported:true
+ }));
+ return [...original,...extended,...references];
+};
 const presets=()=>window.WfsWatchFacePresets;
 let selectedId=null,filter='all',lastFrame=0;
 const bg={color:null,sunburst:true,vignette:true,image:null,dim:40};
 function faceById(id){return faces().find(face=>face.id===id)||null}
-function renderFace(canvas,id,now){if(!canvas||!id)return;const api=id.length===3&&id[0]==='m'&&id.slice(1).split('').every(ch=>ch>='0'&&ch<='9')?window.WfsExtendedTemplateFaces:window.WfsTemplateFaces;if(api)api.renderFace(id,canvas,now||new Date())}
+function renderFace(canvas,id,now){
+ if(!canvas||!id)return;
+ if(id.startsWith('ref-')){
+  const spec=presets()?.SPECS?.find(item=>item.id===id);if(!spec)return;
+  let image=presetPreviewImages.get(id);
+  if(!image){image=new Image();image.src=presets().renderThumbnail(spec);presetPreviewImages.set(id,image)}
+  const ctx=canvas.getContext('2d');if(ctx){ctx.clearRect(0,0,canvas.width,canvas.height);if(image.complete&&image.naturalWidth)ctx.drawImage(image,0,0,canvas.width,canvas.height)}
+  return;
+ }
+ const api=id.length===3&&id[0]==='m'&&id.slice(1).split('').every(ch=>ch>='0'&&ch<='9')?window.WfsExtendedTemplateFaces:window.WfsTemplateFaces;
+ if(api)api.renderFace(id,canvas,now||new Date());
+}
 function drawGallery(now){document.querySelectorAll('[data-face-canvas]').forEach(canvas=>renderFace(canvas,canvas.dataset.faceCanvas,now))}
 function buildGallery(){
  const host=$('#studioFaceGrid');if(!host)return;host.innerHTML='';
