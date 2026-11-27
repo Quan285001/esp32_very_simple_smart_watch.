@@ -182,4 +182,20 @@ require("validateWfsPackage(packageFile" in transfer and
 require("validateWfsPackage(packageFile" in face_manager,
         "Firmware boot recovery does not validate the active WFS1 package")
 
+# WFS transfer and validation should avoid unnecessary peak heap and flash I/O.
+manifest_parse = re.search(
+    r"deserializeJson\(manifest,\s*file,\s*DeserializationOption::NestingLimit\(8\)\)",
+    validator,
+)
+require(manifest_parse is not None, "Firmware must parse the manifest directly from SPIFFS")
+require("malloc(manifestLength + 1)" not in validator,
+        "Firmware must not allocate a duplicate manifest text buffer")
+write_chunk = re.search(r"bool writeChunk\(.*?\n}\n\nbool finish", transfer, re.S)
+require(write_chunk is not None, "TransferManager::writeChunk implementation is missing")
+require(".flush()" not in write_chunk.group(0),
+        "TransferManager must not force a SPIFFS flush for every data chunk")
+finish_transfer = re.search(r"bool finish\(.*?\n}\n\nbool apply", transfer, re.S)
+require(finish_transfer is not None and "stagingFile.flush()" in finish_transfer.group(0),
+        "TransferManager must flush staged package data before verification")
+
 print("[WFS CONTRACT] Web Studio, BLE transport, WFS1 package, assets and firmware receiver are aligned.")
