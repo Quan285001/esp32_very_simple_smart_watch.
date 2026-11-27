@@ -25,6 +25,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const state={design:null,selected:null,profile:null,view:'editor',language:'en',zoom:1,bleDevice:null,bleChar:null,wfs:null,wfsCapabilities:null,wfsStatus:null,images:[],fonts:[],schema:null,projectSchema:null,drag:null,legacyBuffer:'',history:[],future:[],lastSnapshot:null,historyLock:false};
 // WFS v1 firmware contract: upload rasterization is fixed at 240×240 circular.
 const WFS_FIRMWARE_DISPLAY=Object.freeze({width:240,height:240,centerX:120,centerY:120,radius:120});
+const WFS_FIRMWARE_PROFILE_ID='esp32-c3-gc9a01-240';
 const templates=[
  {id:'minimal',name:'Minimal Digital',description:'Clean typography',bg:'#080b10',objects:[{type:'digital-clock',name:'Time',x:26,y:39,w:188,h:52,format:'HH:mm',size:43,color:'#f5f7fa',weight:600},{type:'date',name:'Date',x:40,y:62,w:160,h:20,text:'SATURDAY, NOV 07',size:10,color:'#aab4c2'}]},
  {id:'weather',name:'Weather Focus',description:'Time and conditions',bg:'#111c25',objects:[{type:'digital-clock',name:'Time',x:25,y:25,w:190,h:58,format:'HH:mm',size:46,color:'#f2f5f8'},{type:'weather',name:'Temperature',x:48,y:53,w:145,h:40,text:'27 C',size:30,color:'#b7f36b'},{type:'text',name:'Condition',x:45,y:70,w:150,h:18,text:'Partly cloudy',size:11,color:'#d0d8e2'}]},
@@ -574,10 +575,28 @@ async function buildWfsPackage(design){
  const schema=await ensureSchemaLoaded(),schemaErrors=validateJsonSchema(schema,packageDesign);
  if(schemaErrors.length)throw Error('Schema validation failed: '+schemaErrors[0]);
  // Stage 2: the shared firmware parser/renderer contract. Every rule remains blocking.
- const caps=state.wfsCapabilities||{},availableAssetIds=new Set(state.images.map(asset=>asset.id));
+ const caps=state.wfsCapabilities||{};
+ // Consume the negotiated capability envelope, but fail closed if the advertised raster profile differs from this 240px encoder.
+ const advertisedProfileId=caps.pid||WFS_FIRMWARE_PROFILE_ID;
+ const advertisedWidth=Number(caps.cw)||WFS_FIRMWARE_DISPLAY.width;
+ const advertisedHeight=Number(caps.ch)||WFS_FIRMWARE_DISPLAY.height;
+ const advertisedShape=caps.cs||'circle';
+ if(advertisedProfileId!==WFS_FIRMWARE_PROFILE_ID||advertisedWidth!==WFS_FIRMWARE_DISPLAY.width||advertisedHeight!==WFS_FIRMWARE_DISPLAY.height||advertisedShape!=='circle'){
+  throw Error('Connected firmware advertises a display profile that the current WFS v1 rasterizer cannot safely package');
+ }
+ const effectiveCaps={
+  ...caps,
+  pid:advertisedProfileId,cw:advertisedWidth,ch:advertisedHeight,cs:advertisedShape,
+  bw:Math.min(WFS_FIRMWARE_DISPLAY.width,Number(caps.bw)||WFS_FIRMWARE_DISPLAY.width),
+  bh:Math.min(WFS_FIRMWARE_DISPLAY.height,Number(caps.bh)||WFS_FIRMWARE_DISPLAY.height),
+  obj:Number.isInteger(Number(caps.obj))&&Number(caps.obj)>=0?Number(caps.obj):16,
+  assets:Number(caps.assets)||16,json:Number(caps.json)||16384,
+  img:!!caps.img,stage:Number(caps.stage)||0
+ };
+ const availableAssetIds=new Set(state.images.map(asset=>asset.id));
  const compatibilityModule=globalThis.WfsDeviceCompatibility;
  if(!compatibilityModule||typeof compatibilityModule.errors!=='function')throw Error('Device compatibility validator is unavailable; reload Watch Face Studio before uploading.');
- const compatibilityErrors=[...new Set(compatibilityModule.errors(packageDesign,caps,availableAssetIds))];
+ const compatibilityErrors=[...new Set(compatibilityModule.errors(packageDesign,effectiveCaps,availableAssetIds))];
  if(compatibilityErrors.length)throw Error('Firmware compatibility validation failed:\n'+compatibilityErrors.join('\n'));
  // Stage 3: package safety. Validate converted bitmaps and actual payload sizes before transfer.
  const packageAssets=[],assetBytes=[],assetIds=new Map(),preconvertedImages=new Map();let assetOffset=0;
@@ -592,8 +611,8 @@ async function buildWfsPackage(design){
  }
  for(const object of packageDesign.objects.filter(o=>o.type==='image')){
   const converted=preconvertedImages.get(object.id)||await convertImageToRgb565(object,packageDesign);
-  const maxBitmapWidth=Math.min(WFS_FIRMWARE_DISPLAY.width,Number(caps.bw)||Number(packageDesign.canvas.width)||WFS_FIRMWARE_DISPLAY.width);
-  const maxBitmapHeight=Math.min(WFS_FIRMWARE_DISPLAY.height,Number(caps.bh)||Number(packageDesign.canvas.height)||WFS_FIRMWARE_DISPLAY.height);
+  const maxBitmapWidth=Math.min(WFS_FIRMWARE_DISPLAY.width,Number(effectiveCaps.bw)||Number(packageDesign.canvas.width)||WFS_FIRMWARE_DISPLAY.width);
+  const maxBitmapHeight=Math.min(WFS_FIRMWARE_DISPLAY.height,Number(effectiveCaps.bh)||Number(packageDesign.canvas.height)||WFS_FIRMWARE_DISPLAY.height);
   if(converted.width<1||converted.height<1||converted.width>maxBitmapWidth||converted.height>maxBitmapHeight||converted.bytes.length>maxBitmapWidth*maxBitmapHeight*2)throw Error(object.name+': cropped visible RGB565 image exceeds device bitmap limit ('+maxBitmapWidth+' × '+maxBitmapHeight+')');
   const originalId=object.assetId,sourceTransform=object.transform;
   const key=originalId+':'+sourceTransform.x+','+sourceTransform.y+','+sourceTransform.width+'x'+sourceTransform.height+'->'+converted.x+','+converted.y+','+converted.width+'x'+converted.height;
@@ -606,16 +625,16 @@ async function buildWfsPackage(design){
   }
   object.assetId=packageAssetId;Object.assign(object.transform,{x:converted.x,y:converted.y,width:converted.width,height:converted.height});
  }
- const maxAssets=Number(caps.assets)||16;
+ const maxAssets=Number(effectiveCaps.assets)||16;
  if(packageAssets.length>maxAssets)throw Error('This firmware supports at most '+maxAssets+' image assets per face');
- const layoutBytes=new TextEncoder().encode(JSON.stringify(packageDesign)),maxJsonBytes=Number(caps.json)||16384;
+ const layoutBytes=new TextEncoder().encode(JSON.stringify(packageDesign)),maxJsonBytes=Number(effectiveCaps.json)||16384;
  if(layoutBytes.length>maxJsonBytes)throw Error('Design JSON exceeds device limit ('+maxJsonBytes+' bytes)');
  const layoutDigest=new Uint8Array(await crypto.subtle.digest('SHA-256',layoutBytes));
  const required=[...new Set(packageDesign.objects.map(o=>({'text':'text.basic','digital-clock':'clock.digital','analog-clock':'clock.analog','date':'date.basic','weather':'weather.temperature','shape':'shape.basic','image':'image.rgb565'}[o.type])).filter(Boolean))];
  if(packageDesign.objects.some(o=>o.type==='weather'&&Array.isArray(o.weatherFields)&&o.weatherFields.includes('condition')))required.push('weather.condition');
  const manifest={packageFormatVersion:1,designId:packageDesign.designId,name:packageDesign.name,schemaVersion:1,deviceProfileId:packageDesign.deviceProfileId,requiredCapabilities:required,layoutSha256:wfsHex(layoutDigest),assets:packageAssets};
  const manifestBytes=new TextEncoder().encode(JSON.stringify(manifest)),payloadLength=manifestBytes.length+layoutBytes.length+assetOffset;
- const maxStageBytes=Number(caps.stage)||0;
+ const maxStageBytes=Number(effectiveCaps.stage)||0;
  if(maxStageBytes<=0||payloadLength+64>maxStageBytes)throw Error('Package exceeds currently available staging storage on the watch');
  const payload=new Uint8Array(payloadLength);let cursor=0;
  payload.set(manifestBytes,cursor);cursor+=manifestBytes.length;payload.set(layoutBytes,cursor);cursor+=layoutBytes.length;

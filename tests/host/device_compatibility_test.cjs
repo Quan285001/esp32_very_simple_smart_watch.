@@ -37,6 +37,15 @@ function errorsFor(design, assetIds = []) {
 assert.deepEqual(errorsFor(fixture), [],
   'committed minimal fixture must be accepted by the device compatibility preflight');
 
+const negotiatedProfileCaps = { ...capabilities, pid: 'test-320-rect', cw: 320, ch: 200, cs: 'rectangle' };
+const negotiatedProfileDesign = structuredClone(fixture);
+negotiatedProfileDesign.deviceProfileId = 'test-320-rect';
+negotiatedProfileDesign.canvas.width = 320;
+negotiatedProfileDesign.canvas.height = 200;
+negotiatedProfileDesign.canvas.shape = 'rectangle';
+assert.deepEqual(compatibility.errors(negotiatedProfileDesign, negotiatedProfileCaps, []), [],
+  'shared validator must honor the display profile advertised by connected firmware');
+
 assert.match(appSource, /id:'mono',name:'Monochrome'[^}]*weight:600/,
   'the built-in Monochrome template must use a renderer-supported font weight');
 

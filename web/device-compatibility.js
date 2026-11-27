@@ -66,17 +66,24 @@
       return ['Design must be a JSON object'];
     }
     if (design.schemaVersion !== 1) result.push('Unsupported Watch Face schema version');
-    if (design.deviceProfileId !== 'esp32-c3-gc9a01-240') {
+    const expectedProfileId = typeof caps.pid === 'string' && caps.pid
+      ? caps.pid : 'esp32-c3-gc9a01-240';
+    if (design.deviceProfileId !== expectedProfileId) {
       result.push('Design targets a different device profile');
     }
-    if (!caps.upload) result.push('This firmware does not currently accept face packages');
 
     const canvas = design.canvas || {};
-    if (canvas.width !== 240 || canvas.height !== 240) {
-      result.push('This firmware requires a 240 × 240 logical canvas');
+    const expectedWidth = Number.isInteger(Number(caps.cw)) && Number(caps.cw) > 0
+      ? Number(caps.cw) : 240;
+    const expectedHeight = Number.isInteger(Number(caps.ch)) && Number(caps.ch) > 0
+      ? Number(caps.ch) : 240;
+    const expectedShape = typeof caps.cs === 'string' && caps.cs
+      ? caps.cs : 'circle';
+    if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
+      result.push('This firmware requires a ' + expectedWidth + ' × ' + expectedHeight + ' logical canvas');
     }
-    if (canvas.shape !== 'circle') {
-      result.push('This device profile only supports a circular canvas');
+    if (canvas.shape !== expectedShape) {
+      result.push('This device profile requires a ' + expectedShape + ' canvas');
     }
 
     const objects = Array.isArray(design.objects) ? design.objects : [];
