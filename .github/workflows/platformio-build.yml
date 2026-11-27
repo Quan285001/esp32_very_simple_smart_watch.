@@ -64,6 +64,8 @@ jobs:
         run: node tests/host/watch_face_catalog_cleanup_test.cjs
       - name: Check Template Studio UI syntax
         run: node --check web/template-studio.js
+      - name: Run Template Studio image-panel and render-loop regression tests
+        run: node tests/host/watch_face_catalog_cleanup_test.cjs
       - name: Check Device Profile module syntax
         run: node --check web/device-profile.js
       - name: Run Device Profile validation and migration tests
