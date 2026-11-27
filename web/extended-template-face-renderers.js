@@ -1,3 +1,5 @@
+(function(){
+'use strict';
 
   const LOGICAL_SIZE = 240;
   const RENDER_SCALE = 2;
@@ -1259,3 +1261,5 @@
     setDim,
     setBackgroundImage
   });
+
+})();
