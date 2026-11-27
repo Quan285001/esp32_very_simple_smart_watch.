@@ -294,13 +294,12 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
         declaredCapabilityMask |= capabilityBit(capability.as<const char*>());
     }
 
-    // Release manifest parsing memory before allocating the layout parser
-    // document; both JSON trees are never kept alive at the same time.
-    // Drop the manifest's dynamic JSON pool before allocating layoutText.
+    // Release the manifest's dynamic JSON pool before allocating layoutText.
+    // The manifest text was streamed from SPIFFS and never duplicated on heap.
     manifest.clear();
 
-    // Allocate and read the layout only after the manifest JSON tree and text
-    // buffer are released, reducing peak heap use during package validation.
+    // Allocate and read the layout only after the manifest JSON tree is
+    // released, reducing peak heap use during package validation.
     layoutText = static_cast<char*>(malloc(layoutLength + 1));
     if (layoutText == nullptr) {
         error = PackageValidationError::Io;
