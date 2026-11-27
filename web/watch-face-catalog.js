@@ -25,7 +25,9 @@
     sunburstEnabled: true,
     vignetteEnabled: true,
     customBgImage: null,
-    bgDimPercent: 40
+    bgDimPercent: 40,
+    bgOffsetX: 0,
+    bgOffsetY: 0
   };
 
   // Watch Face Catalog: 3 Analog Dials + 5 Filtered Digital Faces
@@ -251,7 +253,9 @@
       const scale = Math.max(W / img.width, H / img.height);
       const drawW = img.width * scale;
       const drawH = img.height * scale;
-      ctx.drawImage(img, CX - drawW / 2, CY - drawH / 2, drawW, drawH);
+      ctx.fillStyle = state.overrideBgColor || defaultColor;
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(img, CX - drawW / 2 + state.bgOffsetX, CY - drawH / 2 + state.bgOffsetY, drawW, drawH);
 
       ctx.fillStyle = `rgba(0, 0, 0, ${state.bgDimPercent / 100})`;
       ctx.fillRect(0, 0, W, H);
@@ -1031,6 +1035,7 @@
     setVignette(enabled) { state.vignetteEnabled = !!enabled; },
     setDim(value) { state.bgDimPercent = Math.max(0, Math.min(85, Number(value) || 0)); },
     setBackgroundImage(image) { state.customBgImage = image || null; },
+    setBackgroundPosition(x, y) { state.bgOffsetX = Math.max(-180, Math.min(180, Number(x) || 0)); state.bgOffsetY = Math.max(-180, Math.min(180, Number(y) || 0)); },
     clearBackgroundImage() { state.customBgImage = null; },
     resetBackground() { state.overrideBgColor = null; state.customBgImage = null; },
     getSettings() { return {overrideBgColor:state.overrideBgColor,sunburstEnabled:state.sunburstEnabled,vignetteEnabled:state.vignetteEnabled,customBgImage:state.customBgImage,bgDimPercent:state.bgDimPercent}; }
@@ -1058,7 +1063,9 @@
     sunburstEnabled: true,
     vignetteEnabled: true,
     customBgImage: null,
-    bgDimPercent: 40
+    bgDimPercent: 40,
+    bgOffsetX: 0,
+    bgOffsetY: 0
   };
 
   function adjustHexBrightness(hex, percent) {
@@ -1092,7 +1099,9 @@
       const scale = Math.max(W / img.width, H / img.height);
       const drawW = img.width * scale;
       const drawH = img.height * scale;
-      ctx.drawImage(img, CX - drawW / 2, CY - drawH / 2, drawW, drawH);
+      ctx.fillStyle = state.overrideBgColor || defaultColor;
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(img, CX - drawW / 2 + state.bgOffsetX, CY - drawH / 2 + state.bgOffsetY, drawW, drawH);
 
       ctx.fillStyle = `rgba(0, 0, 0, ${state.bgDimPercent / 100})`;
       ctx.fillRect(0, 0, W, H);
@@ -2293,6 +2302,7 @@
   function setVignette(enabled) { state.vignetteEnabled = !!enabled; }
   function setDim(value) { state.bgDimPercent = Math.max(0, Math.min(85, Number(value) || 0)); }
   function setBackgroundImage(image) { state.customBgImage = image || null; }
+  function setBackgroundPosition(x, y) { state.bgOffsetX = Math.max(-180, Math.min(180, Number(x) || 0)); state.bgOffsetY = Math.max(-180, Math.min(180, Number(y) || 0)); }
 
   window.WfsExtendedTemplateFaces = Object.freeze({
     faces: WATCH_FACES.map(({ id, category, title, subtitle, defaultBg }) =>
@@ -2302,7 +2312,8 @@
     setSunburst,
     setVignette,
     setDim,
-    setBackgroundImage
+    setBackgroundImage,
+    setBackgroundPosition
   });
 
 })();
@@ -2330,18 +2341,27 @@ const SPECS=[
 {id:'ref-split-dual-digit',category:'digital',name:'Split Dual Digital',description:'Bold hours · Light minutes · Bottom readouts',bg:'#04141c',accent:'#f8fafc',secondary:'#cbd5e1',style:'reference-split-dual-digit'},
 {id:'ref-minimal-arc',category:'analog',name:'Minimal Arc Gauge',description:'Radial markers · Date · Bottom arc gauge',bg:'#051521',accent:'#e2e8f0',secondary:'#94a3b8',style:'reference-minimal-arc'}];
 
-function referenceRadialDial(ctx,inner,mid,outer){
- const grad=ctx.createRadialGradient(240,222,12,240,240,240);
- grad.addColorStop(0,inner);grad.addColorStop(.58,mid);grad.addColorStop(1,outer);
- ctx.save();ctx.beginPath();ctx.arc(240,240,240,0,Math.PI*2);ctx.clip();ctx.fillStyle=grad;ctx.fillRect(0,0,480,480);ctx.restore();
+function referenceRadialDial(ctx,inner,mid,outer,options={}){
+ ctx.save();ctx.beginPath();ctx.arc(240,240,240,0,Math.PI*2);ctx.clip();
+ if(options.image&&options.image.complete&&options.image.naturalWidth){
+  const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
+  ctx.fillStyle=options.color||outer;ctx.fillRect(0,0,480,480);
+  ctx.drawImage(options.image,(480-dw)/2+(Number(options.offsetX)||0),(480-dh)/2+(Number(options.offsetY)||0),dw,dh);
+  ctx.fillStyle='rgba(0,0,0,'+(Math.max(0,Math.min(85,Number(options.dim)||0))/100)+')';ctx.fillRect(0,0,480,480);
+ }else{
+  const grad=ctx.createRadialGradient(240,222,12,240,240,240);
+  grad.addColorStop(0,inner);grad.addColorStop(.58,mid);grad.addColorStop(1,outer);
+  ctx.fillStyle=grad;ctx.fillRect(0,0,480,480);
+ }
+ ctx.restore();
 }
-function renderReferenceArtworkCanvas(spec){
+function renderReferenceArtworkCanvas(spec,options={}){
  const canvas=document.createElement('canvas');canvas.width=480;canvas.height=480;const c=canvas.getContext('2d');
  const line=(x1,y1,x2,y2,color,w)=>{c.strokeStyle=color;c.lineWidth=w;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke()};
  const txt=(value,x,y,size,color,weight=600)=>{c.font=weight+' '+size+'px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(value,x,y)};
  const ring=(r,color,w)=>{c.beginPath();c.arc(240,240,r,0,Math.PI*2);c.lineWidth=w;c.strokeStyle=color;c.stroke()};
  const radial=(h,r)=>{const a=(h*30-90)*Math.PI/180;return [240+Math.cos(a)*r,240+Math.sin(a)*r]};
- referenceRadialDial(c,spec.style==='reference-split-dual-digit'?'#0a3a4a':spec.style==='reference-minimal-arc'?'#123952':'#11141a',spec.style==='reference-split-dual-digit'?'#061d26':spec.style==='reference-minimal-arc'?'#091f30':'#07080b',spec.bg);
+ referenceRadialDial(c,spec.style==='reference-split-dual-digit'?'#0a3a4a':spec.style==='reference-minimal-arc'?'#123952':'#11141a',spec.style==='reference-split-dual-digit'?'#061d26':spec.style==='reference-minimal-arc'?'#091f30':'#07080b',spec.bg,options);
  c.save();c.beginPath();c.arc(240,240,240,0,Math.PI*2);c.clip();
  if(spec.style==='reference-classic-12'){
   ring(230,'rgba(255,255,255,.06)',18);ring(220,'rgba(255,255,255,.16)',2);
@@ -2361,13 +2381,14 @@ function renderReferenceArtworkCanvas(spec){
 }
 
 function renderArtworkCanvas(spec,options={}){
- if(String(spec.style||'').startsWith('reference-'))return renderReferenceArtworkCanvas(spec);
+ if(String(spec.style||'').startsWith('reference-'))return renderReferenceArtworkCanvas(spec,options);
  const canvas=document.createElement('canvas');canvas.width=480;canvas.height=480;
  const c=canvas.getContext('2d');const {bg,accent,secondary,style}=spec;
  const baseHex=/^#[0-9a-f]{6}$/i.test(options.color||'')?options.color:bg;
  if(options.image&&options.image.complete&&options.image.naturalWidth){
   const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
-  c.drawImage(options.image,(480-dw)/2,(480-dh)/2,dw,dh);
+  c.fillStyle=baseHex;c.fillRect(0,0,480,480);
+  c.drawImage(options.image,(480-dw)/2+(Number(options.offsetX)||0),(480-dh)/2+(Number(options.offsetY)||0),dw,dh);
   c.fillStyle='rgba(0,0,0,'+(Math.max(0,Math.min(85,Number(options.dim)||0))/100)+')';c.fillRect(0,0,480,480);
  }else{
   c.fillStyle=baseHex;c.fillRect(0,0,480,480);
@@ -2415,8 +2436,8 @@ function renderArtworkCanvas(spec,options={}){
  c.restore();return canvas;
 }
 function renderBackground(spec,options){return renderArtworkCanvas(spec,options||{}).toDataURL('image/png')}
-function renderThumbnail(spec){
- const canvas=renderArtworkCanvas(spec),c=canvas.getContext('2d');
+function renderThumbnail(spec,options={}){
+ const canvas=renderArtworkCanvas(spec,options),c=canvas.getContext('2d');
  const text=(value,x,y,size,color,weight=600)=>{c.font=weight+' '+size+'px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(value,x,y)};
  if(String(spec.style||'').startsWith('reference-')){
  
