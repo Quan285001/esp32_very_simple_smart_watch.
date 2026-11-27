@@ -58,6 +58,10 @@ jobs:
 
       - name: Check Web app JavaScript syntax
         run: node --check web/app.js
+      - name: Check Template Face renderer syntax
+        run: node --check web/template-face-renderers.js
+      - name: Check Template Studio UI syntax
+        run: node --check web/template-studio.js
       - name: Check Device Profile module syntax
         run: node --check web/device-profile.js
       - name: Run Device Profile validation and migration tests

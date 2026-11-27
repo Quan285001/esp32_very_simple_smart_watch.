@@ -28,12 +28,28 @@ for asset in parser.assets:
         continue
     if not (ROOT / asset).is_file():
         errors.append(f"Missing frontend asset: {asset}")
-required_ids = {"watchCanvas", "quickAddSelect", "quickAddBtn", "objectList", "inspector", "templateGrid", "libraryGrid", "connectBtn", "saveBtn", "exportBtn", "importBtn", "imageInput", "jsonInput", "designName", "bgColor", "toast", "legacyStatus", "syncTimeBtn", "syncWeatherBtn", "sleepWatchBtn", "sendLocationBtn", "scanWifiBtn", "saveWifiBtn", "saveAutoSleepBtn", "templateFilters", "undoBtn", "redoBtn", "themeLight", "themeDark", "themeSystem", "languageSelect", "autoSaveToggle", "deviceProfileDialog", "profilePresetSelect", "profileName", "profileWidth", "profileHeight", "profileShape", "profileRotation", "profileColorFormat", "profileScaleStrategy", "profileCompatibilityStatus", "profileExportBtn", "profileImportBtn", "profileImportInput"}
+required_ids = {"watchCanvas", "quickAddSelect", "quickAddBtn", "objectList", "inspector", "templateGrid", "libraryGrid", "connectBtn", "saveBtn", "exportBtn", "importBtn", "imageInput", "jsonInput", "designName", "bgColor", "toast", "legacyStatus", "syncTimeBtn", "syncWeatherBtn", "sleepWatchBtn", "sendLocationBtn", "scanWifiBtn", "saveWifiBtn", "saveAutoSleepBtn", "templateFilters", "undoBtn", "redoBtn", "themeLight", "themeDark", "themeSystem", "languageSelect", "autoSaveToggle", "deviceProfileDialog", "profilePresetSelect", "profileName", "profileWidth", "profileHeight", "profileShape", "profileRotation", "profileColorFormat", "profileScaleStrategy", "profileCompatibilityStatus", "profileExportBtn", "profileImportBtn", "profileImportInput", "studioFaceGrid", "studioSelectedCanvas", "studioBackBtn", "studioBgColor", "studioSunburst", "studioVignette", "studioImageInput", "studioImageControls", "studioDim", "studioClearImage", "studioResetBg", "templateSaveBtn", "templateUploadBtn", "studioDeviceNav", "backToStudio"}
 missing = sorted(required_ids - parser.ids)
 if missing:
     errors.append("Missing required UI ids: " + ", ".join(missing))
 if not (ROOT / "shared/schemas/watch-face.schema.json").is_file():
     errors.append("Shared watch-face schema is missing")
+
+renderer_js = (ROOT / "web/template-face-renderers.js").read_text(encoding="utf-8")
+studio_js = (ROOT / "web/template-studio.js").read_text(encoding="utf-8")
+preset_js = (ROOT / "web/watch-face-presets.js").read_text(encoding="utf-8")
+renderer_ids = re.findall(r"id: '([^']+)',\s*category:", renderer_js)
+preset_ids = re.findall(r"\{id:'([^']+)',category:", preset_js)
+if len(renderer_ids) != 8 or len(set(renderer_ids)) != 8:
+    errors.append("Template renderer must define exactly eight unique watch faces")
+if set(renderer_ids) != set(preset_ids) or len(preset_ids) != 8:
+    errors.append("Template renderers and WFS package presets must contain the same eight face ids")
+if "window.WfsTemplateFaces" not in renderer_js or "renderFace: renderFaceToCanvas" not in renderer_js:
+    errors.append("Template Face renderer API is missing")
+if "window.addEventListener('wfs:ready',init,{once:true})" not in studio_js:
+    errors.append("Template Studio must initialize after the shared WFS runtime is ready")
+if "web/template-face-renderers.js" not in parser.assets or "web/template-studio.js" not in parser.assets or "web/template-studio.css" not in parser.assets:
+    errors.append("Template Studio assets must be loaded by index.html")
 
 app_js = (ROOT / "web/app.js").read_text(encoding="utf-8")
 font_match = re.search(r"const TFT_FONT1_GLYPHS='([0-9a-f]+)'", app_js)
