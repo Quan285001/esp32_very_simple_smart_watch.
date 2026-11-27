@@ -64,7 +64,7 @@ for (const [name, css] of [['base', baseCss], ['Template Studio', studioCss]]) {
     name + ' stylesheet must have balanced rule braces');
 }
 
-assert(!appSource.includes('TFT_FONT1_GLYPHS'), 'unused TFT font glyph table must not remain in the Web app bundle');
+assert(appSource.includes('const TFT_FONT1_GLYPHS='), 'browser GLCD font table must remain available for firmware parity validation');
 assert(!appSource.includes('function showTransferInfo('), 'unused transfer wrapper must not remain');
 assert(appSource.includes("const studio=$('#templateTransferStatus');if(studio)studio.textContent=message"),
   'WFS status updates must remain visible in Template Studio');
