@@ -83,7 +83,7 @@ async function uploadTemplate(){const button=$('#templateUploadBtn');button.disa
 function bind(){
  document.querySelectorAll('[data-face-filter]').forEach(button=>button.addEventListener('click',()=>setFilter(button.dataset.faceFilter)));
  $('#studioBackBtn').addEventListener('click',showGallery);
- $('#studioDeviceNav').addEventListener('click',openDevicePage);$('#studioDeviceMobileNav').addEventListener('click',openDevicePage);
+ $('#studioDeviceNav').onclick=openDevicePage;$('#studioDeviceMobileNav').onclick=openDevicePage;
  $('#backToStudio').addEventListener('click',returnToTemplateStudio);
  document.querySelectorAll('[data-bg]').forEach(button=>button.addEventListener('click',()=>{bg.color=button.dataset.bg;updateBackground();$('#studioBgColor').value=bg.color}));
  $('#studioBgColor').addEventListener('input',event=>{bg.color=event.target.value;updateBackground()});
