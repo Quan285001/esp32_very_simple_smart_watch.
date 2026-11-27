@@ -2499,7 +2499,7 @@ function renderThumbnail(spec,options={}){
 function lighten(hex,delta){const n=parseInt(hex.slice(1),16);const f=v=>Math.max(0,Math.min(255,v+delta));return '#'+[f(n>>16),f((n>>8)&255),f(n&255)].map(v=>v.toString(16).padStart(2,'0')).join('')}
 function createReferenceObjects(spec,assetId){
  const objects=[{id:'preset_bg_'+spec.id,type:'image',name:spec.name+' artwork',assetId,visible:true,locked:true,transform:{x:0,y:0,width:240,height:240,anchor:'top-left',opacity:1,rotation:0,zIndex:0}}];
- const add=(type,name,x,y,w,h,extra,z)=>objects.push({id:'preset_'+spec.id+'_'+z,type,name,visible:true,locked:false,transform:{x,y,width:w,height:h,anchor:'top-left',opacity:1,rotation:0,zIndex:z},...extra});
+ const add=(type,name,x,y,w,h,extra,z)=>{const object={id:'preset_'+spec.id+'_'+z,type,name,visible:true,locked:false,transform:{x,y,width:w,height:h,anchor:'top-left',opacity:1,rotation:0,zIndex:z},...extra};objects.push(object);return object};
  const textStyle=(fontSize,fontWeight,fill,textAlign='center')=>({fontSize,fontWeight,fill,fontFamily:'system-ui',textAlign});
  const digital=(name,x,y,w,h,format,size,color,z,timeFormat='24h',weight=600)=>add('digital-clock',name,x,y,w,h,{clockMode:'digital',timeFormat,dataBinding:{source:'time',format},textStyle:textStyle(size,weight,color)},z);
  const staticText=(name,value,x,y,w,h,size,color,z,weight=600)=>add('text',name,x,y,w,h,{text:value,textStyle:textStyle(size,weight,color)},z);
