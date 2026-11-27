@@ -1,5 +1,57 @@
 /* Unified Watch Face Catalog: 8 original + 20 extended + 4 reference-aligned faces. */
 
+/* Shared merge helpers for targeted template refinements. */
+(function(root){
+ 'use strict';
+ const HOUR_SCALE_FACTOR=1.75;
+ const DIAL_SIZE=240;
+ const ART_SIZE=480;
+ const ART_CENTER=ART_SIZE/2;
+ function scaleHourFontSize(baseSize,factor=HOUR_SCALE_FACTOR,maxSize=64){
+  const n=Number(baseSize);
+  if(!Number.isFinite(n)||n<=0)return baseSize;
+  return Math.min(maxSize,Math.round(n*factor));
+ }
+ function scaleTransformAroundCenter(transform,factor=HOUR_SCALE_FACTOR,canvasSize=DIAL_SIZE){
+  const t=transform||{};
+  const w=Number(t.width)||0,h=Number(t.height)||0;
+  const cx=(Number(t.x)||0)+w/2,cy=(Number(t.y)||0)+h/2;
+  const nextW=Math.max(4,Math.min(canvasSize,Math.round(w*factor*10)/10));
+  const nextH=Math.max(4,Math.min(canvasSize,Math.round(h*factor*10)/10));
+  return Object.assign({},t,{
+   x:Math.round((cx-nextW/2)*10)/10,
+   y:Math.round((cy-nextH/2)*10)/10,
+   width:nextW,height:nextH,rotation:0,opacity:1
+  });
+ }
+ function drawSyncedGiantHhSeconds(ctx,options={}){
+  const cx=Number.isFinite(options.cx)?options.cx:ART_CENTER;
+  const cy=Number.isFinite(options.cy)?options.cy:ART_CENTER;
+  const dotRadius=Number.isFinite(options.dotRadius)?options.dotRadius:188;
+  const secOrbitRadius=Number.isFinite(options.secOrbitRadius)?options.secOrbitRadius:148;
+  let sec=options.secondValue;
+  if(!Number.isFinite(sec)){const now=new Date();sec=now.getSeconds()+now.getMilliseconds()/1000}
+  const normSec=((sec%60)+60)%60;
+  const angleRad=(normSec*6-90)*Math.PI/180;
+  const dotX=cx+Math.cos(angleRad)*dotRadius,dotY=cy+Math.sin(angleRad)*dotRadius;
+  const secX=cx+Math.cos(angleRad)*secOrbitRadius,secY=cy+Math.sin(angleRad)*secOrbitRadius;
+  const secText=String(Math.floor(normSec)%60).padStart(2,'0');
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,dotRadius,0,Math.PI*2);
+  ctx.strokeStyle='rgba(245,158,11,0.22)';ctx.lineWidth=12;ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,dotRadius,-Math.PI/2,angleRad,false);
+  ctx.strokeStyle='#f59e0b';ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();
+  ctx.beginPath();ctx.arc(dotX,dotY,11,0,Math.PI*2);
+  ctx.fillStyle='#ffffff';ctx.fill();
+  ctx.font='700 28px Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#fbbf24';ctx.fillText(secText,secX,secY);
+  ctx.restore();
+  return {seconds:normSec,label240:{x:Math.round((secX/2-12)*10)/10,y:Math.round((secY/2-12)*10)/10,width:24,height:24}};
+ }
+ root.WfsMergePatch=Object.freeze({HOUR_SCALE_FACTOR,scaleHourFontSize,scaleTransformAroundCenter,drawSyncedGiantHhSeconds});
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+
 /* Source sections are kept in isolated IIFEs to preserve their existing renderer APIs. */
 
 /* === Original 8 template renderers === */
@@ -2014,35 +2066,12 @@
     const amber = opts.amber || '#f59e0b';
     drawDialBase(ctx, '#141517');
 
+    // Seconds label follows the same angular position as the white dot.
+    WfsMergePatch.drawSyncedGiantHhSeconds(ctx, {
+      cx: CX, cy: CY, dotRadius: R - 18, secOrbitRadius: 148, secondValue: t.secFloat
+    });
+
     ctx.save();
-    // Outer track
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    ctx.arc(CX, CY, R - 18, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Amber arc (progress based on seconds)
-    const progress = (t.secFloat / 60) * Math.PI * 2;
-    ctx.strokeStyle = amber;
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    ctx.arc(CX, CY, R - 18, -Math.PI / 2, -Math.PI / 2 + progress);
-    ctx.stroke();
-
-    // Marker label "50" & white dot
-    const dotAngle = (-Math.PI / 2) + progress;
-    ctx.fillStyle = '#f8fafc';
-    ctx.beginPath();
-    ctx.arc(CX + Math.cos(dotAngle) * (R - 18), CY + Math.sin(dotAngle) * (R - 18), 7, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = amber;
-    ctx.font = '600 26px "Inter", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(t.ss), 78, 144);
-
     // Giant HH in center
     ctx.fillStyle = '#f1f5f9';
     ctx.font = '400 184px "Inter", sans-serif';
@@ -2367,12 +2396,12 @@ function renderReferenceArtworkCanvas(spec,options={}){
   ring(230,'rgba(255,255,255,.06)',18);ring(220,'rgba(255,255,255,.16)',2);
   for(let i=0;i<60;i++){const a=(i*6-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);const major=i%5===0;c.fillStyle=i===0?'#e2e8f0':major?'#e2e8f0':'rgba(203,213,225,.45)';if(i===0){c.fillRect(220,-5.5,11,3.5);c.fillRect(220,2,11,3.5)}else c.fillRect(220-(major?0:-2),major?-2:-1,major?11:7,major?4:2);c.restore()}
   for(let h=1;h<12;h++){const a=(h*30-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);const g=c.createLinearGradient(186,-6,206,6);g.addColorStop(0,'#f0c97d');g.addColorStop(1,'#9c6c28');c.fillStyle=g;c.beginPath();c.moveTo(186,-3.5);c.lineTo(206,-6.5);c.lineTo(206,6.5);c.lineTo(186,3.5);c.closePath();c.fill();c.restore()}
-  txt('12',240,54,32,spec.accent,700);
+  txt('12',240,54,WfsMergePatch.scaleHourFontSize(32),spec.accent,700);
  }else if(spec.style==='reference-chronometer-gmt'){
   ring(229,'rgba(203,213,225,.14)',22);ring(214,'rgba(226,232,240,.22)',2);
   for(let i=0;i<60;i++){const a=(i*6-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);const major=i%5===0;if(i===0){c.fillStyle='#f8fafc';c.fillRect(219,-5,13,3.5);c.fillRect(219,1.5,13,3.5)}else if(major){c.fillStyle='#e2e8f0';c.fillRect(219,-2,13,4)}c.fillStyle=major?'rgba(248,250,252,.85)':'rgba(203,213,225,.45)';c.fillRect(205,major?-1.8:-1,major?9:6,major?3.6:2);c.restore()}
   for(let h=1;h<12;h++){if(h%3===0)continue;const a=(h*30-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);c.fillStyle=spec.secondary;c.beginPath();c.moveTo(176,0);c.lineTo(194,-7);c.lineTo(189,0);c.lineTo(194,7);c.closePath();c.fill();c.restore()}
-  txt('12',240,64,32,spec.secondary);txt('3',416,242,32,spec.secondary);txt('6',240,416,32,spec.secondary);txt('9',64,242,32,spec.secondary);
+  txt('12',240,64,WfsMergePatch.scaleHourFontSize(32),spec.secondary);txt('3',416,242,WfsMergePatch.scaleHourFontSize(32),spec.secondary);txt('6',240,416,WfsMergePatch.scaleHourFontSize(32),spec.secondary);txt('9',64,242,WfsMergePatch.scaleHourFontSize(32),spec.secondary);
  }else if(spec.style==='reference-minimal-arc'){
   for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);c.fillStyle='rgba(241,245,249,.85)';if(h===0){c.fillRect(204,-6.5,24,4);c.fillRect(204,2.5,24,4)}else c.fillRect(206,-2,22,4);c.restore();const d=(h*30+15-90)*Math.PI/180;c.beginPath();c.arc(240+Math.cos(d)*226,240+Math.sin(d)*226,2.6,0,Math.PI*2);c.fillStyle='rgba(203,213,225,.55)';c.fill()}
   const gcx=240,gcy=342,gr=54,start=135*Math.PI/180,end=405*Math.PI/180,progress=295*Math.PI/180;c.lineCap='round';c.lineWidth=8;c.strokeStyle='rgba(148,163,184,.28)';c.beginPath();c.arc(gcx,gcy,gr,start,end);c.stroke();c.strokeStyle='rgba(226,232,240,.72)';c.beginPath();c.arc(gcx,gcy,gr,start,progress);c.stroke();c.beginPath();c.arc(gcx+Math.cos(progress)*gr,gcy+Math.sin(progress)*gr,5,0,Math.PI*2);c.fillStyle='#f8fafc';c.fill();
@@ -2475,7 +2504,7 @@ function createReferenceObjects(spec,assetId){
  const digital=(name,x,y,w,h,format,size,color,z,timeFormat='24h',weight=600)=>add('digital-clock',name,x,y,w,h,{clockMode:'digital',timeFormat,dataBinding:{source:'time',format},textStyle:textStyle(size,weight,color)},z);
  const staticText=(name,value,x,y,w,h,size,color,z,weight=600)=>add('text',name,x,y,w,h,{text:value,textStyle:textStyle(size,weight,color)},z);
  const date=(x,y,w,h,size,color,z)=>add('date','Date',x,y,w,h,{dataBinding:{source:'date',format:'DD MMM'},textStyle:textStyle(size,400,color)},z);
- const analog=(hour,minute,second,centerColor,centerRadius,z)=>add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',handConfig:{hour:{length:hour.length,width:hour.width,tail:hour.tail,color:hour.color},minute:{length:minute.length,width:minute.width,tail:minute.tail,color:minute.color},second:{length:second.length,width:second.width,tail:second.tail,color:second.color},centerColor,centerRadius}},z);
+ const analog=(hour,minute,second,centerColor,centerRadius,z)=>{const object=add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',handConfig:{hour:{length:hour.length,width:hour.width,tail:hour.tail,color:hour.color},minute:{length:minute.length,width:minute.width,tail:minute.tail,color:minute.color},second:{length:second.length,width:second.width,tail:second.tail,color:second.color},centerColor,centerRadius}},z);object.transform=WfsMergePatch.scaleTransformAroundCenter(object.transform,1.75,240);return object};
  if(spec.style==='reference-classic-12'){
   analog({length:50,width:5,tail:8,color:'#f1f5f9'},{length:76,width:3.8,tail:10,color:'#f8fafc'},{length:88,width:1.5,tail:15,color:'#d9a452'},'#d9a452',3.5,1);
  }else if(spec.style==='reference-chronometer-gmt'){
@@ -2498,7 +2527,7 @@ function createReferenceObjects(spec,assetId){
 function createObjects(spec,assetId){
  if(String(spec.style||'').startsWith('reference-'))return createReferenceObjects(spec,assetId);
  const objects=[{id:'preset_bg_'+spec.id,type:'image',name:'Preset artwork',assetId,visible:true,locked:true,transform:{x:0,y:0,width:240,height:240,anchor:'top-left',rotation:0,opacity:1,zIndex:0}}];
- const add=(type,name,x,y,w,h,extra,z)=>objects.push({id:'preset_'+spec.id+'_'+z,type,name,visible:true,locked:false,transform:{x,y,width:w,height:h,anchor:'top-left',rotation:0,opacity:1,zIndex:z},...extra});
+ const add=(type,name,x,y,w,h,extra,z)=>{const object={id:'preset_'+spec.id+'_'+z,type,name,visible:true,locked:false,transform:{x,y,width:w,height:h,anchor:'top-left',rotation:0,opacity:1,zIndex:z},...extra};objects.push(object);return object};
  if(spec.category==='analog'){
   const colors=spec.style==='gold'?{hour:'#e5b869',minute:'#e5b869',second:'#f3d193'}:spec.style==='tactical'?{hour:'#ffffff',minute:'#ffffff',second:'#dc2626'}:{hour:'#f8fafc',minute:'#f8fafc',second:'#ef4444'};
   add('analog-clock','Live analog hands',40,40,160,160,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3}},1);
