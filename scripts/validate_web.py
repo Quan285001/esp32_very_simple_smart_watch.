@@ -45,7 +45,7 @@ if len(renderer_ids) != 8 or len(set(renderer_ids)) != 8:
     errors.append("Template renderer must define exactly eight unique watch faces")
 if set(renderer_ids) != set(preset_ids) or len(preset_ids) != 8:
     errors.append("Template renderers and WFS package presets must contain the same eight face ids")
-extended_ids = re.findall(r"id: '([^']+)',\\s*category:", extended_renderer_js)
+extended_ids = re.findall(r"id: '([^']+)',\s*category:", extended_renderer_js)
 if len(extended_ids) != 20 or len(set(extended_ids)) != 20 or set(extended_ids) != {f"m{i:02d}" for i in range(1, 21)}:
     errors.append("Extended renderer must define all 20 unique Gemini template ids")
 if "window.WfsExtendedTemplateFaces" not in extended_renderer_js or "renderFace: renderFaceToCanvas" not in extended_renderer_js:
