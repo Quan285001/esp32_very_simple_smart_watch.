@@ -40,7 +40,8 @@ for(const invalid of [0,-5,'bad',NaN,Infinity,undefined]){
   handlers.pointerup();
  }
 }
-const presetSource=fs.readFileSync('web/watch-face-presets.js','utf8');require('../../web/watch-face-presets.js');
+global.window=global;
+const presetSource=fs.readFileSync('web/watch-face-catalog.js','utf8');require('../../web/watch-face-catalog.js');
 const api=globalThis.WfsWatchFacePresets,angled=api.SPECS.find(s=>s.id==='angled-tech');
 const objects=api.createObjects(angled,'artwork'),time=objects.find(o=>o.name==='Time'),seconds=objects.find(o=>o.name==='Seconds'),date=objects.find(o=>o.name==='Date');
 const radians=29*Math.PI/180,halfBoundsY=Math.sin(radians)*63+Math.cos(radians)*12;
