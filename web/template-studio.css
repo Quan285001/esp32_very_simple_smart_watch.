@@ -53,3 +53,6 @@ body[data-view="device"] .workspace .device-control-grid{display:grid;grid-templ
 /* Keep device management reachable on narrow screens where the desktop topbar action is hidden. */
 .studio-device-mobile-nav{display:none}
 @media(max-width:720px){.studio-device-mobile-nav{display:flex;width:100%;justify-content:center;align-items:center;gap:8px;margin:14px 0 4px;padding:12px 14px;border:1px solid rgba(56,189,248,.35);border-radius:12px;background:linear-gradient(110deg,rgba(14,116,144,.22),rgba(30,64,175,.16));color:#bae6fd;font-size:13px;font-weight:750;letter-spacing:.01em}.studio-device-mobile-nav:active{background:rgba(14,116,144,.35)}}
+
+/* The applied-image inspector must remain absent until an image is committed to the face. */
+.studio-control-card[hidden],#studioApplyImage[hidden]{display:none!important}
