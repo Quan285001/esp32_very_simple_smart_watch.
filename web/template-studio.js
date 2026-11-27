@@ -48,6 +48,7 @@ function updateSelectedPreview(){renderFace($('#studioSelectedCanvas'),selectedI
 function openCustomizer(id){const face=faceById(id);if(!face)return;selectedId=id;$('#studioGallery').hidden=true;$('#studioCustomizer').hidden=false;$('#studioSelectedTitle').textContent=face.title.replace(/^\d+\.\s*/,'');$('#studioSelectedSubtitle').textContent=face.subtitle;$('#studioSelectedCategory').textContent=face.category==='analog'?'ANALOG DIAL':'DIGITAL FACE';const supported=face.uploadSupported;$('#templateCompatibilityNote').hidden=supported;$('#templateSaveBtn').disabled=!supported;$('#templateUploadBtn').disabled=!supported;renderSettings();updateSelectedPreview();window.scrollTo({top:0,behavior:'smooth'})}
 function showGallery(){selectedId=null;$('#studioCustomizer').hidden=true;$('#studioGallery').hidden=false;window.scrollTo({top:0,behavior:'smooth'});drawGallery(new Date())}
 function updateBackground(){presetPreviewImages.clear();applyBackgroundSettings();drawGallery(new Date());updateSelectedPreview()}
+function updateDraggedBackground(){applyBackgroundSettings();if(selectedId?.startsWith('ref-'))presetPreviewImages.delete(selectedId);updateSelectedPreview()}
 function getPackageSpec(){const spec=presets()?.SPECS?.find(item=>item.id===selectedId);if(!spec)throw Error('Không tìm thấy preset tương ứng trong bộ xuất WFS.');return spec}
 async function prepareCurrentDesign(){
  const face=faceById(selectedId);if(!face?.uploadSupported)throw Error('Mẫu này hiện mới có renderer xem trước. Cần bộ chuyển đổi WFS1 và renderer firmware tương ứng trước khi lưu hoặc upload lên đồng hồ.');const spec=getPackageSpec(),module=presets();if(!face||!module?.renderBackground||!module?.createObjects)throw Error('Template renderer hoặc package adapter chưa sẵn sàng.');
@@ -68,8 +69,8 @@ function bind(){
  $('#studioDim').addEventListener('input',event=>{bg.dim=Number(event.target.value);$('#studioDimValue').textContent=bg.dim+'%';updateBackground()});
  const preview=$('#studioSelectedCanvas');let drag=null;
  preview.addEventListener('pointerdown',event=>{if(!bg.image)return;event.preventDefault();const rect=preview.getBoundingClientRect();drag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,baseX:bg.offsetX,baseY:bg.offsetY,width:rect.width,height:rect.height};preview.setPointerCapture(event.pointerId)});
- preview.addEventListener('pointermove',event=>{if(!drag||drag.pointerId!==event.pointerId)return;bg.offsetX=Math.max(-180,Math.min(180,drag.baseX+(event.clientX-drag.x)*480/drag.width));bg.offsetY=Math.max(-180,Math.min(180,drag.baseY+(event.clientY-drag.y)*480/drag.height));updateBackground()});
- const endDrag=event=>{if(drag&&drag.pointerId===event.pointerId)drag=null};
+ preview.addEventListener('pointermove',event=>{if(!drag||drag.pointerId!==event.pointerId)return;bg.offsetX=Math.max(-180,Math.min(180,drag.baseX+(event.clientX-drag.x)*480/drag.width));bg.offsetY=Math.max(-180,Math.min(180,drag.baseY+(event.clientY-drag.y)*480/drag.height));updateDraggedBackground()});
+ const endDrag=event=>{if(drag&&drag.pointerId===event.pointerId){drag=null;updateBackground()}};
  preview.addEventListener('pointerup',endDrag);preview.addEventListener('pointercancel',endDrag);preview.addEventListener('lostpointercapture',endDrag);
  $('#studioClearImage').addEventListener('click',()=>{bg.image=null;bg.offsetX=0;bg.offsetY=0;$('#studioImageInput').value='';renderSettings();updateBackground()});
  $('#studioResetBg').addEventListener('click',()=>{bg.color=null;bg.image=null;bg.offsetX=0;bg.offsetY=0;$('#studioImageInput').value='';renderSettings();updateBackground()});
