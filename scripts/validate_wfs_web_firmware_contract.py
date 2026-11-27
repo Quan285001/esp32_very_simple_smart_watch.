@@ -28,8 +28,8 @@ face_manager = read("src/watchface/face_manager.cpp")
 renderer = read("src/watchface/face_renderer.cpp")
 sequence_h = read("src/communication/transfer_sequence.h")
 
-# The browser's four GATT characteristics must be the firmware's exact UUIDs.
-web_uuid_block = re.search(r"const WFS_UUID=\\{([^}]+)\\}", app)
+# The browser's GATT characteristics must be the firmware's exact UUIDs.
+web_uuid_block = re.search(r"const WFS_UUID=\{([^}]+)\}", app)
 require(web_uuid_block is not None, "Web WFS GATT UUID table is missing")
 web_uuids = dict(re.findall(r"(service|controlRx|controlTx|dataRx|dataTx):'([^']+)'", web_uuid_block.group(1)))
 firmware_uuid_names = {
@@ -40,17 +40,17 @@ firmware_uuid_names = {
     "dataTx": "DATA_TX_UUID",
 }
 for web_name, firmware_name in firmware_uuid_names.items():
-    match = re.search(rf"constexpr char {firmware_name}\\[\\] = \"([^\"]+)\";", protocol_h)
+    match = re.search(rf'constexpr char {firmware_name}\[\] = "([^"]+)";', protocol_h)
     require(match is not None, f"Firmware {firmware_name} is missing")
     require(web_uuids.get(web_name) == match.group(1),
             f"GATT UUID mismatch for {web_name}: Web={web_uuids.get(web_name)!r}, firmware={match.group(1)!r}")
 
 # Keep the message IDs used by Web upload and firmware dispatch identical.
-enum_block = re.search(r"enum class MessageType : uint8_t \\{(.*?)\\};", protocol_h, re.S)
+enum_block = re.search(r"enum class MessageType : uint8_t \{(.*?)\};", protocol_h, re.S)
 require(enum_block is not None, "Firmware WFS MessageType enum is missing")
 message_ids = {
     name: int(value, 16)
-    for name, value in re.findall(r"(\\w+)\\s*=\\s*(0x[0-9A-Fa-f]+)", enum_block.group(1))
+    for name, value in re.findall(r"(\w+)\s*=\s*(0x[0-9A-Fa-f]+)", enum_block.group(1))
 }
 web_message_ids = {
     "Hello": 0x01, "HelloAck": 0x02,
@@ -90,7 +90,7 @@ require("MAX_DATA_FRAME_BYTES = 240" in protocol_h, "Firmware data frame limit c
 require("MAX_CHUNK_BYTES = 216" in sequence_h, "Firmware chunk limit changed")
 require("return available < 216 ? available : 216;" in ble,
         "Firmware MTU negotiation no longer caps chunks at 216 bytes")
-require("const uint16_t chunkSize = Math.min(216,ready.chunkSize)" in app,
+require("const chunkSize=Math.min(216,ready.chunkSize)" in app,
         "Web upload chunk size no longer follows the firmware's negotiated limit")
 require("const payload=new Uint8Array(8+chunk.length)" in app,
         "Web data packet must contain transferId and chunkIndex before chunk bytes")
@@ -140,7 +140,7 @@ for token in [
     require(token in validator, f"Firmware WFS1 header validator missing: {token}")
 
 # RGB565 assets are a shared binary contract, not browser-only image previews.
-for token in ['mediaType:"image/rgb565"', 'encoding:"rgb565le"', "converted.bytes.length"]:
+for token in ["mediaType:'image/rgb565'", "encoding:'rgb565le'", "converted.bytes.length"]:
     require(token in app, f"Web image package field missing: {token}")
 for token in ['strcmp(encoding, "rgb565le")', 'strcmp(mediaType, "image/rgb565")',
               "byteLength != width * height * 2U"]:
@@ -155,8 +155,8 @@ for token in [
     "d: 'date'", "w: 'weather'", "s: 'shape'", "i: 'image'",
 ]:
     require(token in compat, f"Web capability decoder is missing firmware element code: {token}")
-require('"\\\\\\"wc\\\\\\":1' not in ble or '"weather.condition"' in validator,
-        "Firmware weather-condition capability must remain supported")
+require('strcmp(value, "weather.condition") == 0' in validator,
+        "Firmware weather-condition capability is not supported")
 
 # Template Studio must feed its generated design into the same WFS1 uploader.
 require("module.createObjects(spec,assetId)" in studio,
