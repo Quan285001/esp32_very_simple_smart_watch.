@@ -16,9 +16,9 @@ class AssetParser(HTMLParser):
         if "id" in attrs:
             self.ids.add(attrs["id"])
         if tag == "script" and attrs.get("src"):
-            self.assets.append(attrs["src"])
+            self.assets.append(attrs["src"].split("?", 1)[0].split("#", 1)[0])
         if tag == "link" and attrs.get("rel") == "stylesheet" and attrs.get("href"):
-            self.assets.append(attrs["href"])
+            self.assets.append(attrs["href"].split("?", 1)[0].split("#", 1)[0])
 
 parser = AssetParser()
 parser.feed(INDEX.read_text(encoding="utf-8"))
@@ -28,7 +28,7 @@ for asset in parser.assets:
         continue
     if not (ROOT / asset).is_file():
         errors.append(f"Missing frontend asset: {asset}")
-required_ids = {"watchCanvas", "quickAddSelect", "quickAddBtn", "objectList", "inspector", "templateGrid", "libraryGrid", "connectBtn", "saveBtn", "exportBtn", "importBtn", "imageInput", "jsonInput", "designName", "bgColor", "toast", "legacyStatus", "syncTimeBtn", "syncWeatherBtn", "sleepWatchBtn", "sendLocationBtn", "scanWifiBtn", "saveWifiBtn", "saveAutoSleepBtn", "templateFilters", "undoBtn", "redoBtn", "themeLight", "themeDark", "themeSystem", "languageSelect", "autoSaveToggle", "deviceProfileDialog", "profilePresetSelect", "profileName", "profileWidth", "profileHeight", "profileShape", "profileRotation", "profileColorFormat", "profileScaleStrategy", "profileCompatibilityStatus", "profileExportBtn", "profileImportBtn", "profileImportInput", "studioFaceGrid", "studioSelectedCanvas", "studioBackBtn", "studioBgColor", "studioSunburst", "studioVignette", "studioImageInput", "studioImageControls", "studioDim", "studioClearImage", "studioResetBg", "templateSaveBtn", "templateUploadBtn", "templateCompatibilityNote", "studioDeviceNav", "backToStudio"}
+required_ids = {"watchCanvas", "quickAddSelect", "quickAddBtn", "objectList", "inspector", "templateGrid", "libraryGrid", "connectBtn", "saveBtn", "exportBtn", "importBtn", "imageInput", "jsonInput", "designName", "bgColor", "toast", "legacyStatus", "syncTimeBtn", "syncWeatherBtn", "sleepWatchBtn", "sendLocationBtn", "scanWifiBtn", "saveWifiBtn", "saveAutoSleepBtn", "templateFilters", "undoBtn", "redoBtn", "themeLight", "themeDark", "themeSystem", "languageSelect", "autoSaveToggle", "deviceProfileDialog", "profilePresetSelect", "profileName", "profileWidth", "profileHeight", "profileShape", "profileRotation", "profileColorFormat", "profileScaleStrategy", "profileCompatibilityStatus", "profileExportBtn", "profileImportBtn", "profileImportInput", "studioFaceGrid", "studioSelectedCanvas", "studioBackBtn", "studioBgColor", "studioSunburst", "studioVignette", "studioImageInput", "studioImageControls", "studioDim", "studioClearImage", "studioResetBg", "templateSaveBtn", "templateUploadBtn", "templateCompatibilityNote", "studioDeviceNav", "studioDeviceMobileNav", "backToStudio"}
 missing = sorted(required_ids - parser.ids)
 if missing:
     errors.append("Missing required UI ids: " + ", ".join(missing))
