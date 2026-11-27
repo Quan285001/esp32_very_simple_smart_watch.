@@ -28,7 +28,7 @@ for asset in parser.assets:
         continue
     if not (ROOT / asset).is_file():
         errors.append(f"Missing frontend asset: {asset}")
-required_ids = {"watchCanvas", "quickAddSelect", "quickAddBtn", "objectList", "inspector", "templateGrid", "libraryGrid", "connectBtn", "saveBtn", "exportBtn", "importBtn", "imageInput", "jsonInput", "designName", "bgColor", "toast", "legacyStatus", "syncTimeBtn", "syncWeatherBtn", "sleepWatchBtn", "sendLocationBtn", "scanWifiBtn", "saveWifiBtn", "saveAutoSleepBtn", "templateFilters", "undoBtn", "redoBtn", "themeLight", "themeDark", "themeSystem", "languageSelect", "autoSaveToggle", "deviceProfileDialog", "profilePresetSelect", "profileName", "profileWidth", "profileHeight", "profileShape", "profileRotation", "profileColorFormat", "profileScaleStrategy", "profileCompatibilityStatus", "profileExportBtn", "profileImportBtn", "profileImportInput", "studioFaceGrid", "studioSelectedCanvas", "studioBackBtn", "studioBgColor", "studioSunburst", "studioVignette", "studioImageInput", "studioImageControls", "studioDim", "studioClearImage", "studioResetBg", "templateSaveBtn", "templateUploadBtn", "studioDeviceNav", "backToStudio"}
+required_ids = {"watchCanvas", "quickAddSelect", "quickAddBtn", "objectList", "inspector", "templateGrid", "libraryGrid", "connectBtn", "saveBtn", "exportBtn", "importBtn", "imageInput", "jsonInput", "designName", "bgColor", "toast", "legacyStatus", "syncTimeBtn", "syncWeatherBtn", "sleepWatchBtn", "sendLocationBtn", "scanWifiBtn", "saveWifiBtn", "saveAutoSleepBtn", "templateFilters", "undoBtn", "redoBtn", "themeLight", "themeDark", "themeSystem", "languageSelect", "autoSaveToggle", "deviceProfileDialog", "profilePresetSelect", "profileName", "profileWidth", "profileHeight", "profileShape", "profileRotation", "profileColorFormat", "profileScaleStrategy", "profileCompatibilityStatus", "profileExportBtn", "profileImportBtn", "profileImportInput", "studioFaceGrid", "studioSelectedCanvas", "studioBackBtn", "studioBgColor", "studioSunburst", "studioVignette", "studioImageInput", "studioImageControls", "studioDim", "studioClearImage", "studioResetBg", "templateSaveBtn", "templateUploadBtn", "templateCompatibilityNote", "studioDeviceNav", "backToStudio"}
 missing = sorted(required_ids - parser.ids)
 if missing:
     errors.append("Missing required UI ids: " + ", ".join(missing))
@@ -36,6 +36,7 @@ if not (ROOT / "shared/schemas/watch-face.schema.json").is_file():
     errors.append("Shared watch-face schema is missing")
 
 renderer_js = (ROOT / "web/template-face-renderers.js").read_text(encoding="utf-8")
+extended_renderer_js = (ROOT / "web/extended-template-face-renderers.js").read_text(encoding="utf-8")
 studio_js = (ROOT / "web/template-studio.js").read_text(encoding="utf-8")
 preset_js = (ROOT / "web/watch-face-presets.js").read_text(encoding="utf-8")
 renderer_ids = re.findall(r"id: '([^']+)',\s*category:", renderer_js)
@@ -44,11 +45,16 @@ if len(renderer_ids) != 8 or len(set(renderer_ids)) != 8:
     errors.append("Template renderer must define exactly eight unique watch faces")
 if set(renderer_ids) != set(preset_ids) or len(preset_ids) != 8:
     errors.append("Template renderers and WFS package presets must contain the same eight face ids")
+extended_ids = re.findall(r"id: '([^']+)',\\s*category:", extended_renderer_js)
+if len(extended_ids) != 20 or len(set(extended_ids)) != 20 or set(extended_ids) != {f"m{i:02d}" for i in range(1, 21)}:
+    errors.append("Extended renderer must define all 20 unique Gemini template ids")
+if "window.WfsExtendedTemplateFaces" not in extended_renderer_js or "renderFace: renderFaceToCanvas" not in extended_renderer_js:
+    errors.append("Extended Template Face renderer API is missing")
 if "window.WfsTemplateFaces" not in renderer_js or "renderFace: renderFaceToCanvas" not in renderer_js:
     errors.append("Template Face renderer API is missing")
 if "window.addEventListener('wfs:ready',init,{once:true})" not in studio_js:
     errors.append("Template Studio must initialize after the shared WFS runtime is ready")
-if not any(asset.endswith("template-face-renderers.js") for asset in parser.assets) or not any(asset.endswith("template-studio.js") for asset in parser.assets) or not any(asset.endswith("template-studio.css") for asset in parser.assets):
+if not any(asset.endswith("template-face-renderers.js") for asset in parser.assets) or not any(asset.endswith("extended-template-face-renderers.js") for asset in parser.assets) or not any(asset.endswith("template-studio.js") for asset in parser.assets) or not any(asset.endswith("template-studio.css") for asset in parser.assets):
     errors.append("Template Studio assets must be loaded by index.html")
 
 app_js = (ROOT / "web/app.js").read_text(encoding="utf-8")
