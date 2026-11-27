@@ -7,6 +7,28 @@ global.window = global;
 const presets = require('../../web/watch-face-catalog.js');
 const originalFaceCatalog = global.WfsTemplateFaces;
 const extendedFaceCatalog = global.WfsExtendedTemplateFaces;
+const mergePatch = global.WfsMergePatch;
+assert.ok(mergePatch, 'the unified catalog must expose the WFS merge helpers');
+assert.equal(mergePatch.HOUR_SCALE_FACTOR, 1.75);
+assert.equal(mergePatch.scaleHourFontSize(32), 56);
+assert.equal(mergePatch.scaleHourFontSize(80), 64, 'hour artwork font scaling must respect the safe upper bound');
+const enlargedTransform = mergePatch.scaleTransformAroundCenter(
+  { x: 16, y: 16, width: 208, height: 208, rotation: 24, opacity: 0.5 }, 1.75, 240);
+assert.deepEqual(enlargedTransform, {
+  x: 0, y: 0, width: 240, height: 240, rotation: 0, opacity: 1
+}, 'enlarged hour object must stay centered, in bounds, unrotated and fully opaque');
+const secondsDrawCalls = [];
+const secondsContext = {
+  save(){},restore(){},beginPath(){},arc(...args){secondsDrawCalls.push(['arc',...args])},
+  stroke(){},fill(){},fillText(...args){secondsDrawCalls.push(['text',...args])}
+};
+const syncedSeconds = mergePatch.drawSyncedGiantHhSeconds(secondsContext, {
+  cx: 240, cy: 240, dotRadius: 222, secOrbitRadius: 148, secondValue: 15
+});
+assert.equal(syncedSeconds.seconds, 15);
+assert.deepEqual(syncedSeconds.label240, { x: 182, y: 108, width: 24, height: 24 });
+assert.deepEqual(secondsDrawCalls.find(call => call[0] === 'text'), ['text','15',388,240]);
+
 
 const root = path.resolve(__dirname, '../..');
 const studioHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -110,6 +132,18 @@ for (const template of templateContext.templates) {
 
 
 const referencePresets = presets.SPECS.filter(template => template.id.startsWith('ref-'));
+for (const id of ['ref-classic-12', 'ref-chronometer-gmt']) {
+  const spec = presets.SPECS.find(template => template.id === id);
+  const objects = presets.createObjects(spec, 'scaled-artwork');
+  const hourObject = objects.find(object => object.type === 'analog-clock');
+  assert.deepEqual(
+    [hourObject.transform.x, hourObject.transform.y, hourObject.transform.width,
+      hourObject.transform.height, hourObject.transform.rotation, hourObject.transform.opacity],
+    [0, 0, 240, 240, 0, 1],
+    id + ': live hour-hand object must be enlarged around its center without leaving the dial'
+  );
+}
+
 assert.deepEqual(referencePresets.map(template => template.id).sort(), [
   'ref-classic-12', 'ref-chronometer-gmt', 'ref-minimal-arc', 'ref-split-dual-digit'
 ].sort(), 'the four reference-aligned templates must be registered in the shared preset catalog');
