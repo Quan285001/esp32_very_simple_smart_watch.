@@ -80,6 +80,7 @@ struct FaceObject {
     FaceAnalogHandConfig analogHands[3]; // hour, minute, second
     float analogCenterRadius;
     uint16_t analogCenterColor;
+    bool analogShowOuterRing;
 };
 
 struct FaceAsset {

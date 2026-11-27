@@ -155,7 +155,7 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
     static const char* const bindingKeys[] = {
         "source", "format", "timezone", "fallbackText", "visibleWhenMissing"
     };
-    static const char* const handConfigKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor"};
+    static const char* const handConfigKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor", "showOuterRing"};
     static const char* const renderHintKeys[] = {
         "preferredUpdateMs", "staticLayer", "requiresAntialias", "requiresBitmap"
     };
@@ -498,6 +498,11 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
         }
         target.analogCenterRadius = 3.0f;
         target.analogCenterColor = target.textColor;
+        target.analogShowOuterRing = true;
+        if (handConfig.containsKey("showOuterRing")) {
+            if (!handConfig["showOuterRing"].is<bool>()) return false;
+            target.analogShowOuterRing = handConfig["showOuterRing"].as<bool>();
+        }
         if (!readNumber(handConfig["centerRadius"], target.analogCenterRadius, false, 3.0f) ||
             !readColor(handConfig["centerColor"], target.analogCenterColor, target.textColor) ||
             target.analogCenterRadius < 0.5f || target.analogCenterRadius > 12.0f) return false;
@@ -510,6 +515,7 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
         }
         target.analogCenterRadius = 3.0f;
         target.analogCenterColor = target.textColor;
+        target.analogShowOuterRing = true;
     }
 
     target.showSeconds = source["showSeconds"] | false;

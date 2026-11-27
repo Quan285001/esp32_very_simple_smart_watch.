@@ -688,7 +688,9 @@ void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int mi
     if (radius < 8) return;
 
     const uint16_t color = object.textColor;
-    getDisplayCanvas().drawCircle(cx, cy, radius, color);
+    if (object.analogShowOuterRing) {
+        getDisplayCanvas().drawCircle(cx, cy, radius, color);
+    }
     for (int tick = 0; tick < 12; ++tick) {
         const float angle = (tick * 30.0f - 90.0f) * PI_F / 180.0f;
         const int outerX = cx + static_cast<int>(cosf(angle) * (radius - 2));
