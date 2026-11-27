@@ -63,3 +63,14 @@ for (const [name, css] of [['base', baseCss], ['Template Studio', studioCss]]) {
   assert.strictEqual((css.match(/{/g) || []).length, (css.match(/}/g) || []).length,
     name + ' stylesheet must have balanced rule braces');
 }
+
+assert(!appSource.includes('TFT_FONT1_GLYPHS'), 'unused TFT font glyph table must not remain in the Web app bundle');
+assert(!appSource.includes('function showTransferInfo('), 'unused transfer wrapper must not remain');
+assert(appSource.includes("const studio=$('#templateTransferStatus');if(studio)studio.textContent=message"),
+  'WFS status updates must remain visible in Template Studio');
+assert(appSource.includes("legacyStatus('Connect to a WFS v1 watch first');toast('Connect to a WFS v1 watch first');return"),
+  'WFS1 disconnected preflight must be visible in the persistent status area');
+assert(appSource.includes("legacyStatus('This firmware does not currently accept face packages');toast('This firmware does not currently accept face packages');return"),
+  'firmware upload capability rejection must be visible in the persistent status area');
+assert(studioHtml.includes('id="templateTransferStatus"') && studioHtml.includes('aria-live="polite"'), 'Template Studio must provide a persistent WFS transfer status region');
+assert(studioHtml.includes('web/app.js?v=wfs1-ui-status-1'), 'app.js changes must use a refreshed cache key');
