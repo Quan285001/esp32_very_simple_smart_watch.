@@ -47,7 +47,8 @@ assert.match(templateStudioSource, /scale:bg\.scale/);
 assert.match(templateStudioSource, /offsetX:bg\.offsetX,offsetY:bg\.offsetY,scale:bg\.scale/);
 assert.match(templateStudioSource, /openDevicePage/);
 assert.match(templateStudioSource, /returnToTemplateStudio/);
-assert.match(studioHtml, /id="studioDeviceNav"[^>]*Đồng hồ &amp; kết nối|id="studioDeviceNav"[^>]*Đồng hồ & kết nối/);
+assert.match(studioHtml, /id="studioDeviceNav"/);
+assert.match(studioHtml, /⌚ Đồng hồ & kết nối/);
 assert.match(studioHtml, /id="studioImageScale"/);
 
 assert.match(templateStudioSource, /setBackgroundPosition\(bg\.offsetX,bg\.offsetY\)/);
