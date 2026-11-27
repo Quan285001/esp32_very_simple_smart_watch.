@@ -41,6 +41,9 @@ jobs:
       - name: Validate shared JSON schemas
         run: python scripts/validate_schemas.py
 
+      - name: Validate Web and firmware WFS v1 integration contract
+        run: python scripts/validate_wfs_web_firmware_contract.py
+
       - name: Validate firmware/device compatibility fixture
         run: python scripts/validate_device_compatibility.py
 
