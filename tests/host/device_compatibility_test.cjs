@@ -9,6 +9,14 @@ const originalFaceCatalog = global.WfsTemplateFaces;
 const extendedFaceCatalog = global.WfsExtendedTemplateFaces;
 
 const root = path.resolve(__dirname, '../..');
+const studioHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
+assert.match(studioHtml, /32 thiết kế mặt đồng hồ/);
+assert.match(studioHtml, /Tất cả · 32/);
+assert.match(studioSource, /counts=\{all:all\.length/);
+assert.match(studioSource, /pointerdown/);
+assert.match(studioSource, /setBackgroundPosition\(bg\.offsetX,bg\.offsetY\)/);
+
 const appSource = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
 const packageBuilder = appSource.slice(
   appSource.indexOf('async function buildWfsPackage'),
