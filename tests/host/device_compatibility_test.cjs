@@ -15,6 +15,7 @@ assert.match(studioHtml, /32 thiết kế mặt đồng hồ/);
 assert.match(studioHtml, /Tất cả · 32/);
 assert.match(templateStudioSource, /counts=\{all:all\.length/);
 assert.match(templateStudioSource, /pointerdown/);
+assert.match(templateStudioSource, /updateDraggedBackground/);
 assert.match(templateStudioSource, /setBackgroundPosition\(bg\.offsetX,bg\.offsetY\)/);
 
 const appSource = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
