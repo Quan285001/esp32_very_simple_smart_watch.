@@ -38,6 +38,14 @@ assert.match(studioHtml, /Tất cả · 32/);
 assert.match(templateStudioSource, /counts=\{all:all\.length/);
 assert.match(templateStudioSource, /pointerdown/);
 assert.match(templateStudioSource, /updateDraggedBackground/);
+assert.match(templateStudioSource, /studio-image-selection/);
+assert.match(templateStudioSource, /data-image-resize/);
+assert.match(templateStudioSource, /studioImageScale/);
+assert.match(templateStudioSource, /openDevicePage/);
+assert.match(templateStudioSource, /returnToTemplateStudio/);
+assert.match(indexHtml, /id="studioDeviceNav"[^>]*Đồng hồ &amp; kết nối|id="studioDeviceNav"[^>]*Đồng hồ & kết nối/);
+assert.match(indexHtml, /id="studioImageScale"/);
+
 assert.match(templateStudioSource, /setBackgroundPosition\(bg\.offsetX,bg\.offsetY\)/);
 
 const appSource = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
