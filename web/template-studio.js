@@ -107,7 +107,7 @@ function bind(){
  const endDrag=event=>{if(drag&&drag.pointerId===event.pointerId){drag=null;updateBackground()}};
  preview.addEventListener('pointerup',endDrag);preview.addEventListener('pointercancel',endDrag);preview.addEventListener('lostpointercapture',endDrag);
  $('#studioClearImage').addEventListener('click',()=>{bg.image=null;bg.offsetX=0;bg.offsetY=0;bg.scale=1;$('#studioImageInput').value='';renderSettings();updateBackground()});
- $('#studioResetBg').addEventListener('click',()=>{bg.color=null;bg.image=null;pendingImage=null;bg.offsetX=0;bg.offsetY=0;bg.scale=1;$('#studioImageInput').value='';renderSettings();updateBackground()});
+ $('#studioResetBg').addEventListener('click',()=>{bg.color=null;bg.image=null;bg.offsetX=0;bg.offsetY=0;bg.scale=1;$('#studioImageInput').value='';renderSettings();updateBackground()});
  $('#templateSaveBtn').addEventListener('click',saveTemplate);$('#templateUploadBtn').addEventListener('click',uploadTemplate);
 }
 function studioViewIsActive(){return !$('#studioGallery').hidden||!$('#studioCustomizer').hidden}
