@@ -6,7 +6,7 @@ const presets=()=>window.WfsWatchFacePresets;
 let selectedId=null,filter='all',lastFrame=0;
 const bg={color:null,sunburst:true,vignette:true,image:null,dim:40};
 function faceById(id){return faces().find(face=>face.id===id)||null}
-function renderFace(canvas,id,now){if(!canvas||!id)return;const api=/^m\\d{2}$/.test(id)?window.WfsExtendedTemplateFaces:window.WfsTemplateFaces;if(api)api.renderFace(id,canvas,now||new Date())}
+function renderFace(canvas,id,now){if(!canvas||!id)return;const api=id.length===3&&id[0]==='m'&&id.slice(1).split('').every(ch=>ch>='0'&&ch<='9')?window.WfsExtendedTemplateFaces:window.WfsTemplateFaces;if(api)api.renderFace(id,canvas,now||new Date())}
 function drawGallery(now){document.querySelectorAll('[data-face-canvas]').forEach(canvas=>renderFace(canvas,canvas.dataset.faceCanvas,now))}
 function buildGallery(){
  const host=$('#studioFaceGrid');if(!host)return;host.innerHTML='';
