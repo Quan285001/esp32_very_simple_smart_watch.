@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     const std::string invalidOuterRingType = replaceOnce(analogFace,
         R"JSON("showOuterRing":false)JSON", R"JSON("showOuterRing":"false")JSON");
     result = parse(invalidOuterRingType, model);
-    assert(!result && result.error == FaceParseError::UnsupportedProperty);
+    assert(!result && result.error == FaceParseError::InvalidField);
 
     const std::string invalidHandWidth = replaceOnce(analogFace,
         R"JSON("width":6)JSON", R"JSON("width":30)JSON");
