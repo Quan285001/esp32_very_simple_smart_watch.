@@ -48,7 +48,7 @@ if "window.WfsTemplateFaces" not in renderer_js or "renderFace: renderFaceToCanv
     errors.append("Template Face renderer API is missing")
 if "window.addEventListener('wfs:ready',init,{once:true})" not in studio_js:
     errors.append("Template Studio must initialize after the shared WFS runtime is ready")
-if "web/template-face-renderers.js" not in parser.assets or "web/template-studio.js" not in parser.assets or "web/template-studio.css" not in parser.assets:
+if not any(asset.endswith("template-face-renderers.js") for asset in parser.assets) or not any(asset.endswith("template-studio.js") for asset in parser.assets) or not any(asset.endswith("template-studio.css") for asset in parser.assets):
     errors.append("Template Studio assets must be loaded by index.html")
 
 app_js = (ROOT / "web/app.js").read_text(encoding="utf-8")
