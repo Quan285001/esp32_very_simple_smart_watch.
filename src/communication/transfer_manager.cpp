@@ -152,7 +152,9 @@ bool writeChunk(uint32_t transferId, uint32_t chunkIndex,
         fail(Error::WriteFailed);
         return false;
     }
-    stagingFile.flush();
+    // Do not force an SPIFFS sync for every 216-byte chunk. The staging
+    // slot is inactive until VERIFY/APPLY, so a power loss can only discard
+    // this in-progress upload. finish() flushes once before verification.
     if (!chunkSequence.commit(chunkIndex, bytes, length)) {
         fail(Error::WrongSequence);
         return false;
