@@ -144,6 +144,9 @@ for (const id of ['ref-classic-12', 'ref-chronometer-gmt']) {
   );
 }
 
+const minimalArcSpec = presets.SPECS.find(template => template.id === 'ref-minimal-arc');
+const minimalArcClock = presets.createObjects(minimalArcSpec, 'minimal-artwork').find(object => object.type === 'analog-clock');
+assert.deepEqual([minimalArcClock.transform.x, minimalArcClock.transform.y, minimalArcClock.transform.width, minimalArcClock.transform.height], [16, 16, 208, 208], 'unrelated analog templates must not receive the 1.75x scaling patch');
 assert.deepEqual(referencePresets.map(template => template.id).sort(), [
   'ref-classic-12', 'ref-chronometer-gmt', 'ref-minimal-arc', 'ref-split-dual-digit'
 ].sort(), 'the four reference-aligned templates must be registered in the shared preset catalog');
