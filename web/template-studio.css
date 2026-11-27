@@ -49,3 +49,7 @@ body[data-view="device"] .workspace .device-control-grid{display:grid;grid-templ
 .studio-device-page .btn{border:1px solid var(--studio-line);border-radius:10px;padding:10px 13px;background:#172333;color:#e8f2fc;cursor:pointer}
 .studio-device-page .btn.primary{background:#0284c7;border-color:#0ea5e9;color:#fff}
 @media(max-width:720px){.studio-device-page{padding:18px 12px 40px}.studio-device-page .device-page-grid{grid-template-columns:1fr}.studio-device-page .page-heading{align-items:flex-start;flex-direction:column}}
+
+/* Keep device management reachable on narrow screens where the desktop topbar action is hidden. */
+.studio-device-mobile-nav{display:none}
+@media(max-width:720px){.studio-device-mobile-nav{display:flex;width:100%;justify-content:center;align-items:center;gap:8px;margin:14px 0 4px;padding:12px 14px;border:1px solid rgba(56,189,248,.35);border-radius:12px;background:linear-gradient(110deg,rgba(14,116,144,.22),rgba(30,64,175,.16));color:#bae6fd;font-size:13px;font-weight:750;letter-spacing:.01em}.studio-device-mobile-nav:active{background:rgba(14,116,144,.35)}}
