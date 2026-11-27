@@ -49,8 +49,10 @@ const studioCss = fs.readFileSync(path.join(__dirname, '../../web/template-studi
 const appSource = fs.readFileSync(path.join(__dirname, '../../web/app.js'), 'utf8');
 assert(!baseCss.includes('@import url('), 'optional preview fonts must not be eagerly imported by the base stylesheet');
 assert(!studioCss.includes('#studioApplyImage'), 'removed apply-image control must not leave stale CSS selectors');
-assert.strictEqual((studioHtml.match(/fonts\\.googleapis\\.com/g) || []).length, 1,
+assert.strictEqual(studioHtml.split('href="https://fonts.googleapis.com/css2?').length - 1, 1,
   'Google Fonts stylesheet must be declared once in the document');
+assert.strictEqual(studioHtml.split('rel="preconnect" href="https://fonts.googleapis.com"').length - 1, 1,
+  'Google Fonts preconnect must be declared once in the document');
 for (const family of ['DM+Sans', 'Space+Grotesk', 'Inter', 'JetBrains+Mono', 'Orbitron', 'Oswald']) {
   assert(studioHtml.includes(family), family + ' must remain available for the application shell and templates');
 }
