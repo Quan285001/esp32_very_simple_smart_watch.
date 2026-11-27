@@ -366,3 +366,6 @@ button:disabled{
 }
 
 @media(max-width:700px){.template-thumb{width:96px;height:96px}.template-filters{gap:6px}.template-filter{padding:7px 12px}}
+
+/* Template background image positioning */
+#studioSelectedCanvas{touch-action:none;cursor:grab}#studioSelectedCanvas:active{cursor:grabbing}
