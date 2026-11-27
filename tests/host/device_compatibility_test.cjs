@@ -32,7 +32,7 @@ assert.match(indexSource, /web\/watch-face-catalog\.js/,
 assert.doesNotMatch(indexSource, /(?:template-face-renderers|extended-template-face-renderers|watch-face-presets)\.js/,
   'the app must not load the retired split catalog scripts');
 const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
-assert.match(studioSource, /filter\\(spec=>spec\\.id\\.startsWith\\('ref-'\\)\\)/,
+assert.match(studioSource, /filter\(spec=>spec\.id\.startsWith\('ref-'\)\)/,
   'the four reference presets must be included in the visible Template Studio gallery');
 
 const fixture = JSON.parse(fs.readFileSync(
