@@ -3,9 +3,12 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync('web/app.js', 'utf8');
 const start = source.indexOf('async function compositeBottomImageLayers(');
-const end = source.indexOf('\nfunction advancedFeatureErrors(', start);
+const end = source.indexOf('\nasync function buildWfsPackage(', start);
 if (start < 0 || end < 0) throw new Error('Bottom image compositor helper is missing or malformed');
-const helper = source.slice(start, end);
+const geometryStart = source.indexOf('const WFS_FIRMWARE_DISPLAY=');
+const geometryEnd = source.indexOf(';', geometryStart) + 1;
+if (geometryStart < 0 || geometryEnd <= geometryStart) throw new Error('Canonical firmware display geometry is missing');
+const helper = source.slice(geometryStart, geometryEnd) + '\n' + source.slice(start, end);
 
 const drawOrder = [];
 let canvasSize = null;

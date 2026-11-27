@@ -171,6 +171,12 @@ subprocess.run(
     check=True,
 )
 
+subprocess.run(
+    ["node", str(ROOT / "tests" / "host" / "watch_face_editor_regression_test.cjs")],
+    cwd=ROOT,
+    check=True,
+)
+
 IMAGE_ELEMENT_TEST = ROOT / "tests" / "host" / "image_element_test.cpp"
 IMAGE_ELEMENT_SOURCE = ROOT / "src" / "watchface" / "elements" / "image.cpp"
 

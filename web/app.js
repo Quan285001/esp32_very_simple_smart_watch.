@@ -23,6 +23,8 @@ function toggleLanguage(){setLanguage(state.language==='vi'?'en':'vi');}
 const uid=()=> 'obj_'+Math.random().toString(36).slice(2,9);
 const clone=o=>JSON.parse(JSON.stringify(o));
 const state={design:null,selected:null,profile:null,view:'editor',language:'en',zoom:1,bleDevice:null,bleChar:null,wfs:null,wfsCapabilities:null,wfsStatus:null,images:[],fonts:[],schema:null,projectSchema:null,drag:null,legacyBuffer:'',history:[],future:[],lastSnapshot:null,historyLock:false};
+// WFS v1 firmware contract: upload rasterization is fixed at 240×240 circular.
+const WFS_FIRMWARE_DISPLAY=Object.freeze({width:240,height:240,centerX:120,centerY:120,radius:120});
 const templates=[
  {id:'minimal',name:'Minimal Digital',description:'Clean typography',bg:'#080b10',objects:[{type:'digital-clock',name:'Time',x:26,y:39,w:188,h:52,format:'HH:mm',size:43,color:'#f5f7fa',weight:600},{type:'date',name:'Date',x:40,y:62,w:160,h:20,text:'SATURDAY, NOV 07',size:10,color:'#aab4c2'}]},
  {id:'weather',name:'Weather Focus',description:'Time and conditions',bg:'#111c25',objects:[{type:'digital-clock',name:'Time',x:25,y:25,w:190,h:58,format:'HH:mm',size:46,color:'#f2f5f8'},{type:'weather',name:'Temperature',x:48,y:53,w:145,h:40,text:'27 C',size:30,color:'#b7f36b'},{type:'text',name:'Condition',x:45,y:70,w:150,h:18,text:'Partly cloudy',size:11,color:'#d0d8e2'}]},
@@ -169,7 +171,41 @@ function renderSelectionOverlay(canvas){
 }
 function renderCanvas(){const c=$('#watchCanvas');if(!c)return;const canvas=state.design.canvas,width=Math.max(1,Number(canvas.width)||240),height=Math.max(1,Number(canvas.height)||240),shape=canvas.shape||'circle',stage=c.parentElement,stageWidth=Math.max(1,stage?.clientWidth||390),maxHeight=Math.max(160,(window.innerHeight||800)*0.56),scale=Math.min(stageWidth/width,390/width,maxHeight/height);c.style.width=Math.max(1,Math.floor(width*scale))+'px';c.style.height=Math.max(1,Math.floor(height*scale))+'px';c.style.aspectRatio=width+' / '+height;c.style.borderRadius=shape==='circle'?'50%':shape==='rounded-square'?'18%':shape==='rounded-rectangle'?'12px':'0';c.style.background=canvas.backgroundColor;c.innerHTML='';state.design.objects.filter(isObjectRenderable).sort((a,b)=>(a.transform.zIndex||0)-(b.transform.zIndex||0)).forEach(o=>{const el=document.createElement('div');el.className='watch-object'+(o.locked?' locked':'');el.dataset.id=o.id;const t=o.transform,s=o.textStyle||{},st=o.style||{};Object.assign(el.style,{left:(roundFirmwarePixel(t.x)/width*100)+'%',top:(roundFirmwarePixel(t.y)/height*100)+'%',width:(roundFirmwarePixel(t.width)/width*100)+'%',height:(roundFirmwarePixel(t.height)/height*100)+'%',zIndex:t.zIndex??0,opacity:objectOpacity(o),transform:'rotate('+(t.rotation||0)+'deg)',color:s.fill||st.fill||'#fff',fontSize:((s.fontSize||16)/width*100)+'cqw',fontWeight:s.fontWeight||400,fontFamily:s.fontFamily||'inherit',letterSpacing:(s.letterSpacing||0)+'px',background:s.backgroundColor||st.backgroundColor||'transparent',borderRadius:(st.cornerRadius||0)+'px',border:st.stroke?((st.strokeWidth||1)+'px solid '+st.stroke):'none',textAlign:s.textAlign||'center'});if(o.type==='shape'){renderShapePreview(el,o,st)}else if(o.type==='image'){const img=state.images.find(a=>a.id===o.assetId);if(img){const im=document.createElement('img');im.src=img.data;el.append(im)}else el.textContent='＋ Image'}else if(o.type==='weather'){renderWeatherPreview(el,o,s,t)}else if(o.type==='analog-clock'){renderAnalogClockPreview(el,o)}else if(o.type==='digital-clock')setDigitalClockPreview(el,objectText(o),s,t);else setPreviewText(el,objectText(o),s,t);el.addEventListener('pointerdown',e=>startDrag(e,o.id));el.addEventListener('click',e=>{e.stopPropagation();state.selected=o.id;render()});c.append(el)});const safe=canvas.safeArea||{top:0,right:0,bottom:0,left:0};if(safe.top||safe.right||safe.bottom||safe.left){const guide=document.createElement('div');guide.className='safe-area-guides';Object.assign(guide.style,{left:(safe.left/width*100)+'%',top:(safe.top/height*100)+'%',width:((width-safe.left-safe.right)/width*100)+'%',height:((height-safe.top-safe.bottom)/height*100)+'%'});c.append(guide)}renderSelectionOverlay(c);$('#canvasSize').textContent=width+' × '+height;$('#canvasSizeFooter').textContent=width+' × '+height;$('#canvasName').textContent=state.design.name;$('#layerCount').textContent=state.design.objects.length;updateProfileButton()}
 function startDrag(e,id){const o=state.design.objects.find(x=>x.id===id);if(!o||o.locked)return;e.preventDefault();state.selected=id;const canvas=$('#watchCanvas'),logicalWidth=state.design.canvas.width,logicalHeight=state.design.canvas.height;state.drag={id,startX:e.clientX,startY:e.clientY,x:o.transform.x,y:o.transform.y,scaleX:logicalWidth/Math.max(1,canvas.clientWidth),scaleY:logicalHeight/Math.max(1,canvas.clientHeight)};e.currentTarget.setPointerCapture(e.pointerId);const move=ev=>{if(!state.drag)return;const d=state.drag;o.transform.x=Math.max(-logicalWidth,Math.min(logicalWidth,d.x+(ev.clientX-d.startX)*d.scaleX));o.transform.y=Math.max(-logicalHeight,Math.min(logicalHeight,d.y+(ev.clientY-d.startY)*d.scaleY));renderCanvas()};const end=()=>{state.drag=null;saveDraft();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',end)}
-function startResize(e,id,corner){e.preventDefault();e.stopPropagation();const o=state.design.objects.find(x=>x.id===id);if(!o||o.locked)return;const canvas=$('#watchCanvas'),scaleX=state.design.canvas.width/Math.max(1,canvas.clientWidth),scaleY=state.design.canvas.height/Math.max(1,canvas.clientHeight),t=o.transform,textTypes=['text','digital-clock','date','weather','moon','sunrise-sunset'],textStyle=o.textStyle||(textTypes.includes(o.type)?(o.textStyle={fontSize:16,fill:'#ffffff'}):null);const start={x:e.clientX,y:e.clientY,left:t.x,top:t.y,width:t.width,height:t.height,glyphScaleX:Number(textStyle?.scaleX??1),glyphScaleY:Number(textStyle?.scaleY??1)};const move=ev=>{const dx=(ev.clientX-start.x)*scaleX,dy=(ev.clientY-start.y)*scaleY;let left=start.left,top=start.top,width=start.width,height=start.height;if(corner.includes('e'))width=Math.max(4,start.width+dx);if(corner.includes('s'))height=Math.max(4,start.height+dy);if(corner.includes('w')){width=Math.max(4,start.width-dx);left=start.left+(start.width-width)}if(corner.includes('n')){height=Math.max(4,start.height-dy);top=start.top+(start.height-height)}Object.assign(t,{x:left,y:top,width,height});if(textStyle){if(corner.includes('e')||corner.includes('w'))textStyle.scaleX=Math.max(.1,Math.min(8,start.glyphScaleX*(width/start.width)));if(corner.includes('n')||corner.includes('s'))textStyle.scaleY=Math.max(.1,Math.min(8,start.glyphScaleY*(height/start.height)))}renderCanvas()};const end=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);saveDraft();render()};window.addEventListener('pointermove',move);window.addEventListener('pointerup',end)}
+function startResize(e,id,corner){
+ e.preventDefault();e.stopPropagation();
+ const o=state.design?.objects?.find(x=>x.id===id);
+ if(!o||o.locked||!['nw','ne','sw','se'].includes(corner))return;
+ const finiteOr=(value,fallback)=>{const number=Number(value);return Number.isFinite(number)?number:fallback};
+ const positiveOr=(value,fallback)=>{const number=Number(value);return Number.isFinite(number)&&number>0?number:fallback};
+ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+ const t=o.transform&&typeof o.transform==='object'&&!Array.isArray(o.transform)?o.transform:(o.transform={});
+ const logicalWidth=positiveOr(state.design?.canvas?.width,240),logicalHeight=positiveOr(state.design?.canvas?.height,240);
+ const canvas=$('#watchCanvas'),scaleX=logicalWidth/positiveOr(canvas?.clientWidth,1),scaleY=logicalHeight/positiveOr(canvas?.clientHeight,1);
+ const textTypes=['text','digital-clock','date','weather','moon','sunrise-sunset'];
+ let textStyle=null;
+ if(textTypes.includes(o.type)){if(!o.textStyle||typeof o.textStyle!=='object'||Array.isArray(o.textStyle))o.textStyle={fontSize:16,fill:'#ffffff'};textStyle=o.textStyle}
+ const start={x:finiteOr(e.clientX,0),y:finiteOr(e.clientY,0),left:finiteOr(t.x,0),top:finiteOr(t.y,0),width:positiveOr(t.width,4),height:positiveOr(t.height,4),glyphScaleX:clamp(finiteOr(textStyle?.scaleX,1),0.1,8),glyphScaleY:clamp(finiteOr(textStyle?.scaleY,1),0.1,8)};
+ // Repair malformed legacy/local drafts at interaction time; never divide by zero or propagate NaN/Infinity.
+ Object.assign(t,{x:start.left,y:start.top,width:start.width,height:start.height});
+ const move=ev=>{
+  const pointerX=Number(ev.clientX),pointerY=Number(ev.clientY);
+  if(!Number.isFinite(pointerX)||!Number.isFinite(pointerY))return;
+  const dx=(pointerX-start.x)*scaleX,dy=(pointerY-start.y)*scaleY;
+  if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
+  let left=start.left,top=start.top,width=start.width,height=start.height;
+  if(corner.includes('e'))width=Math.max(4,start.width+dx);
+  if(corner.includes('s'))height=Math.max(4,start.height+dy);
+  if(corner.includes('w')){width=Math.max(4,start.width-dx);left=start.left+(start.width-width)}
+  if(corner.includes('n')){height=Math.max(4,start.height-dy);top=start.top+(start.height-height)}
+  if(![left,top,width,height].every(Number.isFinite))return;
+  Object.assign(t,{x:left,y:top,width,height});
+  if(textStyle){if(corner.includes('e')||corner.includes('w'))textStyle.scaleX=clamp(start.glyphScaleX*(width/start.width),0.1,8);if(corner.includes('n')||corner.includes('s'))textStyle.scaleY=clamp(start.glyphScaleY*(height/start.height),0.1,8)}
+  renderCanvas();
+ };
+ const end=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);saveDraft();render()};
+ window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);
+}
+
 function moveLayer(id,direction){const i=state.design.objects.findIndex(o=>o.id===id),j=i+direction;if(i<0||j<0||j>=state.design.objects.length)return;const a=state.design.objects[i],b=state.design.objects[j];[a.transform.zIndex,b.transform.zIndex]=[b.transform.zIndex??j,a.transform.zIndex??i];state.design.objects.splice(i,1);state.design.objects.splice(j,0,a);saveDraft();render()}
 function deleteObject(id){const index=state.design.objects.findIndex(o=>o.id===id);if(index<0)return;const wasSelected=state.selected===id;state.design.objects.splice(index,1);if(wasSelected||!state.design.objects.some(o=>o.id===state.selected))state.selected=state.design.objects[Math.min(index,state.design.objects.length-1)]?.id||null;saveDraft();render()}
 function renderObjects(){const list=$('#objectList');list.innerHTML='';if(!state.design.objects.length){list.innerHTML='<div class="empty-state">No layers yet. Add an object to start designing.</div>';return}state.design.objects.slice().reverse().forEach(o=>{const row=document.createElement('div');row.className='object-row'+(o.id===state.selected?' active':'');row.innerHTML='<span>◇</span><span class="obj-name"></span><button title="Move layer up" aria-label="Move layer up">↑</button><button title="Move layer down" aria-label="Move layer down">↓</button><button title="Toggle visibility" aria-label="Toggle visibility">'+(o.visible===false?'◌':'◉')+'</button><button title="Delete" aria-label="Delete">×</button>';row.querySelector('.obj-name').textContent=o.name;row.onclick=()=>{state.selected=o.id;render()};row.children[2].onclick=e=>{e.stopPropagation();moveLayer(o.id,1)};row.children[3].onclick=e=>{e.stopPropagation();moveLayer(o.id,-1)};row.children[4].onclick=e=>{e.stopPropagation();o.visible=o.visible===false;saveDraft();render()};row.children[5].onclick=e=>{e.stopPropagation();deleteObject(o.id)};list.append(row)})}
@@ -356,49 +392,7 @@ async function sendWfsJson(type,value){const payload=new TextEncoder().encode(JS
 async function connectWfsProtocol(server){const service=await server.getPrimaryService(WFS_UUID.service);const controlRx=await service.getCharacteristic(WFS_UUID.controlRx);const controlTx=await service.getCharacteristic(WFS_UUID.controlTx);const dataRx=await service.getCharacteristic(WFS_UUID.dataRx);const dataTx=await service.getCharacteristic(WFS_UUID.dataTx);state.wfs={controlRx,controlTx,dataRx,dataTx,sessionId:0,txSequence:0,pending:new Map()};await controlTx.startNotifications();await dataTx.startNotifications();controlTx.addEventListener('characteristicvaluechanged',handleWfsNotification);dataTx.addEventListener('characteristicvaluechanged',handleWfsNotification);const hello=await sendWfsFrameAndWait(0x01,new TextEncoder().encode(JSON.stringify({minMajor:1,maxMajor:1,client:'WatchFaceStudio'})),0x02,8000,'control',0);const helloData=JSON.parse(new TextDecoder().decode(hello.payload));state.wfs.sessionId=hello.sessionId;if(!state.wfs.sessionId)throw Error('Device did not create a WFS session');const caps=await sendWfsFrameAndWait(0x03,new Uint8Array(),0x04,8000);state.wfsCapabilities=JSON.parse(new TextDecoder().decode(caps.payload));await refreshWfsStatus();legacyStatus('WFS v1 ready · '+helloData.device+' · package transfer '+(state.wfsCapabilities.upload?'available':'unavailable'));return state.wfsCapabilities}
 async function refreshWfsStatus(){if(!state.wfs)return null;const frame=await sendWfsFrameAndWait(0x05,new Uint8Array(),0x06,8000);state.wfsStatus=JSON.parse(new TextDecoder().decode(frame.payload));const status=state.wfsStatus;if($('#deviceStatus'))$('#deviceStatus').textContent='Connected · '+(status.wifiConnected?'Wi-Fi online':'Wi-Fi offline');return status}
 async function refreshWfsFaceStatus(){if(!state.wfs)throw Error('WFS is not connected');const frame=await sendWfsFrameAndWait(0x07,new Uint8Array(),0x08,8000);return JSON.parse(new TextDecoder().decode(frame.payload))}
-function designCompatibilityErrors(design,caps){
- const errors=[];
- if(!design||design.schemaVersion!==1)errors.push('Unsupported Watch Face schema version');
- const profileId=caps?.pid||'esp32-c3-gc9a01-240';
- if(design?.deviceProfileId!==profileId)errors.push('Design targets a different device profile ('+profileId+')');
- const canvas=design?.canvas||{};
- const canvasWidth=Number(caps?.cw)||240,canvasHeight=Number(caps?.ch)||240;
- const canvasShape=caps?.cs||'circle';
- 
- if(canvas.width!==canvasWidth||canvas.height!==canvasHeight)errors.push('Canvas must match the connected device resolution ('+canvasWidth+' × '+canvasHeight+')');
- if(canvas.shape&&canvas.shape!==canvasShape)errors.push('Canvas shape is not supported by the connected device');
- const maxObjects=Number(caps?.obj)||16;
- const maxAssets=Number(caps?.assets)||16;
- const objects=Array.isArray(design?.objects)?design.objects:[];
- if(objects.length>maxObjects)errors.push('This firmware supports at most '+maxObjects+' objects per face');
- const imageObjects=objects.filter(o=>o?.type==='image');
- const imageAssetIds=new Set(imageObjects.map(o=>o.assetId).filter(Boolean));
- if(imageAssetIds.size>maxAssets)errors.push('This firmware supports at most '+maxAssets+' unique image assets per face');
- const supported=new Set(['text','digital-clock','analog-clock','date','weather','shape','image']);
- for(const o of objects){
-  const name=o?.name||o?.id||'Unnamed element',t=o?.transform||{},s=o?.textStyle||{},b=o?.dataBinding||{};
-  if(!supported.has(o.type))errors.push(name+': element '+o.type+' is not supported by this firmware');
-  if(o.type==='image'){
-   if(!caps?.img)errors.push(name+': RGB565 image assets are not enabled by this firmware');
-   if(!state.images.some(a=>a.id===o.assetId))errors.push(name+': source image asset is missing from this browser');
-   if(t.width<1||t.height<1)errors.push(name+': image dimensions must be positive before export cropping');
-  }
-  if(o.type==='shape'&&!['rect','circle','rounded-rect','line'].includes(o.shape||'rect'))errors.push(name+': selected shape is not supported by this firmware');
-  if(t.rotation&&Math.abs(t.rotation)>0.001)errors.push(name+': rotation is not supported yet');
-  if(t.opacity!==undefined&&t.opacity<1)errors.push(name+': partial opacity is not supported yet');
-  const font=s.fontFamily;
-  if(font&&font!=='system-ui'&&font!=='sans-serif'&&font!=='inherit')errors.push(name+': font '+font+' is not available on the device yet');
-  if(s.fontSize!==undefined&&(s.fontSize<=0||s.fontSize>256))errors.push(name+': font size is outside the device range');
-  if(s.fontWeight!==undefined&&![400,600].includes(Number(s.fontWeight)))errors.push(name+': this firmware currently supports regular and semibold weights only');
-  for(const axis of ['scaleX','scaleY'])if(s[axis]!==undefined&&(!Number.isFinite(Number(s[axis]))||Number(s[axis])<0.1||Number(s[axis])>8))errors.push(name+': '+axis+' must be between 0.1 and 8');
-  if(s.letterSpacing!==undefined&&Number(s.letterSpacing)!==0)errors.push(name+': letter spacing is not supported yet');
-  if(o.type==='digital-clock'&&b.source!=='time')errors.push(name+': digital clock requires the time binding');
-  if(o.type==='date'&&b.source!=='date')errors.push(name+': date requires the date binding');
-  if(o.type==='weather'&&b.source!=='temperature')errors.push(name+': only temperature weather binding is supported currently');
- }
- return [...new Set(errors)];
-}
-// Canonical WFS wire format: RGB888 input -> RGB565 little-endian bytes.
+// Canonical WFS wire format:// Canonical WFS wire format: RGB888 input -> RGB565 little-endian bytes.
 function writeRgb888AsRgb565LE(red,green,blue,output,offset){
  const rgb565=((red>>3)<<11)|((green>>2)<<5)|(blue>>3);
  output[offset]=rgb565&0xff;
@@ -418,15 +412,15 @@ async function convertImageToRgb565(object,design){
  const fitScale=Math.min(width/image.naturalWidth,height/image.naturalHeight);
  const drawWidth=image.naturalWidth*fitScale,drawHeight=image.naturalHeight*fitScale;
  const drawX=x+(width-drawWidth)/2,drawY=y+(height-drawHeight)/2;
- const displaySize=240,center=120,radius=120;
+ const {width:displaySize,height:displayHeight,centerX,centerY,radius}=WFS_FIRMWARE_DISPLAY;
  // Export bounds are the raster pixels that can actually be seen: source-image
  // coverage AND the circular LCD aperture. The editor keeps the original asset
  // and transform; this crop is performed only for the upload package.
- let left=displaySize,top=displaySize,right=0,bottom=0;
- for(let py=0;py<displaySize;py++){
-  const cy=py+0.5-center;
+ let left=displaySize,top=displayHeight,right=0,bottom=0;
+ for(let py=0;py<displayHeight;py++){
+  const cy=py+0.5-centerY;
   for(let px=0;px<displaySize;px++){
-   const cx=px+0.5-center;
+   const cx=px+0.5-centerX;
    if(cx*cx+cy*cy>=radius*radius)continue;
    if(px+0.5<drawX||px+0.5>=drawX+drawWidth||py+0.5<drawY||py+0.5>=drawY+drawHeight)continue;
    left=Math.min(left,px);top=Math.min(top,py);right=Math.max(right,px+1);bottom=Math.max(bottom,py+1);
@@ -436,9 +430,9 @@ async function convertImageToRgb565(object,design){
  if(outputWidth<=0||outputHeight<=0)throw Error(object.name+': image is outside the visible watch area');
  const imagePosition=design.objects.indexOf(object),imageZ=transform.zIndex??0;
  const intersectsRoundDisplay=(rect)=>{
-  const nearestX=Math.max(rect.x,Math.min(center,rect.x+rect.width));
-  const nearestY=Math.max(rect.y,Math.min(center,rect.y+rect.height));
-  const dx=nearestX-center,dy=nearestY-center;
+  const nearestX=Math.max(rect.x,Math.min(centerX,rect.x+rect.width));
+  const nearestY=Math.max(rect.y,Math.min(centerY,rect.y+rect.height));
+  const dx=nearestX-centerX,dy=nearestY-centerY;
   return dx*dx+dy*dy<radius*radius;
  };
  const visibleImageRect={x:drawX,y:drawY,width:drawWidth,height:drawHeight};
@@ -460,8 +454,8 @@ async function convertImageToRgb565(object,design){
  alphaCtx.drawImage(image,drawX-left,drawY-top,drawWidth,drawHeight);
  const sourcePixels=alphaCtx.getImageData(0,0,outputWidth,outputHeight).data;let hasTransparency=false;
  for(let i=3,pixel=0;i<sourcePixels.length;i+=4,pixel++){
-  const pixelX=left+(pixel%outputWidth)+0.5-center;
-  const pixelY=top+Math.floor(pixel/outputWidth)+0.5-center;
+  const pixelX=left+(pixel%outputWidth)+0.5-centerX;
+  const pixelY=top+Math.floor(pixel/outputWidth)+0.5-centerY;
   if(pixelX*pixelX+pixelY*pixelY<radius*radius&&sourcePixels[i]!==255){hasTransparency=true;break}
  }
  if(hasTransparency&&object.visible!==false&&hasUnderlyingLayer)
@@ -469,7 +463,7 @@ async function convertImageToRgb565(object,design){
  const canvas=document.createElement('canvas');canvas.width=outputWidth;canvas.height=outputHeight;
  const ctx=canvas.getContext('2d',{willReadFrequently:true});
  ctx.fillStyle=design.canvas.backgroundColor||'#000000';ctx.fillRect(0,0,outputWidth,outputHeight);
- ctx.save();ctx.beginPath();ctx.arc(center-left,center-top,radius,0,Math.PI*2);ctx.clip();
+ ctx.save();ctx.beginPath();ctx.arc(centerX-left,centerY-top,radius,0,Math.PI*2);ctx.clip();
  ctx.drawImage(image,drawX-left,drawY-top,drawWidth,drawHeight);ctx.restore();
  const rgba=ctx.getImageData(0,0,outputWidth,outputHeight).data;
  const bytes=new Uint8Array(outputWidth*outputHeight*2);
@@ -490,9 +484,9 @@ async function compositeBottomImageLayers(design){
  }
  if(bottomImages.length<2)return null;
 
- const displaySize=240,center=120,radius=120;
+ const {width:displaySize,height:displayHeight,centerX,centerY,radius}=WFS_FIRMWARE_DISPLAY;
  const layers=[];
- let minX=displaySize,minY=displaySize,maxX=0,maxY=0;
+ let minX=displaySize,minY=displayHeight,maxX=0,maxY=0;
  for(const object of bottomImages){
   const source=state.images.find(asset=>asset.id===object.assetId);
   if(!source)throw Error(object.name+': image source not found');
@@ -527,12 +521,12 @@ async function compositeBottomImageLayers(design){
  }
  if(!hasOverlap)return null;
  const left=Math.max(0,Math.floor(minX)),top=Math.max(0,Math.floor(minY));
- const right=Math.min(displaySize,Math.ceil(maxX)),bottom=Math.min(displaySize,Math.ceil(maxY));
+ const right=Math.min(displaySize,Math.ceil(maxX)),bottom=Math.min(displayHeight,Math.ceil(maxY));
  const outputWidth=right-left,outputHeight=bottom-top;
  if(outputWidth<=0||outputHeight<=0)throw Error('Composited background is outside the visible watch area');
- const nearestX=Math.max(left,Math.min(center,right));
- const nearestY=Math.max(top,Math.min(center,bottom));
- const dx=nearestX-center,dy=nearestY-center;
+ const nearestX=Math.max(left,Math.min(centerX,right));
+ const nearestY=Math.max(top,Math.min(centerY,bottom));
+ const dx=nearestX-centerX,dy=nearestY-centerY;
  if(dx*dx+dy*dy>=radius*radius)throw Error('Composited background is outside the circular display');
 
  const canvas=document.createElement('canvas');
@@ -543,7 +537,7 @@ async function compositeBottomImageLayers(design){
  ctx.fillRect(0,0,outputWidth,outputHeight);
  ctx.save();
  ctx.beginPath();
- ctx.arc(center-left,center-top,radius,0,Math.PI*2);
+ ctx.arc(centerX-left,centerY-top,radius,0,Math.PI*2);
  ctx.clip();
  ctx.globalCompositeOperation='source-over';
  for(const layer of layers){
@@ -562,37 +556,119 @@ async function compositeBottomImageLayers(design){
  };
 }
 
-function advancedFeatureErrors(design){
- const errors=[];
- if(design?.canvas?.shape&&design.canvas.shape!=='circle')errors.push('This device profile only supports a circular canvas');
- for(const o of design?.objects||[]){
-  const t=o.transform||{},s=o.textStyle||{},b=o.dataBinding||{},style=o.style||{},h=o.handConfig||{},rh=o.renderHints||{};
-  if(t.anchor&&t.anchor!=='top-left')errors.push(o.name+': only top-left object anchoring is supported');
-  if(typeof o.text==='string'&&Array.from(o.text).some(ch=>{const n=ch.codePointAt(0);return n<32||n>126}))errors.push(o.name+': this firmware currently supports printable ASCII text only');
-  if(o.shape==='arc')errors.push(o.name+': arc shapes are not supported yet');
-  if(o.weatherFields?.some(field=>!['temperature','condition'].includes(field)))errors.push(o.name+': this firmware supports only temperature and condition weather fields');
-  if(o.glyphOverrides?.length)errors.push(o.name+': per-glyph overrides are not supported yet');
-  if(o.glyphAtlasAssetId)errors.push(o.name+': custom glyph atlases are not supported by this firmware build');
-  if(o.glyphFallback&&o.glyphFallback!=='compatibility-error')errors.push(o.name+': selected glyph fallback mode is not supported');
-  if(['fontId','width','height'].some(k=>Object.prototype.hasOwnProperty.call(s,k)))errors.push(o.name+': custom glyph font metrics are not supported yet');
-  if((s.stroke&&s.stroke!=='none')||(Number(s.strokeWidth)||0)>0||s.backgroundColor||(s.backgroundShape&&s.backgroundShape!=='none')||(Number(s.backgroundRadius)||0)>0||(Number(s.opacity??1)<0.999)||(Number(s.rotation)||0)!==0||(s.visible===false)||(Number(s.zIndex)||0)!==0)errors.push(o.name+': advanced glyph styling is not supported yet');
-  if(style.backgroundColor)errors.push(o.name+': separate shape background fills are not supported by this device');
-  if(style.strokeWidth!==undefined&&(!Number.isInteger(style.strokeWidth)||style.strokeWidth<0||style.strokeWidth>32))errors.push(o.name+': shape stroke width must be an integer from 0 to 32 pixels');
-
-  if(b.timezone||b.fallbackText||b.visibleWhenMissing===true)errors.push(o.name+': this data-binding option is not supported by the device');
-  if(b.source&& !((o.type==='digital-clock'&&b.source==='time')||(o.type==='date'&&b.source==='date')||(o.type==='weather'&&b.source==='temperature')))errors.push(o.name+': this data binding is not supported by the device');
-  if(b.format&&o.type==='digital-clock'&&/[A-Za-z]/.test(b.format.replace(/HH|mm|ss/g,'')))errors.push(o.name+': time format contains unsupported tokens');
-  if(b.format&&o.type==='date'&&/[A-Za-z]/.test(b.format.replace(/YYYY|ddd|MMM|MM|DD/g,'')))errors.push(o.name+': date format contains unsupported tokens');
-  if(typeof b.format==='string'&&Array.from(b.format).some(ch=>ch.codePointAt(0)>126))errors.push(o.name+': date/time format must use printable ASCII characters');
-  if(rh.requiresAntialias===true||rh.requiresBitmap===true)errors.push(o.name+': requested render hint is not supported by the device');
-  if(o.clockMode&&((o.type==='analog-clock'&&o.clockMode!=='analog')||(o.type==='digital-clock'&&o.clockMode!=='digital')||!['analog-clock','digital-clock'].includes(o.type)))errors.push(o.name+': clock mode does not match the selected clock element');
-  if(o.showAmPm===false&&o.timeFormat==='12h')errors.push(o.name+': hiding AM/PM in 12-hour mode is not supported yet');
+async function buildWfsPackage(design){
+ const packageDesign=serializeDesign(design);
+ // Preview-only analog styling is not part of the WFS v1 wire contract.
+ for(const object of packageDesign.objects||[]){
+  if(object.type!=='analog-clock'||!object.handConfig)continue;
+  for(const key of ['hour','minute','second']){
+   const hand=object.handConfig[key];if(!hand)continue;
+   const opacity=normalizeHandOpacity(hand.opacity);
+   if(opacity<1)throw Error((object.name||'Analog clock')+': per-hand opacity is saved in the project and shown in Web preview, but current ESP32 firmware does not support per-hand transparency. Set the '+key+' hand opacity to 100% before uploading.');
+   delete hand.opacity;
+  }
  }
- return errors;
+ let hasPreviewOnlyClockForm=false;
+ for(const object of packageDesign.objects||[])if(object.textStyle&&Object.prototype.hasOwnProperty.call(object.textStyle,'clockForm')){hasPreviewOnlyClockForm=true;delete object.textStyle.clockForm}
+ // Stage 1: schema/data validity. Invalid WFS v1 documents always block.
+ const schema=await ensureSchemaLoaded(),schemaErrors=validateJsonSchema(schema,packageDesign);
+ if(schemaErrors.length)throw Error('Schema validation failed: '+schemaErrors[0]);
+ // Stage 2: the shared firmware parser/renderer contract. Every rule remains blocking.
+ const caps=state.wfsCapabilities||{},availableAssetIds=new Set(state.images.map(asset=>asset.id));
+ const compatibilityModule=globalThis.WfsDeviceCompatibility;
+ if(!compatibilityModule||typeof compatibilityModule.errors!=='function')throw Error('Device compatibility validator is unavailable; reload Watch Face Studio before uploading.');
+ const compatibilityErrors=[...new Set(compatibilityModule.errors(packageDesign,caps,availableAssetIds))];
+ if(compatibilityErrors.length)throw Error('Firmware compatibility validation failed:\n'+compatibilityErrors.join('\n'));
+ // Stage 3: package safety. Validate converted bitmaps and actual payload sizes before transfer.
+ const packageAssets=[],assetBytes=[],assetIds=new Map(),preconvertedImages=new Map();let assetOffset=0;
+ const compositeResult=await compositeBottomImageLayers(packageDesign);
+ if(compositeResult){
+  const first=packageDesign.objects.find(o=>o.id===compositeResult.objectId);
+  if(!first)throw Error('Composited background object disappeared during package preparation');
+  first.name='Composited background';first.assetId='asset_composited_background';
+  Object.assign(first.transform,{x:compositeResult.converted.x,y:compositeResult.converted.y,width:compositeResult.converted.width,height:compositeResult.converted.height,rotation:0,opacity:1});
+  const removed=new Set(compositeResult.objectIds.slice(1));
+  packageDesign.objects=packageDesign.objects.filter(o=>!removed.has(o.id));preconvertedImages.set(first.id,compositeResult.converted);
+ }
+ for(const object of packageDesign.objects.filter(o=>o.type==='image')){
+  const converted=preconvertedImages.get(object.id)||await convertImageToRgb565(object,packageDesign);
+  const maxBitmapWidth=Math.min(WFS_FIRMWARE_DISPLAY.width,Number(caps.bw)||Number(packageDesign.canvas.width)||WFS_FIRMWARE_DISPLAY.width);
+  const maxBitmapHeight=Math.min(WFS_FIRMWARE_DISPLAY.height,Number(caps.bh)||Number(packageDesign.canvas.height)||WFS_FIRMWARE_DISPLAY.height);
+  if(converted.width<1||converted.height<1||converted.width>maxBitmapWidth||converted.height>maxBitmapHeight||converted.bytes.length>maxBitmapWidth*maxBitmapHeight*2)throw Error(object.name+': cropped visible RGB565 image exceeds device bitmap limit ('+maxBitmapWidth+' × '+maxBitmapHeight+')');
+  const originalId=object.assetId,sourceTransform=object.transform;
+  const key=originalId+':'+sourceTransform.x+','+sourceTransform.y+','+sourceTransform.width+'x'+sourceTransform.height+'->'+converted.x+','+converted.y+','+converted.width+'x'+converted.height;
+  let packageAssetId=assetIds.get(key);
+  if(!packageAssetId){
+   packageAssetId='asset_'+packageAssets.length+'_'+converted.width+'x'+converted.height;
+   const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',converted.bytes));
+   packageAssets.push({assetId:packageAssetId,mediaType:'image/rgb565',encoding:'rgb565le',width:converted.width,height:converted.height,byteLength:converted.bytes.length,offset:assetOffset,sha256:wfsHex(digest)});
+   assetBytes.push(converted.bytes);assetOffset+=converted.bytes.length;assetIds.set(key,packageAssetId);
+  }
+  object.assetId=packageAssetId;Object.assign(object.transform,{x:converted.x,y:converted.y,width:converted.width,height:converted.height});
+ }
+ const maxAssets=Number(caps.assets)||16;
+ if(packageAssets.length>maxAssets)throw Error('This firmware supports at most '+maxAssets+' image assets per face');
+ const layoutBytes=new TextEncoder().encode(JSON.stringify(packageDesign)),maxJsonBytes=Number(caps.json)||16384;
+ if(layoutBytes.length>maxJsonBytes)throw Error('Design JSON exceeds device limit ('+maxJsonBytes+' bytes)');
+ const layoutDigest=new Uint8Array(await crypto.subtle.digest('SHA-256',layoutBytes));
+ const required=[...new Set(packageDesign.objects.map(o=>({'text':'text.basic','digital-clock':'clock.digital','analog-clock':'clock.analog','date':'date.basic','weather':'weather.temperature','shape':'shape.basic','image':'image.rgb565'}[o.type])).filter(Boolean))];
+ if(packageDesign.objects.some(o=>o.type==='weather'&&Array.isArray(o.weatherFields)&&o.weatherFields.includes('condition')))required.push('weather.condition');
+ const manifest={packageFormatVersion:1,designId:packageDesign.designId,name:packageDesign.name,schemaVersion:1,deviceProfileId:packageDesign.deviceProfileId,requiredCapabilities:required,layoutSha256:wfsHex(layoutDigest),assets:packageAssets};
+ const manifestBytes=new TextEncoder().encode(JSON.stringify(manifest)),payloadLength=manifestBytes.length+layoutBytes.length+assetOffset;
+ const maxStageBytes=Number(caps.stage)||0;
+ if(maxStageBytes<=0||payloadLength+64>maxStageBytes)throw Error('Package exceeds currently available staging storage on the watch');
+ const payload=new Uint8Array(payloadLength);let cursor=0;
+ payload.set(manifestBytes,cursor);cursor+=manifestBytes.length;payload.set(layoutBytes,cursor);cursor+=layoutBytes.length;
+ for(const bytes of assetBytes){payload.set(bytes,cursor);cursor+=bytes.length}
+ const payloadDigest=new Uint8Array(await crypto.subtle.digest('SHA-256',payload));
+ const header=new Uint8Array(64),view=new DataView(header.buffer);header.set([0x57,0x46,0x53,0x31],0);
+ view.setUint16(4,1,true);view.setUint16(6,64,true);view.setUint32(8,manifestBytes.length,true);view.setUint32(12,layoutBytes.length,true);
+ view.setUint16(16,packageAssets.length,true);view.setUint16(18,0,true);view.setUint32(20,payload.length,true);header.set(payloadDigest,24);
+ view.setUint32(56,wfsCrc32(header.subarray(0,56)),true);
+ return {blob:new Blob([header,payload],{type:'application/octet-stream'}),payloadSha256:wfsHex(payloadDigest),designId:packageDesign.designId,packageLength:header.length+payload.length,hasPreviewOnlyClockForm};
 }
-
-async function buildWfsPackage(design){const packageDesign=serializeDesign(design);for(const object of packageDesign.objects||[]){if(object.type!=='analog-clock'||!object.handConfig)continue;for(const key of ['hour','minute','second']){const hand=object.handConfig[key];if(!hand)continue;const opacity=normalizeHandOpacity(hand.opacity);if(opacity<1)throw Error((object.name||'Analog clock')+': per-hand opacity is saved in the project and shown in Web preview, but current ESP32 firmware does not support per-hand transparency. Set the '+key+' hand opacity to 100% before uploading.');delete hand.opacity;}}let hasPreviewOnlyClockForm=false;for(const object of packageDesign.objects||[]){if(object.textStyle&&Object.prototype.hasOwnProperty.call(object.textStyle,'clockForm')){hasPreviewOnlyClockForm=true;delete object.textStyle.clockForm;}}const schema=await ensureSchemaLoaded();const schemaErrors=validateJsonSchema(schema,packageDesign);if(schemaErrors.length)throw Error('Schema validation failed: '+schemaErrors[0]);const caps=state.wfsCapabilities||{};const availableAssetIds=new Set(state.images.map(asset=>asset.id));const compatibilityModule=globalThis.WfsDeviceCompatibility;if(!compatibilityModule||typeof compatibilityModule.errors!=='function')throw Error('Device compatibility validator is unavailable; reload Watch Face Studio before uploading.');const sharedCompatibilityErrors=compatibilityModule.errors(packageDesign,caps,availableAssetIds);const errors=[...new Set([...sharedCompatibilityErrors,...designCompatibilityErrors(packageDesign,caps),...advancedFeatureErrors(packageDesign)])];if(errors.length)throw Error(errors.join('\n'));const packageAssets=[];const assetBytes=[];const assetIds=new Map();const preconvertedImages=new Map();let assetOffset=0;const composite=await compositeBottomImageLayers(packageDesign);if(composite){const first=packageDesign.objects.find(o=>o.id===composite.objectId);if(!first)throw Error('Composited background object disappeared during package preparation');first.name='Composited background';first.assetId='asset_composited_background';Object.assign(first.transform,{x:composite.converted.x,y:composite.converted.y,width:composite.converted.width,height:composite.converted.height,rotation:0,opacity:1});const removed=new Set(composite.objectIds.slice(1));packageDesign.objects=packageDesign.objects.filter(o=>!removed.has(o.id));preconvertedImages.set(first.id,composite.converted)}for(const object of packageDesign.objects.filter(o=>o.type==='image')){const converted=preconvertedImages.get(object.id)||await convertImageToRgb565(object,packageDesign);const maxBitmapWidth=Math.min(240,Number(caps.bw)||Number(packageDesign.canvas.width)||240),maxBitmapHeight=Math.min(240,Number(caps.bh)||Number(packageDesign.canvas.height)||240);if(converted.width<1||converted.height<1||converted.width>maxBitmapWidth||converted.height>maxBitmapHeight||converted.bytes.length>maxBitmapWidth*maxBitmapHeight*2)throw Error(object.name+': cropped visible RGB565 image exceeds device bitmap limit ('+maxBitmapWidth+' × '+maxBitmapHeight+')');const originalId=object.assetId;const sourceTransform=object.transform;const key=originalId+':'+sourceTransform.x+','+sourceTransform.y+','+sourceTransform.width+'x'+sourceTransform.height+'->'+converted.x+','+converted.y+','+converted.width+'x'+converted.height;let packageAssetId=assetIds.get(key);if(!packageAssetId){packageAssetId='asset_'+packageAssets.length+'_'+converted.width+'x'+converted.height;const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',converted.bytes));packageAssets.push({assetId:packageAssetId,mediaType:'image/rgb565',encoding:'rgb565le',width:converted.width,height:converted.height,byteLength:converted.bytes.length,offset:assetOffset,sha256:wfsHex(digest)});assetBytes.push(converted.bytes);assetOffset+=converted.bytes.length;assetIds.set(key,packageAssetId)}object.assetId=packageAssetId;object.transform.x=converted.x;object.transform.y=converted.y;object.transform.width=converted.width;object.transform.height=converted.height}if(packageAssets.length>(Number(caps.assets)||16))throw Error("This firmware supports at most "+(Number(caps.assets)||16)+" image assets per face");const layoutBytes=new TextEncoder().encode(JSON.stringify(packageDesign));if(layoutBytes.length>(caps.json||16384))throw Error('Design JSON exceeds device limit');const layoutDigest=new Uint8Array(await crypto.subtle.digest('SHA-256',layoutBytes));const required=[...new Set(packageDesign.objects.map(o=>({'text':'text.basic','digital-clock':'clock.digital','analog-clock':'clock.analog','date':'date.basic','weather':'weather.temperature','shape':'shape.basic','image':'image.rgb565'}[o.type])).filter(Boolean))];if(packageDesign.objects.some(o=>o.type==='weather'&&Array.isArray(o.weatherFields)&&o.weatherFields.includes('condition')))required.push('weather.condition');const manifest={packageFormatVersion:1,designId:packageDesign.designId,name:packageDesign.name,schemaVersion:1,deviceProfileId:packageDesign.deviceProfileId,requiredCapabilities:required,layoutSha256:wfsHex(layoutDigest),assets:packageAssets};const manifestBytes=new TextEncoder().encode(JSON.stringify(manifest));const payloadLength=manifestBytes.length+layoutBytes.length+assetOffset;if(payloadLength+64>(caps.stage||0))throw Error('Package exceeds currently available staging storage on the watch');const payload=new Uint8Array(payloadLength);let cursor=0;payload.set(manifestBytes,cursor);cursor+=manifestBytes.length;payload.set(layoutBytes,cursor);cursor+=layoutBytes.length;for(const bytes of assetBytes){payload.set(bytes,cursor);cursor+=bytes.length}const payloadDigest=new Uint8Array(await crypto.subtle.digest('SHA-256',payload));const header=new Uint8Array(64),view=new DataView(header.buffer);header.set([0x57,0x46,0x53,0x31],0);view.setUint16(4,1,true);view.setUint16(6,64,true);view.setUint32(8,manifestBytes.length,true);view.setUint32(12,layoutBytes.length,true);view.setUint16(16,packageAssets.length,true);view.setUint16(18,0,true);view.setUint32(20,payload.length,true);header.set(payloadDigest,24);view.setUint32(56,wfsCrc32(header.subarray(0,56)),true);return {blob:new Blob([header,payload],{type:'application/octet-stream'}),payloadSha256:wfsHex(payloadDigest),designId:packageDesign.designId,packageLength:header.length+payload.length,hasPreviewOnlyClockForm}}async function sendWfsChunkWithRetry(transferId,chunkIndex,chunk,expectedReceivedBytes,maxAttempts=3){const payload=new Uint8Array(8+chunk.length),view=new DataView(payload.buffer);view.setUint32(0,transferId,true);view.setUint32(4,chunkIndex,true);payload.set(chunk,8);const w=state.wfs;if(!w)throw Error('WFS disconnected during transfer');const frame=wfsEncodeFrame(0x22,payload);let lastError=null;for(let attempt=1;attempt<=maxAttempts;attempt++){const ackWait=waitForWfsMessage(0x23,8000);try{if(w.dataRx.writeValueWithResponse)await w.dataRx.writeValueWithResponse(frame);else await w.dataRx.writeValue(frame);const ack=await ackWait;if(ack.payload.length<14)throw Error('Device returned a malformed chunk acknowledgement');const ackView=new DataView(ack.payload.buffer,ack.payload.byteOffset,ack.payload.byteLength);if(ackView.getUint32(0,true)!==transferId||ackView.getUint32(4,true)!==chunkIndex)throw Error('Device acknowledged an unexpected chunk');const status=ack.payload[12];if(status!==0)throw Error('Device rejected chunk '+chunkIndex+' (status '+status+')');if(ackView.getUint32(8,true)!==expectedReceivedBytes)throw Error('Device byte counter does not match the sent chunk');return;}catch(error){ackWait.cancel?.();lastError=error;if(attempt===maxAttempts)break;legacyStatus('Retrying chunk '+(chunkIndex+1)+' · attempt '+(attempt+1)+'/'+maxAttempts);}}throw Error('Chunk '+chunkIndex+' failed after '+maxAttempts+' attempts: '+(lastError?.message||'acknowledgement timeout'));}
-async function uploadCurrentDesign(){if(!state.wfs||!state.wfsCapabilities){toast('Connect to a WFS v1 watch first');return}if(!state.wfsCapabilities.upload){toast('This firmware does not currently accept face packages');return}const button=$('#transferBtn');const original=button?.textContent||'↑ Upload to watch';if(button)button.disabled=true;let transferId=0;let transferStarted=false;try{legacyStatus('Checking design compatibility…');const pack=await buildWfsPackage(state.design);const bytes=new Uint8Array(await pack.blob.arrayBuffer());transferId=crypto.getRandomValues(new Uint32Array(1))[0]||1;transferStarted=true;const readyFrame=await sendWfsJsonAndWait(0x20,{transferId,packageLength:pack.packageLength,payloadSha256:pack.payloadSha256,designId:pack.designId},0x21,10000);const ready=JSON.parse(new TextDecoder().decode(readyFrame.payload));if(ready.transferId!==transferId||!ready.chunkSize)throw Error('Device returned an invalid transfer reservation');const chunkSize=Math.min(216,ready.chunkSize);let chunkIndex=0;for(let offset=0;offset<bytes.length;offset+=chunkSize){const chunk=bytes.subarray(offset,Math.min(bytes.length,offset+chunkSize));await sendWfsChunkWithRetry(transferId,chunkIndex,chunk,offset+chunk.length,3);chunkIndex++;const percent=Math.round(Math.min(bytes.length,offset+chunk.length)/bytes.length*100);if(button)button.textContent='↑ Uploading '+percent+'%';legacyStatus('Transferring watch face · '+percent+'%')}const verifyFrame=await sendWfsJsonAndWait(0x24,{transferId},0x25,20000);const verify=JSON.parse(new TextDecoder().decode(verifyFrame.payload));if(!verify.ok)throw Error('Package verification failed: '+(verify.error||'unknown error'));let applied;try{const applyFrame=await sendWfsJsonAndWait(0x26,{transferId},0x27,10000);applied=JSON.parse(new TextDecoder().decode(applyFrame.payload))}catch(error){if(!String(error?.message||error).includes('WFS response timeout: 0x27'))throw error;let faceStatus=null;try{faceStatus=await refreshWfsFaceStatus()}catch{}if(faceStatus?.faceId!==pack.designId||faceStatus?.transfer!=='COMPLETE')throw error;applied={ok:true,designId:faceStatus.faceId};legacyStatus('Apply acknowledgement was lost; active face confirmed on watch')}if(!applied.ok)throw Error('Device could not activate the new face');try{await refreshWfsStatus()}catch{}legacyStatus('Installed watch face · '+applied.designId);toast(pack.hasPreviewOnlyClockForm?'Uploaded. Clock form is preview-only; watch uses its built-in font.':'Watch face uploaded and activated')}catch(e){if(transferStarted&&state.wfs){try{await sendWfsJson(0x28,{transferId})}catch{}}legacyStatus('Upload failed: '+e.message);toast('Upload failed: '+e.message)}finally{if(button){button.disabled=false;button.textContent=original}}}
+async function sendWfsChunkWithRetry(transferId,chunkIndex,chunk,expectedReceivedBytes,maxAttempts=3){const payload=new Uint8Array(8+chunk.length),view=new DataView(payload.buffer);view.setUint32(0,transferId,true);view.setUint32(4,chunkIndex,true);payload.set(chunk,8);const w=state.wfs;if(!w)throw Error('WFS disconnected during transfer');const frame=wfsEncodeFrame(0x22,payload);let lastError=null;for(let attempt=1;attempt<=maxAttempts;attempt++){const ackWait=waitForWfsMessage(0x23,8000);try{if(w.dataRx.writeValueWithResponse)await w.dataRx.writeValueWithResponse(frame);else await w.dataRx.writeValue(frame);const ack=await ackWait;if(ack.payload.length<14)throw Error('Device returned a malformed chunk acknowledgement');const ackView=new DataView(ack.payload.buffer,ack.payload.byteOffset,ack.payload.byteLength);if(ackView.getUint32(0,true)!==transferId||ackView.getUint32(4,true)!==chunkIndex)throw Error('Device acknowledged an unexpected chunk');const status=ack.payload[12];if(status!==0)throw Error('Device rejected chunk '+chunkIndex+' (status '+status+')');if(ackView.getUint32(8,true)!==expectedReceivedBytes)throw Error('Device byte counter does not match the sent chunk');return;}catch(error){ackWait.cancel?.();lastError=error;if(attempt===maxAttempts)break;legacyStatus('Retrying chunk '+(chunkIndex+1)+' · attempt '+(attempt+1)+'/'+maxAttempts);}}throw Error('Chunk '+chunkIndex+' failed after '+maxAttempts+' attempts: '+(lastError?.message||'acknowledgement timeout'));}
+async function uploadCurrentDesign(){
+ if(!state.wfs||!state.wfsCapabilities){toast('Connect to a WFS v1 watch first');return}
+ if(!state.wfsCapabilities.upload){toast('This firmware does not currently accept face packages');return}
+ const button=$('#transferBtn'),original=button?.textContent||'↑ Upload to watch';if(button)button.disabled=true;
+ let transferId=0,transferStarted=false;
+ try{
+  legacyStatus('Checking design compatibility…');
+  const pack=await buildWfsPackage(state.design);
+  if(pack.hasPreviewOnlyClockForm&&!confirm('This design uses a clock form that is preview-only. It will be removed from the WFS v1 package, and the watch will use its built-in font. Continue with upload?')){
+   legacyStatus('Upload cancelled. The current watch face was not changed.');return;
+  }
+  const bytes=new Uint8Array(await pack.blob.arrayBuffer());transferId=crypto.getRandomValues(new Uint32Array(1))[0]||1;transferStarted=true;
+  const readyFrame=await sendWfsJsonAndWait(0x20,{transferId,packageLength:pack.packageLength,payloadSha256:pack.payloadSha256,designId:pack.designId},0x21,10000);
+  const ready=JSON.parse(new TextDecoder().decode(readyFrame.payload));
+  if(ready.transferId!==transferId||!ready.chunkSize)throw Error('Device returned an invalid transfer reservation');
+  const chunkSize=Math.min(216,ready.chunkSize);let chunkIndex=0;
+  for(let offset=0;offset<bytes.length;offset+=chunkSize){
+   const chunk=bytes.subarray(offset,Math.min(bytes.length,offset+chunkSize));
+   await sendWfsChunkWithRetry(transferId,chunkIndex,chunk,offset+chunk.length,3);chunkIndex++;
+   const percent=Math.round(Math.min(bytes.length,offset+chunk.length)/bytes.length*100);
+   if(button)button.textContent='↑ Uploading '+percent+'%';legacyStatus('Transferring watch face · '+percent+'%');
+  }
+  const verifyFrame=await sendWfsJsonAndWait(0x24,{transferId},0x25,20000),verify=JSON.parse(new TextDecoder().decode(verifyFrame.payload));
+  if(!verify.ok)throw Error('Package verification failed: '+(verify.error||'unknown error'));
+  let applied;
+  try{const applyFrame=await sendWfsJsonAndWait(0x26,{transferId},0x27,10000);applied=JSON.parse(new TextDecoder().decode(applyFrame.payload))}
+  catch(error){
+   if(!String(error?.message||error).includes('WFS response timeout: 0x27'))throw error;
+   let faceStatus=null;try{faceStatus=await refreshWfsFaceStatus()}catch{}
+   if(faceStatus?.faceId!==pack.designId||faceStatus?.transfer!=='COMPLETE')throw error;
+   applied={ok:true,designId:faceStatus.faceId};legacyStatus('Apply acknowledgement was lost; active face confirmed on watch');
+  }
+  if(!applied.ok)throw Error('Device could not activate the new face');
+  try{await refreshWfsStatus()}catch{}
+  legacyStatus('Installed watch face · '+applied.designId);
+  toast(pack.hasPreviewOnlyClockForm?'Uploaded. Preview-only clock form was omitted; watch uses its built-in font.':'Watch face uploaded and activated');
+ }catch(e){
+  if(transferStarted&&state.wfs){try{await sendWfsJson(0x28,{transferId})}catch{}}
+  legacyStatus('Upload failed: '+e.message);toast('Upload failed: '+e.message);
+ }finally{if(button){button.disabled=false;button.textContent=original}}
+}
 async function connectBLE(){if(!navigator.bluetooth){toast('Web Bluetooth is unavailable in this browser');return}try{const d=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'ESP32_Watch'}],optionalServices:['4fafc201-1fb5-459e-8fcc-c5c9c331914b',WFS_UUID.service]});state.bleDevice=d;d.addEventListener('gattserverdisconnected',()=>{const oldWfs=state.wfs;if(oldWfs){for(const entry of oldWfs.pending.values()){clearTimeout(entry.timer);entry.reject(Error('WFS disconnected'))}oldWfs.pending.clear()}$('#deviceStatus').textContent='Disconnected';$('#deviceDot').classList.remove('online');state.bleChar=null;state.wfs=null;state.wfsCapabilities=null;state.wfsStatus=null;legacyStatus('Watch disconnected')});const server=await d.gatt.connect();const service=await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');state.bleChar=await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');await state.bleChar.startNotifications();state.bleChar.addEventListener('characteristicvaluechanged',handleLegacyNotification);$('#deviceStatus').textContent='Connected';$('#deviceDot').classList.add('online');legacyStatus('Connected · checking WFS protocol…');try{await connectWfsProtocol(server)}catch(wfsError){state.wfs=null;state.wfsCapabilities=null;legacyStatus('Connected in legacy mode · WFS v1 unavailable: '+wfsError.message)}await sendLegacyCommand('GET_AUTO_SLEEP');toast('Watch connected')}catch(e){toast('Bluetooth connection failed: '+e.message)}}
 async function syncLegacyTime(){if(await sendLegacyCommand('SYNC_TIME:'+Math.floor(Date.now()/1000)))legacyStatus('Time synchronization command sent')}
 async function syncLegacyWeather(){if(await sendLegacyCommand('SYNC_WEATHER'))legacyStatus('Weather refresh requested')}
