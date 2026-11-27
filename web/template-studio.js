@@ -49,15 +49,19 @@ function updateSelectedPreview(){renderFace($('#studioSelectedCanvas'),selectedI
 function openCustomizer(id){const face=faceById(id);if(!face)return;selectedId=id;$('#studioGallery').hidden=true;$('#studioCustomizer').hidden=false;$('#studioSelectedTitle').textContent=face.title.replace(/^\d+\.\s*/,'');$('#studioSelectedSubtitle').textContent=face.subtitle;$('#studioSelectedCategory').textContent=face.category==='analog'?'ANALOG DIAL':'DIGITAL FACE';const supported=face.uploadSupported;$('#templateCompatibilityNote').hidden=supported;$('#templateSaveBtn').disabled=!supported;$('#templateUploadBtn').disabled=!supported;renderSettings();updateSelectedPreview();window.scrollTo({top:0,behavior:'smooth'})}
 function showGallery(){selectedId=null;$('#studioCustomizer').hidden=true;$('#studioGallery').hidden=false;window.scrollTo({top:0,behavior:'smooth'});drawGallery(new Date())}
 function openDevicePage(){
- if(typeof window.showView==='function')window.showView('device');
- const workspace=$('.workspace'),studio=$('#templateStudio');
- if(workspace)workspace.hidden=false;
- if(studio)studio.hidden=true;
+ const workspace=$('.workspace'),studio=$('#templateStudio'),device=$('.studio-device-page');
+ if(workspace)workspace.hidden=true;
+ if(studio)studio.hidden=false;
+ $('#studioGallery').hidden=true;$('#studioCustomizer').hidden=true;
+ if(device){device.classList.remove('hidden');device.hidden=false;}
  document.body.dataset.view='device';
  window.scrollTo({top:0,behavior:'smooth'});
 }
 function returnToTemplateStudio(){
- if(typeof window.showView==='function')window.showView('editor');
+ const device=$('.studio-device-page');
+ if(device){device.hidden=true;device.classList.add('hidden');}
+ $('#studioGallery').hidden=false;
+ if(selectedId)$('#studioCustomizer').hidden=false;
  const workspace=$('.workspace'),studio=$('#templateStudio');
  if(workspace)workspace.hidden=true;
  if(studio)studio.hidden=false;
