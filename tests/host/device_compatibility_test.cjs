@@ -50,6 +50,14 @@ assert.match(templateStudioSource, /returnToTemplateStudio/);
 assert.match(studioHtml, /id="studioDeviceNav"/);
 assert.match(studioHtml, /⌚ Đồng hồ & kết nối/);
 assert.match(studioHtml, /id="studioImageScale"/);
+assert.match(studioHtml, /<section data-view="device" class="studio-device-page hidden">/,
+  'device management must be a standalone view outside the hidden legacy workspace');
+assert.match(templateStudioSource, /const workspace=\$\('\.workspace'\),studio=\$\('#templateStudio'\),device=\$\('\.studio-device-page'\)/,
+  'device navigation must explicitly show the standalone device page');
+assert.match(studioHtml, /id="syncTimeBtn"/);
+assert.match(studioHtml, /id="syncWeatherBtn"/);
+assert.match(studioHtml, /id="wifiSelect"/);
+assert.match(studioHtml, /id="saveAutoSleepBtn"/);
 
 assert.match(templateStudioSource, /setBackgroundPosition\(bg\.offsetX,bg\.offsetY\)/);
 
