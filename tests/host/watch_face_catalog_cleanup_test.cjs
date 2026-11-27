@@ -31,4 +31,15 @@ assert(presetBlock, 'WFS1 preset list must remain present');
 assert.strictEqual((presetBlock[1].match(/\bid:'[^']+'/g) || []).length, 12,
   'all 8 original and 4 reference WFS1 presets must remain present');
 
-console.log('Watch-face catalog cleanup checks passed.');
+console.log('Watch-face catalog and Template Studio regression checks passed.');
+
+const studioSource = fs.readFileSync(path.join(__dirname, '../../web/template-studio.js'), 'utf8');
+const studioHtml = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
+assert(studioHtml.includes('id="studioImagePanel" hidden'), 'personal image panel starts hidden');
+assert(studioHtml.includes('id="studioApplyImage"'), 'image selection requires an explicit apply action');
+assert(studioSource.includes('pendingImage=image'), 'selected image remains pending before apply');
+assert(studioSource.includes('bg.image=pendingImage'), 'apply action commits the pending image');
+assert(studioSource.includes('panel.hidden=!bg.image'), 'personal image panel visibility follows applied image state');
+assert(studioSource.includes('rect.bottom>=0&&rect.top<=window.innerHeight'), 'gallery rendering skips off-screen cards');
+assert(studioSource.includes('document.visibilityState'), 'render loop pauses while the document is hidden');
+assert(!studioSource.includes('requestAnimationFrame(frameLoop)'), 'unconditional animation-frame loop is retired');
