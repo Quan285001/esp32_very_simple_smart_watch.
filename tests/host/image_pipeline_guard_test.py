@@ -26,7 +26,8 @@ assert "writeRgb888AsRgb565LE(rgba[i],rgba[i+1],rgba[i+2],bytes,p)" in WEB_APP
 assert "async function compositeBottomImageLayers(design)" in WEB_APP
 assert "if(entry.object.type!=='image')break" in WEB_APP
 assert "ctx.globalCompositeOperation='source-over'" in WEB_APP
-assert "ctx.arc(center-left,center-top,radius,0,Math.PI*2)" in WEB_APP
+assert "ctx.arc(centerX-left,centerY-top,radius,0,Math.PI*2)" in WEB_APP
+assert "const WFS_FIRMWARE_DISPLAY=Object.freeze({width:240,height:240,centerX:120,centerY:120,radius:120})" in WEB_APP
 assert "const composite=await compositeBottomImageLayers(packageDesign)" in WEB_APP
 assert "preconvertedImages.set(first.id,composite.converted)" in WEB_APP
 
