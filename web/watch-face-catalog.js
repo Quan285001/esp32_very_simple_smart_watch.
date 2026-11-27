@@ -151,75 +151,6 @@
     }
   ];
 
-  const contextsById = {};
-
-  function buildWatchGrid() {
-    const grid = document.getElementById('watchFacesGrid');
-    grid.innerHTML = '';
-
-    WATCH_FACES.forEach((face) => {
-      const card = document.createElement('article');
-      card.className = 'watch-card flex flex-col items-center gap-3.5';
-      card.dataset.category = face.category;
-      card.dataset.id = face.id;
-
-      const bezel = document.createElement('div');
-      bezel.className = 'watch-bezel';
-
-      const canvas = document.createElement('canvas');
-      canvas.id = `canvas-${face.id}`;
-      canvas.className = 'watch-dial';
-      canvas.width = W;
-      canvas.height = H;
-      canvas.setAttribute('aria-label', face.title);
-
-      bezel.appendChild(canvas);
-
-      const meta = document.createElement('div');
-      meta.className = 'text-center space-y-0.5';
-
-      const nameEl = document.createElement('div');
-      nameEl.className = 'text-sm font-semibold tracking-wide text-slate-100';
-      nameEl.textContent = face.title;
-
-      const subEl = document.createElement('div');
-      subEl.className = 'text-[11px] font-mono text-slate-400';
-      subEl.textContent = face.subtitle;
-
-      meta.appendChild(nameEl);
-      meta.appendChild(subEl);
-
-      card.appendChild(bezel);
-      card.appendChild(meta);
-      grid.appendChild(card);
-
-      contextsById[face.id] = canvas.getContext('2d');
-    });
-
-    applyCategoryVisibility();
-  }
-
-  function setCategoryFilter(filterKey) {
-    state.filter = filterKey;
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      const active = btn.dataset.filter === filterKey;
-      btn.setAttribute('aria-selected', String(active));
-      if (active) {
-        btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer bg-sky-500 text-slate-950 shadow';
-      } else {
-        btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-slate-300 hover:text-white hover:bg-white/5';
-      }
-    });
-    applyCategoryVisibility();
-  }
-
-  function applyCategoryVisibility() {
-    document.querySelectorAll('.watch-card').forEach((card) => {
-      const match = state.filter === 'all' || card.dataset.category === state.filter;
-      card.classList.toggle('hidden', !match);
-    });
-  }
-
   function adjustHexBrightness(hex, percent) {
     const clean = hex.replace('#', '');
     const num = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16);
@@ -228,67 +159,6 @@
     const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amt));
     const b = Math.min(255, Math.max(0, (num & 0x0000ff) + amt));
     return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
-  }
-
-  function applyBgColor(hex) {
-    state.overrideBgColor = hex;
-    document.getElementById('bgColorPicker').value = hex;
-  }
-
-  function toggleSunburst() {
-    state.sunburstEnabled = !state.sunburstEnabled;
-    const btn = document.getElementById('sunburstToggleBtn');
-    btn.textContent = `Sunburst: ${state.sunburstEnabled ? 'ON' : 'OFF'}`;
-    btn.className = state.sunburstEnabled
-      ? 'px-2.5 py-1.5 rounded-lg bg-sky-500/20 border border-sky-400/40 text-sky-300 font-medium transition-colors cursor-pointer'
-      : 'px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-white/10 text-slate-400 font-medium transition-colors cursor-pointer';
-  }
-
-  function toggleVignette() {
-    state.vignetteEnabled = !state.vignetteEnabled;
-    const btn = document.getElementById('vignetteToggleBtn');
-    btn.textContent = `Vignette: ${state.vignetteEnabled ? 'ON' : 'OFF'}`;
-    btn.className = state.vignetteEnabled
-      ? 'px-2.5 py-1.5 rounded-lg bg-sky-500/20 border border-sky-400/40 text-sky-300 font-medium transition-colors cursor-pointer'
-      : 'px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-white/10 text-slate-400 font-medium transition-colors cursor-pointer';
-  }
-
-  function handleImageUpload(event) {
-    try {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          state.customBgImage = img;
-          document.getElementById('imageDimWrap').classList.remove('hidden');
-          document.getElementById('imageDimWrap').classList.add('flex');
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error('Failed to load background image:', err);
-    }
-  }
-
-  function updateDimValue(val) {
-    state.bgDimPercent = Number(val);
-    document.getElementById('dimValueText').textContent = `${state.bgDimPercent}%`;
-  }
-
-  function clearUploadedImage() {
-    state.customBgImage = null;
-    document.getElementById('bgImageUpload').value = '';
-    const wrap = document.getElementById('imageDimWrap');
-    wrap.classList.add('hidden');
-    wrap.classList.remove('flex');
-  }
-
-  function resetAllBackgrounds() {
-    state.overrideBgColor = null;
-    clearUploadedImage();
   }
 
   /**
@@ -1056,20 +926,6 @@
     };
   }
 
-  function animateLoop() {
-    try {
-      const timeData = getFormattedTimeAndDate(new Date());
-      WATCH_FACES.forEach((face) => {
-        const ctx = contextsById[face.id];
-        if (!ctx) return;
-        ctx.clearRect(0, 0, W, H);
-        face.render(ctx, timeData);
-      });
-    } catch (err) {
-      console.error('Animation loop error:', err);
-    }
-    requestAnimationFrame(animateLoop);
-  }
   function renderFaceToCanvas(faceId, canvas, now) {
     const face = WATCH_FACES.find((item) => item.id === faceId);
     if (!face || !canvas) throw new Error('Unknown watch face: ' + faceId);
@@ -2131,136 +1987,6 @@
     { id: 'm20', category: 'digital', title: '20. Giant HH & Amber Arc', subtitle: 'Big Hour · Live Sec Arc', defaultBg: '#141517', render: renderM20Giant10AmberArc }
   ];
 
-  const contextsById = {};
-
-  function buildWatchGrid() {
-    const grid = document.getElementById('watchFacesGrid');
-    grid.innerHTML = '';
-
-    WATCH_FACES.forEach((face) => {
-      const card = document.createElement('article');
-      card.className = 'watch-card flex flex-col items-center gap-3.5';
-      card.dataset.category = face.category;
-      card.dataset.id = face.id;
-
-      const bezel = document.createElement('div');
-      bezel.className = 'watch-bezel';
-
-      const canvas = document.createElement('canvas');
-      canvas.id = `canvas-${face.id}`;
-      canvas.className = 'watch-dial';
-      canvas.width = W;
-      canvas.height = H;
-      canvas.setAttribute('aria-label', face.title);
-
-      bezel.appendChild(canvas);
-
-      const meta = document.createElement('div');
-      meta.className = 'text-center space-y-0.5';
-
-      const nameEl = document.createElement('div');
-      nameEl.className = 'text-sm font-semibold tracking-wide text-slate-100';
-      nameEl.textContent = face.title;
-
-      const subEl = document.createElement('div');
-      subEl.className = 'text-[11px] font-mono text-slate-400';
-      subEl.textContent = face.subtitle;
-
-      meta.appendChild(nameEl);
-      meta.appendChild(subEl);
-
-      card.appendChild(bezel);
-      card.appendChild(meta);
-      grid.appendChild(card);
-
-      contextsById[face.id] = canvas.getContext('2d');
-    });
-
-    applyCategoryVisibility();
-  }
-
-  function setCategoryFilter(filterKey) {
-    state.filter = filterKey;
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      const active = btn.dataset.filter === filterKey;
-      btn.setAttribute('aria-selected', String(active));
-      if (active) {
-        btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer bg-sky-500 text-slate-950 shadow';
-      } else {
-        btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-slate-300 hover:text-white hover:bg-white/5';
-      }
-    });
-    applyCategoryVisibility();
-  }
-
-  function applyCategoryVisibility() {
-    document.querySelectorAll('.watch-card').forEach((card) => {
-      const match = state.filter === 'all' || card.dataset.category === state.filter;
-      card.classList.toggle('hidden', !match);
-    });
-  }
-
-  function applyBgColor(hex) {
-    state.overrideBgColor = hex;
-    document.getElementById('bgColorPicker').value = hex;
-  }
-
-  function toggleSunburst() {
-    state.sunburstEnabled = !state.sunburstEnabled;
-    const btn = document.getElementById('sunburstToggleBtn');
-    btn.textContent = `Sunburst: ${state.sunburstEnabled ? 'ON' : 'OFF'}`;
-    btn.className = state.sunburstEnabled
-      ? 'px-2.5 py-1.5 rounded-lg bg-sky-500/20 border border-sky-400/40 text-sky-300 font-medium transition-colors cursor-pointer'
-      : 'px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-white/10 text-slate-400 font-medium transition-colors cursor-pointer';
-  }
-
-  function toggleVignette() {
-    state.vignetteEnabled = !state.vignetteEnabled;
-    const btn = document.getElementById('vignetteToggleBtn');
-    btn.textContent = `Vignette: ${state.vignetteEnabled ? 'ON' : 'OFF'}`;
-    btn.className = state.vignetteEnabled
-      ? 'px-2.5 py-1.5 rounded-lg bg-sky-500/20 border border-sky-400/40 text-sky-300 font-medium transition-colors cursor-pointer'
-      : 'px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-white/10 text-slate-400 font-medium transition-colors cursor-pointer';
-  }
-
-  function handleImageUpload(event) {
-    try {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          state.customBgImage = img;
-          document.getElementById('imageDimWrap').classList.remove('hidden');
-          document.getElementById('imageDimWrap').classList.add('flex');
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error('Failed to load background image:', err);
-    }
-  }
-
-  function updateDimValue(val) {
-    state.bgDimPercent = Number(val);
-    document.getElementById('dimValueText').textContent = `${state.bgDimPercent}%`;
-  }
-
-  function clearUploadedImage() {
-    state.customBgImage = null;
-    document.getElementById('bgImageUpload').value = '';
-    const wrap = document.getElementById('imageDimWrap');
-    wrap.classList.add('hidden');
-    wrap.classList.remove('flex');
-  }
-
-  function resetAllBackgrounds() {
-    state.overrideBgColor = null;
-    clearUploadedImage();
-  }
-
   function getFormattedTimeAndDate(now) {
     const hours24 = now.getHours();
     const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
@@ -2300,21 +2026,6 @@
       weekdayLong: weekdaysLong[now.getDay()],
       year
     };
-  }
-
-  function animateLoop() {
-    try {
-      const timeData = getFormattedTimeAndDate(new Date());
-      WATCH_FACES.forEach((face) => {
-        const ctx = contextsById[face.id];
-        if (!ctx) return;
-        ctx.clearRect(0, 0, W, H);
-        face.render(ctx, timeData);
-      });
-    } catch (err) {
-      console.error('Animation loop error:', err);
-    }
-    requestAnimationFrame(animateLoop);
   }
 
   
