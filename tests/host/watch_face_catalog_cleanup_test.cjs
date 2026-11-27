@@ -42,3 +42,22 @@ assert(studioSource.includes('panel.hidden=!bg.image'), 'personal image panel ap
 assert(studioSource.includes('rect.bottom>=0&&rect.top<=window.innerHeight'), 'gallery rendering skips off-screen cards');
 assert(studioSource.includes('document.visibilityState'), 'render loop pauses while the document is hidden');
 assert(!studioSource.includes('requestAnimationFrame(frameLoop)'), 'unconditional animation-frame loop is retired');
+
+
+const baseCss = fs.readFileSync(path.join(__dirname, '../../web/styles.css'), 'utf8');
+const studioCss = fs.readFileSync(path.join(__dirname, '../../web/template-studio.css'), 'utf8');
+const appSource = fs.readFileSync(path.join(__dirname, '../../web/app.js'), 'utf8');
+assert(!baseCss.includes('@import url('), 'optional preview fonts must not be eagerly imported by the base stylesheet');
+assert(!studioCss.includes('#studioApplyImage'), 'removed apply-image control must not leave stale CSS selectors');
+assert.strictEqual((studioHtml.match(/fonts\\.googleapis\\.com/g) || []).length, 1,
+  'Google Fonts stylesheet must be declared once in the document');
+for (const family of ['DM+Sans', 'Space+Grotesk', 'Inter', 'JetBrains+Mono', 'Orbitron', 'Oswald']) {
+  assert(studioHtml.includes(family), family + ' must remain available for the application shell and templates');
+}
+assert(appSource.includes('const GOOGLE_PREVIEW_FONTS = new Set(') &&
+  appSource.includes('function loadPreviewFont('),
+  'optional editor fonts must remain available through on-demand loading');
+for (const [name, css] of [['base', baseCss], ['Template Studio', studioCss]]) {
+  assert.strictEqual((css.match(/{/g) || []).length, (css.match(/}/g) || []).length,
+    name + ' stylesheet must have balanced rule braces');
+}
