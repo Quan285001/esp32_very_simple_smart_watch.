@@ -43,8 +43,11 @@ renderer_ids = re.findall(r"id: '([^']+)',\s*category:", renderer_js)
 preset_ids = re.findall(r"\{id:'([^']+)',category:", preset_js)
 if len(renderer_ids) != 8 or len(set(renderer_ids)) != 8:
     errors.append("Template renderer must define exactly eight unique watch faces")
-if set(renderer_ids) != set(preset_ids) or len(preset_ids) != 8:
-    errors.append("Template renderers and WFS package presets must contain the same eight face ids")
+if set(renderer_ids) != set(preset_ids[:8]) or len(preset_ids) != 12:
+    errors.append("The original eight Template renderers must remain aligned with the twelve WFS package presets")
+reference_preset_ids = preset_ids[8:]
+if set(reference_preset_ids) != {"ref-classic-12", "ref-chronometer-gmt", "ref-split-dual-digit", "ref-minimal-arc"}:
+    errors.append("The four reference-aligned WFS presets must be registered exactly once")
 extended_ids = re.findall(r"id: '([^']+)',\s*category:", extended_renderer_js)
 if len(extended_ids) != 20 or len(set(extended_ids)) != 20 or set(extended_ids) != {f"m{i:02d}" for i in range(1, 21)}:
     errors.append("Extended renderer must define all 20 unique Gemini template ids")
