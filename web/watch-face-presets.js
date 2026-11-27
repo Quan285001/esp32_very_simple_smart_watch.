@@ -114,7 +114,7 @@ function renderThumbnail(spec){
   hand(h,116,10,'#f1f5f9');hand(m,151,8,'#f8fafc');hand(sec,166,3,spec.style==='reference-classic-12'?'#d9a452':'#e2e8f0');c.beginPath();c.arc(240,240,7,0,Math.PI*2);c.fillStyle=spec.style==='reference-classic-12'?'#d9a452':'#f8fafc';c.fill();
   return canvas.toDataURL('image/png');
  }
- const text=(value,x,y,size,color,weight=600)=>{c.font=weight+' '+size+'px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(value,x,y)};
+ 
 
  const text=(value,x,y,size,color,weight=600)=>{c.font=weight+' '+size+'px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(value,x,y)};
  if(spec.category==='analog'){
