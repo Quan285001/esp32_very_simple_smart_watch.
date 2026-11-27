@@ -18,7 +18,6 @@
 <header class="topbar">
   <div class="brand"><span class="brand-mark">◷</span><span>WATCH FACE STUDIO<small>ESP32-C3 DESIGNER</small></span></div>
   <div class="top-actions">
-    <button class="btn ghost" id="settingsTopBtn" type="button">⚙ Settings</button>
     <button class="btn ghost" id="undoBtn" type="button" title="Undo (Ctrl+Z)">↶ Undo</button>
     <button class="btn ghost" id="redoBtn" type="button" title="Redo (Ctrl+Y)">↷ Redo</button>
     <button class="btn ghost" id="langBtn" type="button">EN / VI</button>
@@ -71,6 +70,11 @@
     </section>
     <section data-view="templates" class="hidden">
       <div class="page-heading"><div><div class="eyebrow">START WITH A STYLE</div><h1>Templates</h1><p>Choose a starting point, then customize every layer.</p></div></div>
+      <div class="template-filters" id="templateFilters" role="group" aria-label="Filter templates">
+        <button class="template-filter active" type="button" data-template-filter="all">All</button>
+        <button class="template-filter" type="button" data-template-filter="analog">Analog</button>
+        <button class="template-filter" type="button" data-template-filter="digital">Digital</button>
+      </div>
       <div class="template-grid" id="templateGrid"></div>
     </section>
     <section data-view="library" class="hidden">
@@ -92,7 +96,7 @@
           <p class="settings-status">Language preference is stored in this browser. Full application-wide translation is being introduced progressively.</p>
         </section>
         <section class="settings-card"><div class="eyebrow">EDITOR</div><h2>Editing preferences</h2><label class="settings-check"><input id="autoSaveToggle" type="checkbox" checked> Automatically save the current draft</label><p class="settings-status">Drafts are stored locally in this browser. Export a portable project before clearing browser data; the file includes referenced images.</p></section>
-        <section class="settings-card"><div class="eyebrow">ABOUT</div><h2>Watch Face Studio</h2><p>Target profile: ESP32-C3 · GC9A01 · 240 × 240 circular display.</p><p class="settings-status">Custom face transfer is not available until the matching firmware protocol and receiver are implemented and verified.</p></section>
+        <section class="settings-card"><div class="eyebrow">ABOUT</div><h2>Watch Face Studio</h2><p>Target profile: ESP32-C3 · GC9A01 · 240 × 240 circular display.</p><p class="settings-status" id="aboutTransferDescription">WFS v1 packages combine layout JSON with RGB565LE image assets and are transferred over Web Bluetooth to ESP32-C3 · GC9A01.</p></section>
       </div>
     </section>
     <section data-view="device" class="hidden">
