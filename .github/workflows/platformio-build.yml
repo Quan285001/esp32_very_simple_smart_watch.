@@ -60,11 +60,9 @@ jobs:
         run: node --check web/app.js
       - name: Check unified Watch Face Catalog syntax
         run: node --check web/watch-face-catalog.js
-      - name: Run Watch Face catalog cleanup regression tests
-        run: node tests/host/watch_face_catalog_cleanup_test.cjs
       - name: Check Template Studio UI syntax
         run: node --check web/template-studio.js
-      - name: Run Template Studio image-panel and render-loop regression tests
+      - name: Run Watch Face catalog and Template Studio regression tests
         run: node tests/host/watch_face_catalog_cleanup_test.cjs
       - name: Check Device Profile module syntax
         run: node --check web/device-profile.js
