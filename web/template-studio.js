@@ -13,14 +13,14 @@ const faces=()=>{
 };
 const presets=()=>window.WfsWatchFacePresets;
 let selectedId=null,filter='all',lastFrame=0;
-const bg={color:null,sunburst:true,vignette:true,image:null,dim:40};
+const bg={color:null,sunburst:true,vignette:true,image:null,dim:40,offsetX:0,offsetY:0};
 function faceById(id){return faces().find(face=>face.id===id)||null}
 function renderFace(canvas,id,now){
  if(!canvas||!id)return;
  if(id.startsWith('ref-')){
   const spec=presets()?.SPECS?.find(item=>item.id===id);if(!spec)return;
   let image=presetPreviewImages.get(id);
-  if(!image){image=new Image();image.src=presets().renderThumbnail(spec);presetPreviewImages.set(id,image)}
+  if(!image){image=new Image();image.src=presets().renderThumbnail(spec,bg.image?{image:bg.image,dim:bg.dim,color:bg.color||spec.bg,offsetX:bg.offsetX,offsetY:bg.offsetY}:{});presetPreviewImages.set(id,image)}
   const ctx=canvas.getContext('2d');if(ctx){ctx.clearRect(0,0,canvas.width,canvas.height);if(image.complete&&image.naturalWidth)ctx.drawImage(image,0,0,canvas.width,canvas.height)}
   return;
  }
@@ -30,7 +30,9 @@ function renderFace(canvas,id,now){
 function drawGallery(now){document.querySelectorAll('[data-face-canvas]').forEach(canvas=>renderFace(canvas,canvas.dataset.faceCanvas,now))}
 function buildGallery(){
  const host=$('#studioFaceGrid');if(!host)return;host.innerHTML='';
- faces().forEach(face=>{
+ const all=faces(),counts={all:all.length,analog:all.filter(face=>face.category==='analog').length,digital:all.filter(face=>face.category==='digital').length};
+ document.querySelectorAll('[data-face-filter]').forEach(button=>{const key=button.dataset.faceFilter;const label=key==='all'?'Tất cả':key==='analog'?'Analog':'Digital';button.textContent=label+' · '+(counts[key]||0)});
+ all.forEach(face=>{
   if(filter!=='all'&&face.category!==filter)return;
   const button=document.createElement('button');button.type='button';button.className='studio-face-card';button.setAttribute('aria-label','Tùy chỉnh '+face.title);
   const frame=document.createElement('span');frame.className='studio-face-preview';
@@ -40,18 +42,18 @@ function buildGallery(){
  });drawGallery(new Date());
 }
 function setFilter(next){filter=next;document.querySelectorAll('[data-face-filter]').forEach(button=>button.classList.toggle('active',button.dataset.faceFilter===filter));buildGallery()}
-function applyBackgroundSettings(){[window.WfsTemplateFaces,window.WfsExtendedTemplateFaces].filter(Boolean).forEach(api=>{api.setBackgroundColor(bg.color);api.setSunburst(bg.sunburst);api.setVignette(bg.vignette);api.setDim(bg.dim);api.setBackgroundImage(bg.image)})}
+function applyBackgroundSettings(){[window.WfsTemplateFaces,window.WfsExtendedTemplateFaces].filter(Boolean).forEach(api=>{api.setBackgroundColor(bg.color);api.setSunburst(bg.sunburst);api.setVignette(bg.vignette);api.setDim(bg.dim);api.setBackgroundImage(bg.image);api.setBackgroundPosition(bg.offsetX,bg.offsetY)})}
 function renderSettings(){applyBackgroundSettings();$('#studioBgColor').value=bg.color||faceById(selectedId)?.defaultBg||'#08101e';$('#studioSunburst').classList.toggle('active',bg.sunburst);$('#studioVignette').classList.toggle('active',bg.vignette);$('#studioSunburst').textContent='Sunburst: '+(bg.sunburst?'ON':'OFF');$('#studioVignette').textContent='Vignette: '+(bg.vignette?'ON':'OFF');$('#studioDim').value=String(bg.dim);$('#studioDimValue').textContent=bg.dim+'%';$('#studioImageControls').hidden=!bg.image}
 function updateSelectedPreview(){renderFace($('#studioSelectedCanvas'),selectedId,new Date())}
 function openCustomizer(id){const face=faceById(id);if(!face)return;selectedId=id;$('#studioGallery').hidden=true;$('#studioCustomizer').hidden=false;$('#studioSelectedTitle').textContent=face.title.replace(/^\d+\.\s*/,'');$('#studioSelectedSubtitle').textContent=face.subtitle;$('#studioSelectedCategory').textContent=face.category==='analog'?'ANALOG DIAL':'DIGITAL FACE';const supported=face.uploadSupported;$('#templateCompatibilityNote').hidden=supported;$('#templateSaveBtn').disabled=!supported;$('#templateUploadBtn').disabled=!supported;renderSettings();updateSelectedPreview();window.scrollTo({top:0,behavior:'smooth'})}
 function showGallery(){selectedId=null;$('#studioCustomizer').hidden=true;$('#studioGallery').hidden=false;window.scrollTo({top:0,behavior:'smooth'});drawGallery(new Date())}
-function updateBackground(){applyBackgroundSettings();drawGallery(new Date());updateSelectedPreview()}
+function updateBackground(){presetPreviewImages.clear();applyBackgroundSettings();drawGallery(new Date());updateSelectedPreview()}
 function getPackageSpec(){const spec=presets()?.SPECS?.find(item=>item.id===selectedId);if(!spec)throw Error('Không tìm thấy preset tương ứng trong bộ xuất WFS.');return spec}
 async function prepareCurrentDesign(){
  const face=faceById(selectedId);if(!face?.uploadSupported)throw Error('Mẫu này hiện mới có renderer xem trước. Cần bộ chuyển đổi WFS1 và renderer firmware tương ứng trước khi lưu hoặc upload lên đồng hồ.');const spec=getPackageSpec(),module=presets();if(!face||!module?.renderBackground||!module?.createObjects)throw Error('Template renderer hoặc package adapter chưa sẵn sàng.');
  const data=module.renderBackground(spec,{color:bg.color||spec.bg,image:bg.image,dim:bg.dim,sunburst:bg.sunburst,vignette:bg.vignette});if(typeof data!=='string'||!data.startsWith('data:image/png'))throw Error('Không thể tạo ảnh nền cho gói WFS.');
  const assetId='template_art_'+selectedId,asset={id:assetId,name:face.title+' artwork.png',data};await saveAsset(asset);const merged=new Map((state.images||[]).map(item=>[item.id,item]));merged.set(assetId,asset);state.images=[...merged.values()];
- const design=blankDesign();design.name=face.title.replace(/^\d+\.\s*/,'');design.canvas.backgroundColor=bg.color||spec.bg;design.metadata={templateId:selectedId,background:{color:bg.color,sunburst:bg.sunburst,vignette:bg.vignette,dim:bg.dim,hasImage:!!bg.image}};design.objects=module.createObjects(spec,assetId);
+ const design=blankDesign();design.name=face.title.replace(/^\d+\.\s*/,'');design.canvas.backgroundColor=bg.color||spec.bg;design.metadata={templateId:selectedId,background:{color:bg.color,sunburst:bg.sunburst,vignette:bg.vignette,dim:bg.dim,hasImage:!!bg.image,offsetX:bg.offsetX,offsetY:bg.offsetY}};design.objects=module.createObjects(spec,assetId);
  state.design=design;state.selected=design.objects[1]?.id||design.objects[0]?.id||null;state.history=[];state.future=[];state.lastSnapshot=historySnapshot();saveDraft();return design;
 }
 async function saveTemplate(){const button=$('#templateSaveBtn');button.disabled=true;try{await prepareCurrentDesign();persistDesign()}catch(error){toast('Không thể lưu: '+error.message)}finally{button.disabled=false}}
@@ -62,10 +64,15 @@ function bind(){
  document.querySelectorAll('[data-bg]').forEach(button=>button.addEventListener('click',()=>{bg.color=button.dataset.bg;updateBackground();$('#studioBgColor').value=bg.color}));
  $('#studioBgColor').addEventListener('input',event=>{bg.color=event.target.value;updateBackground()});
  $('#studioSunburst').addEventListener('click',()=>{bg.sunburst=!bg.sunburst;renderSettings();updateBackground()});$('#studioVignette').addEventListener('click',()=>{bg.vignette=!bg.vignette;renderSettings();updateBackground()});
- $('#studioImageInput').addEventListener('change',event=>{const file=event.target.files?.[0];if(!file)return;if(file.size>8*1024*1024){toast('Ảnh nền vượt quá giới hạn 8 MB');event.target.value='';return}const reader=new FileReader();reader.onload=()=>{const image=new Image();image.onload=()=>{bg.image=image;renderSettings();updateBackground()};image.onerror=()=>toast('Không thể đọc ảnh này');image.src=reader.result};reader.onerror=()=>toast('Không thể đọc tệp ảnh');reader.readAsDataURL(file)});
+ $('#studioImageInput').addEventListener('change',event=>{const file=event.target.files?.[0];if(!file)return;if(file.size>8*1024*1024){toast('Ảnh nền vượt quá giới hạn 8 MB');event.target.value='';return}const reader=new FileReader();reader.onload=()=>{const image=new Image();image.onload=()=>{bg.image=image;bg.offsetX=0;bg.offsetY=0;renderSettings();updateBackground()};image.onerror=()=>toast('Không thể đọc ảnh này');image.src=reader.result};reader.onerror=()=>toast('Không thể đọc tệp ảnh');reader.readAsDataURL(file)});
  $('#studioDim').addEventListener('input',event=>{bg.dim=Number(event.target.value);$('#studioDimValue').textContent=bg.dim+'%';updateBackground()});
- $('#studioClearImage').addEventListener('click',()=>{bg.image=null;$('#studioImageInput').value='';renderSettings();updateBackground()});
- $('#studioResetBg').addEventListener('click',()=>{bg.color=null;bg.image=null;$('#studioImageInput').value='';renderSettings();updateBackground()});
+ const preview=$('#studioSelectedCanvas');let drag=null;
+ preview.addEventListener('pointerdown',event=>{if(!bg.image)return;event.preventDefault();const rect=preview.getBoundingClientRect();drag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,baseX:bg.offsetX,baseY:bg.offsetY,width:rect.width,height:rect.height};preview.setPointerCapture(event.pointerId)});
+ preview.addEventListener('pointermove',event=>{if(!drag||drag.pointerId!==event.pointerId)return;bg.offsetX=Math.max(-180,Math.min(180,drag.baseX+(event.clientX-drag.x)*480/drag.width));bg.offsetY=Math.max(-180,Math.min(180,drag.baseY+(event.clientY-drag.y)*480/drag.height));updateBackground()});
+ const endDrag=event=>{if(drag&&drag.pointerId===event.pointerId)drag=null};
+ preview.addEventListener('pointerup',endDrag);preview.addEventListener('pointercancel',endDrag);preview.addEventListener('lostpointercapture',endDrag);
+ $('#studioClearImage').addEventListener('click',()=>{bg.image=null;bg.offsetX=0;bg.offsetY=0;$('#studioImageInput').value='';renderSettings();updateBackground()});
+ $('#studioResetBg').addEventListener('click',()=>{bg.color=null;bg.image=null;bg.offsetX=0;bg.offsetY=0;$('#studioImageInput').value='';renderSettings();updateBackground()});
  $('#templateSaveBtn').addEventListener('click',saveTemplate);$('#templateUploadBtn').addEventListener('click',uploadTemplate);
 }
 function frameLoop(timestamp){if(timestamp-lastFrame>250){lastFrame=timestamp;const now=new Date();drawGallery(now);if(selectedId&&!$('#studioCustomizer').hidden)updateSelectedPreview()}requestAnimationFrame(frameLoop)}
