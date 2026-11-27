@@ -102,7 +102,13 @@ const imageSandbox = {
   document: fakeImageDocument,
   writeRgb888AsRgb565LE: sandbox.encode,
 };
-vm.runInNewContext(imageFunction + '\nglobalThis.convert = convertImageToRgb565;', imageSandbox);
+const geometryStart = source.indexOf('const WFS_FIRMWARE_DISPLAY=');
+const geometryEnd = source.indexOf(';', geometryStart) + 1;
+if (geometryStart < 0 || geometryEnd <= geometryStart) {
+  throw new Error('Canonical firmware display geometry is missing');
+}
+const displayGeometry = source.slice(geometryStart, geometryEnd);
+vm.runInNewContext(displayGeometry + '\n' + imageFunction + '\nglobalThis.convert = convertImageToRgb565;', imageSandbox);
 const cropObject = {
   id: 'image-object', assetId: 'source-image', name: 'crop-test', visible: true,
   transform: { x: -10, y: 100, width: 40, height: 30, zIndex: 0 },
