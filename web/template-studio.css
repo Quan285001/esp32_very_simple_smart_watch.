@@ -26,3 +26,5 @@ body[data-view="device"] .workspace .device-control-grid{display:grid;grid-templ
 @media(max-width:390px){.studio-grid{grid-template-columns:1fr 1fr}.studio-face-preview{width:min(100%,155px)}.studio-filter{padding:9px 11px}}
 
 .mobile-tabs{display:none!important}
+
+.studio-compat-note{margin:0;padding:12px 14px;border:1px solid rgba(245,158,11,.28);border-radius:12px;background:rgba(120,53,15,.14);color:#fcd34d;font-size:11px;line-height:1.6}.studio-compat-note[hidden]{display:none}.studio-primary-actions button:disabled{opacity:.42;cursor:not-allowed;filter:saturate(.45)}
