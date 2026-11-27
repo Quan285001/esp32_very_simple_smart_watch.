@@ -183,4 +183,5 @@ function createObjects(spec,assetId){
  return objects;
 }
 root.WfsWatchFacePresets=Object.freeze({SPECS,renderBackground,renderThumbnail,createObjects});
+if(typeof module==='object'&&module.exports)module.exports=root.WfsWatchFacePresets;
 })(typeof globalThis!=='undefined'?globalThis:this);
