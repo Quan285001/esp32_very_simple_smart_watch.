@@ -35,12 +35,13 @@ if missing:
 if not (ROOT / "shared/schemas/watch-face.schema.json").is_file():
     errors.append("Shared watch-face schema is missing")
 
-renderer_js = (ROOT / "web/template-face-renderers.js").read_text(encoding="utf-8")
-extended_renderer_js = (ROOT / "web/extended-template-face-renderers.js").read_text(encoding="utf-8")
+catalog_js = (ROOT / "web/watch-face-catalog.js").read_text(encoding="utf-8")
 studio_js = (ROOT / "web/template-studio.js").read_text(encoding="utf-8")
-preset_js = (ROOT / "web/watch-face-presets.js").read_text(encoding="utf-8")
-renderer_ids = re.findall(r"id: '([^']+)',\s*category:", renderer_js)
-preset_ids = re.findall(r"\{id:'([^']+)',category:", preset_js)
+original_renderer_js = catalog_js.split("/* === Extended 20 template renderers === */")[0]
+extended_renderer_js = catalog_js.split("/* === Extended 20 template renderers === */")[1].split("/* === WFS v1 preset artwork")[0]
+preset_js = catalog_js.split("/* === WFS v1 preset artwork")[1]
+renderer_ids = re.findall(r"id: '([^']+)',\\s*category:", original_renderer_js)
+preset_ids = re.findall(r"\\{id:'([^']+)',category:", preset_js)
 if len(renderer_ids) != 8 or len(set(renderer_ids)) != 8:
     errors.append("Template renderer must define exactly eight unique watch faces")
 if set(renderer_ids) != set(preset_ids[:8]) or len(preset_ids) != 12:
@@ -48,17 +49,17 @@ if set(renderer_ids) != set(preset_ids[:8]) or len(preset_ids) != 12:
 reference_preset_ids = preset_ids[8:]
 if set(reference_preset_ids) != {"ref-classic-12", "ref-chronometer-gmt", "ref-split-dual-digit", "ref-minimal-arc"}:
     errors.append("The four reference-aligned WFS presets must be registered exactly once")
-extended_ids = re.findall(r"id: '([^']+)',\s*category:", extended_renderer_js)
+extended_ids = re.findall(r"id: '([^']+)',\\s*category:", extended_renderer_js)
 if len(extended_ids) != 20 or len(set(extended_ids)) != 20 or set(extended_ids) != {f"m{i:02d}" for i in range(1, 21)}:
     errors.append("Extended renderer must define all 20 unique Gemini template ids")
 if "window.WfsExtendedTemplateFaces" not in extended_renderer_js or "renderFace: renderFaceToCanvas" not in extended_renderer_js:
     errors.append("Extended Template Face renderer API is missing")
-if "window.WfsTemplateFaces" not in renderer_js or "renderFace: renderFaceToCanvas" not in renderer_js:
+if "window.WfsTemplateFaces" not in original_renderer_js or "renderFace: renderFaceToCanvas" not in original_renderer_js:
     errors.append("Template Face renderer API is missing")
 if "window.addEventListener('wfs:ready',init,{once:true})" not in studio_js:
     errors.append("Template Studio must initialize after the shared WFS runtime is ready")
-if not any(asset.endswith("template-face-renderers.js") for asset in parser.assets) or not any(asset.endswith("extended-template-face-renderers.js") for asset in parser.assets) or not any(asset.endswith("template-studio.js") for asset in parser.assets) or not any(asset.endswith("template-studio.css") for asset in parser.assets):
-    errors.append("Template Studio assets must be loaded by index.html")
+if not any(asset.endswith("watch-face-catalog.js") for asset in parser.assets) or not any(asset.endswith("template-studio.js") for asset in parser.assets) or not any(asset.endswith("template-studio.css") for asset in parser.assets):
+    errors.append("Unified Watch Face Catalog and Template Studio assets must be loaded by index.html")
 
 app_js = (ROOT / "web/app.js").read_text(encoding="utf-8")
 font_match = re.search(r"const TFT_FONT1_GLYPHS='([0-9a-f]+)'", app_js)
