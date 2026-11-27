@@ -14,10 +14,19 @@ const SPECS=[
 {id:'thin-outline',category:'digital',name:'Thin Outline Wide (09 07)',bg:'#070a08',accent:'#a3e635',secondary:'#bef264',style:'outline'},
 {id:'angled-tech',category:'digital',name:'Angled Tech Strip',bg:'#07080c',accent:'#38bdf8',secondary:'#f43f5e',style:'angled'}
 ];
-function renderArtworkCanvas(spec){
+function renderArtworkCanvas(spec,options={}){
  const canvas=document.createElement('canvas');canvas.width=480;canvas.height=480;
  const c=canvas.getContext('2d');const {bg,accent,secondary,style}=spec;
- const grad=c.createRadialGradient(240,205,25,240,240,270);grad.addColorStop(0,lighten(bg,20));grad.addColorStop(1,bg);c.fillStyle=grad;c.fillRect(0,0,480,480);
+ const baseHex=/^#[0-9a-f]{6}$/i.test(options.color||'')?options.color:bg;
+ if(options.image&&options.image.complete&&options.image.naturalWidth){
+  const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
+  c.drawImage(options.image,(480-dw)/2,(480-dh)/2,dw,dh);
+  c.fillStyle='rgba(0,0,0,'+(Math.max(0,Math.min(85,Number(options.dim)||0))/100)+')';c.fillRect(0,0,480,480);
+ }else{
+  c.fillStyle=baseHex;c.fillRect(0,0,480,480);
+  if(options.sunburst!==false){const conic=c.createConicGradient(0,240,240),light=lighten(baseHex,26),dark=lighten(baseHex,-14);[[0,dark],[.14,light],[.28,dark],[.5,light],[.66,dark],[.84,light],[1,dark]].forEach(([stop,color])=>conic.addColorStop(stop,color));c.fillStyle=conic;c.fillRect(0,0,480,480)}
+  if(options.vignette!==false){const vignette=c.createRadialGradient(240,240,60,240,240,240);vignette.addColorStop(0,'rgba(255,255,255,.04)');vignette.addColorStop(.72,'rgba(0,0,0,.16)');vignette.addColorStop(1,'rgba(0,0,0,.72)');c.fillStyle=vignette;c.fillRect(0,0,480,480)}
+ }
  c.save();c.beginPath();c.arc(240,240,232,0,Math.PI*2);c.clip();
  const line=(x1,y1,x2,y2,color=accent,w=2)=>{c.strokeStyle=color;c.lineWidth=w;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke()};
  const ring=(r,color,w)=>{c.beginPath();c.arc(240,240,r,0,Math.PI*2);c.strokeStyle=color;c.lineWidth=w;c.stroke()};
@@ -58,7 +67,7 @@ function renderArtworkCanvas(spec){
  }
  c.restore();return canvas;
 }
-function renderBackground(spec){return renderArtworkCanvas(spec).toDataURL('image/png')}
+function renderBackground(spec,options){return renderArtworkCanvas(spec,options||{}).toDataURL('image/png')}
 function renderThumbnail(spec){
  const canvas=renderArtworkCanvas(spec),c=canvas.getContext('2d');
  const text=(value,x,y,size,color,weight=600)=>{c.font=weight+' '+size+'px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(value,x,y)};

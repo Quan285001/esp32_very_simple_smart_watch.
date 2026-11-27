@@ -1,0 +1,53 @@
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const faces=()=>window.WfsTemplateFaces?.faces||[];
+const presets=()=>window.WfsWatchFacePresets;
+let selectedId=null,filter='all',lastFrame=0;
+const bg={color:null,sunburst:true,vignette:true,image:null,dim:40};
+function faceById(id){return faces().find(face=>face.id===id)||null}
+function renderFace(canvas,id,now){if(canvas&&id&&window.WfsTemplateFaces)window.WfsTemplateFaces.renderFace(id,canvas,now||new Date())}
+function drawGallery(now){document.querySelectorAll('[data-face-canvas]').forEach(canvas=>renderFace(canvas,canvas.dataset.faceCanvas,now))}
+function buildGallery(){
+ const host=$('#studioFaceGrid');if(!host)return;host.innerHTML='';
+ faces().forEach(face=>{
+  if(filter!=='all'&&face.category!==filter)return;
+  const button=document.createElement('button');button.type='button';button.className='studio-face-card';button.setAttribute('aria-label','Tùy chỉnh '+face.title);
+  const frame=document.createElement('span');frame.className='studio-face-preview';
+  const canvas=document.createElement('canvas');canvas.width=480;canvas.height=480;canvas.dataset.faceCanvas=face.id;canvas.setAttribute('aria-hidden','true');frame.append(canvas);
+  const meta=document.createElement('span');meta.className='studio-face-meta';const title=document.createElement('strong');title.textContent=face.title.replace(/^\d+\.\s*/,'');const subtitle=document.createElement('small');subtitle.textContent=face.subtitle;
+  meta.append(title,subtitle);button.append(frame,meta);button.addEventListener('click',()=>openCustomizer(face.id));host.append(button);
+ });drawGallery(new Date());
+}
+function setFilter(next){filter=next;document.querySelectorAll('[data-face-filter]').forEach(button=>button.classList.toggle('active',button.dataset.faceFilter===filter));buildGallery()}
+function renderSettings(){const api=window.WfsTemplateFaces;if(!api)return;api.setBackgroundColor(bg.color);api.setSunburst(bg.sunburst);api.setVignette(bg.vignette);api.setDim(bg.dim);api.setBackgroundImage(bg.image);$('#studioBgColor').value=bg.color||faceById(selectedId)?.defaultBg||'#08101e';$('#studioSunburst').classList.toggle('active',bg.sunburst);$('#studioVignette').classList.toggle('active',bg.vignette);$('#studioSunburst').textContent='Sunburst: '+(bg.sunburst?'ON':'OFF');$('#studioVignette').textContent='Vignette: '+(bg.vignette?'ON':'OFF');$('#studioDim').value=String(bg.dim);$('#studioDimValue').textContent=bg.dim+'%';$('#studioImageControls').hidden=!bg.image}
+function updateSelectedPreview(){renderFace($('#studioSelectedCanvas'),selectedId,new Date())}
+function openCustomizer(id){const face=faceById(id);if(!face)return;selectedId=id;$('#studioGallery').hidden=true;$('#studioCustomizer').hidden=false;$('#studioSelectedTitle').textContent=face.title.replace(/^\d+\.\s*/,'');$('#studioSelectedSubtitle').textContent=face.subtitle;$('#studioSelectedCategory').textContent=face.category==='analog'?'ANALOG DIAL':'DIGITAL FACE';renderSettings();updateSelectedPreview();window.scrollTo({top:0,behavior:'smooth'})}
+function showGallery(){selectedId=null;$('#studioCustomizer').hidden=true;$('#studioGallery').hidden=false;window.scrollTo({top:0,behavior:'smooth'});drawGallery(new Date())}
+function updateBackground(){const api=window.WfsTemplateFaces;api.setBackgroundColor(bg.color);api.setSunburst(bg.sunburst);api.setVignette(bg.vignette);api.setDim(bg.dim);api.setBackgroundImage(bg.image);drawGallery(new Date());updateSelectedPreview()}
+function getPackageSpec(){const spec=presets()?.SPECS?.find(item=>item.id===selectedId);if(!spec)throw Error('Không tìm thấy preset tương ứng trong bộ xuất WFS.');return spec}
+async function prepareCurrentDesign(){
+ const face=faceById(selectedId),spec=getPackageSpec(),module=presets();if(!face||!module?.renderBackground||!module?.createObjects)throw Error('Template renderer hoặc package adapter chưa sẵn sàng.');
+ const data=module.renderBackground(spec,{color:bg.color||spec.bg,image:bg.image,dim:bg.dim,sunburst:bg.sunburst,vignette:bg.vignette});if(typeof data!=='string'||!data.startsWith('data:image/png'))throw Error('Không thể tạo ảnh nền cho gói WFS.');
+ const assetId='template_art_'+selectedId,asset={id:assetId,name:face.title+' artwork.png',data};await saveAsset(asset);const merged=new Map((state.images||[]).map(item=>[item.id,item]));merged.set(assetId,asset);state.images=[...merged.values()];
+ const design=blankDesign();design.name=face.title.replace(/^\d+\.\s*/,'');design.canvas.backgroundColor=bg.color||spec.bg;design.metadata={templateId:selectedId,background:{color:bg.color,sunburst:bg.sunburst,vignette:bg.vignette,dim:bg.dim,hasImage:!!bg.image}};design.objects=module.createObjects(spec,assetId);
+ state.design=design;state.selected=design.objects[1]?.id||design.objects[0]?.id||null;state.history=[];state.future=[];state.lastSnapshot=historySnapshot();saveDraft();return design;
+}
+async function saveTemplate(){const button=$('#templateSaveBtn');button.disabled=true;try{await prepareCurrentDesign();persistDesign()}catch(error){toast('Không thể lưu: '+error.message)}finally{button.disabled=false}}
+async function uploadTemplate(){const button=$('#templateUploadBtn');button.disabled=true;const label=button.textContent;button.textContent='Đang chuẩn bị…';try{await prepareCurrentDesign();button.textContent='Đang tải lên…';await uploadCurrentDesign()}catch(error){toast('Không thể chuẩn bị mặt đồng hồ: '+error.message)}finally{button.disabled=false;button.textContent=label}}
+function bind(){
+ document.querySelectorAll('[data-face-filter]').forEach(button=>button.addEventListener('click',()=>setFilter(button.dataset.faceFilter)));
+ $('#studioBackBtn').addEventListener('click',showGallery);$('#studioDeviceNav').addEventListener('click',()=>showView('device'));$('#backToStudio').addEventListener('click',()=>{showView('editor');document.body.dataset.view='template-studio'});
+ document.querySelectorAll('[data-bg]').forEach(button=>button.addEventListener('click',()=>{bg.color=button.dataset.bg;updateBackground();$('#studioBgColor').value=bg.color}));
+ $('#studioBgColor').addEventListener('input',event=>{bg.color=event.target.value;updateBackground()});
+ $('#studioSunburst').addEventListener('click',()=>{bg.sunburst=!bg.sunburst;renderSettings();updateBackground()});$('#studioVignette').addEventListener('click',()=>{bg.vignette=!bg.vignette;renderSettings();updateBackground()});
+ $('#studioImageInput').addEventListener('change',event=>{const file=event.target.files?.[0];if(!file)return;if(file.size>8*1024*1024){toast('Ảnh nền vượt quá giới hạn 8 MB');event.target.value='';return}const reader=new FileReader();reader.onload=()=>{const image=new Image();image.onload=()=>{bg.image=image;renderSettings();updateBackground()};image.onerror=()=>toast('Không thể đọc ảnh này');image.src=reader.result};reader.onerror=()=>toast('Không thể đọc tệp ảnh');reader.readAsDataURL(file)});
+ $('#studioDim').addEventListener('input',event=>{bg.dim=Number(event.target.value);$('#studioDimValue').textContent=bg.dim+'%';updateBackground()});
+ $('#studioClearImage').addEventListener('click',()=>{bg.image=null;$('#studioImageInput').value='';renderSettings();updateBackground()});
+ $('#studioResetBg').addEventListener('click',()=>{bg.color=null;bg.image=null;$('#studioImageInput').value='';renderSettings();updateBackground()});
+ $('#templateSaveBtn').addEventListener('click',saveTemplate);$('#templateUploadBtn').addEventListener('click',uploadTemplate);
+}
+function frameLoop(timestamp){if(timestamp-lastFrame>250){lastFrame=timestamp;const now=new Date();drawGallery(now);if(selectedId&&!$('#studioCustomizer').hidden)updateSelectedPreview()}requestAnimationFrame(frameLoop)}
+function init(){if(!window.WfsTemplateFaces||!window.WfsWatchFacePresets)return;document.body.dataset.view='template-studio';bind();buildGallery();requestAnimationFrame(frameLoop)}
+window.addEventListener('wfs:ready',init,{once:true});
+})();

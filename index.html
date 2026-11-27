@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,25 +8,43 @@
 <title>Watch Face Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="./web/styles.css">
+<link rel="stylesheet" href="./web/template-studio.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@600;700;800&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
 <script defer src="./web/device-compatibility.js"></script>
 <script defer src="./web/device-profile.js"></script>
 <script defer src="./web/watch-face-presets.js"></script>
 <script defer src="./web/app.js"></script>
+<script defer src="./web/template-face-renderers.js"></script>
+<script defer src="./web/template-studio.js"></script>
 </head>
 <body>
 <div class="app-shell">
 <header class="topbar">
-  <div class="brand"><span class="brand-mark">◷</span><span>WATCH FACE STUDIO<small>ESP32-C3 DESIGNER</small></span></div>
-  <div class="top-actions">
-    <button class="btn ghost" id="undoBtn" type="button" title="Undo (Ctrl+Z)">↶ Undo</button>
-    <button class="btn ghost" id="redoBtn" type="button" title="Redo (Ctrl+Y)">↷ Redo</button>
-    <button class="btn ghost" id="langBtn" type="button">EN / VI</button>
-    <button class="btn" id="importBtn" type="button">Import</button>
-    <button class="btn" id="exportBtn" type="button">Export project</button>
-    <button class="btn primary" id="saveBtn" type="button">Save design</button>
-  </div>
+  <div class="brand"><span class="brand-mark">◷</span><span>WATCH FACE STUDIO<small>ESP32-C3 · GC9A01 · 240×240</small></span></div>
+  <div class="top-actions"><div class="studio-status"><span class="status-dot" id="deviceDot"></span><strong id="deviceStatus">Not connected</strong></div><button class="btn primary" id="connectBtn" type="button">Kết nối đồng hồ</button><button class="btn ghost" id="studioDeviceNav" type="button">Thiết bị ⚙</button></div>
 </header>
-<div class="workspace">
+
+<main id="templateStudio">
+ <section class="studio-gallery" id="studioGallery">
+  <div class="studio-heading"><div><div class="studio-eyebrow">GC9A01 · 240 × 240 · REAL-TIME PREVIEW</div><h1>Chọn phong cách của ông.</h1><p>8 thiết kế mặt đồng hồ được dựng riêng. Chọn một mẫu để xem trước và tùy chỉnh nền, hiệu ứng hoặc ảnh cá nhân.</p></div></div>
+  <div class="studio-filters" role="tablist" aria-label="Lọc mặt đồng hồ"><button class="studio-filter active" type="button" data-face-filter="all">Tất cả · 8</button><button class="studio-filter" type="button" data-face-filter="analog">Analog · 3</button><button class="studio-filter" type="button" data-face-filter="digital">Digital · 5</button></div>
+  <div class="studio-grid" id="studioFaceGrid"></div>
+ </section>
+ <section class="studio-customizer" id="studioCustomizer" hidden>
+  <div class="studio-customizer-head"><button class="studio-back" id="studioBackBtn" type="button">← Thư viện</button><div><div class="studio-eyebrow" id="studioSelectedCategory">WATCH FACE</div><h1 id="studioSelectedTitle">Template</h1><p id="studioSelectedSubtitle"></p></div></div>
+  <div class="studio-customizer-layout">
+   <section class="studio-preview-panel"><div class="studio-preview-caption"><span>LIVE PREVIEW</span><span>240 × 240 · GC9A01</span></div><div class="studio-large-bezel"><canvas id="studioSelectedCanvas" width="480" height="480" aria-label="Bản xem trước mặt đồng hồ"></canvas></div><div class="studio-preview-footer"><span>Giờ và ngày lấy theo thời gian trên trình duyệt</span><span>REAL-TIME</span></div></section>
+   <section class="studio-controls">
+    <div class="studio-control-card"><div class="studio-control-title"><h3>Màu nền</h3><span>BACKGROUND</span></div><div class="studio-color-row"><button class="studio-swatch" type="button" data-bg="#08101e" title="Midnight Navy" style="background:#08101e"></button><button class="studio-swatch" type="button" data-bg="#050608" title="Obsidian Black" style="background:#050608"></button><button class="studio-swatch" type="button" data-bg="#140d09" title="Warm Espresso" style="background:#140d09"></button><button class="studio-swatch" type="button" data-bg="#06241c" title="Racing Green" style="background:#06241c"></button><button class="studio-swatch" type="button" data-bg="#24080c" title="Deep Crimson" style="background:#24080c"></button><button class="studio-swatch" type="button" data-bg="#1e293b" title="Slate Titanium" style="background:#1e293b"></button><label class="studio-color-picker-wrap">Tùy chọn <input id="studioBgColor" type="color" value="#08101e" aria-label="Chọn màu nền tùy chỉnh"></label></div></div>
+    <div class="studio-control-card"><div class="studio-control-title"><h3>Hiệu ứng mặt số</h3><span>LIGHTING</span></div><div class="studio-toggle-row"><button class="studio-toggle active" id="studioSunburst" type="button">Sunburst: ON</button><button class="studio-toggle active" id="studioVignette" type="button">Vignette: ON</button></div></div>
+    <div class="studio-control-card"><div class="studio-control-title"><h3>Ảnh nền cá nhân</h3><span>IMAGE BACKGROUND</span></div><div class="studio-upload-row"><label class="studio-upload-label">＋ Chọn ảnh nền<input id="studioImageInput" type="file" accept="image/*" hidden></label><div class="studio-dim" id="studioImageControls" hidden><span>DIM <b id="studioDimValue">40%</b></span><input id="studioDim" type="range" min="0" max="85" value="40"><button class="studio-clear" id="studioClearImage" type="button" title="Xóa ảnh">✕</button></div></div><p class="studio-note" style="margin-top:12px">Ảnh được cắt theo tỷ lệ để phủ kín mặt số tròn. Sunburst và Vignette không áp dụng khi đang dùng ảnh nền, đúng theo prototype.</p></div>
+    <div class="studio-primary-actions"><button class="studio-save" id="templateSaveBtn" type="button">Lưu thiết kế</button><button class="studio-upload" id="templateUploadBtn" type="button">↑ Upload to watch</button></div><button class="studio-back" id="studioResetBg" type="button">Khôi phục nền mặc định</button><p class="studio-note">Template giữ nguyên bố cục và đồ họa. Các tùy chỉnh ở đây chỉ tác động đến nền; không có layer hay Add Elements.</p>
+   </section>
+  </div>
+ </section>
+</main>
+<div class="workspace" hidden><div id="legacyControls"><button id="undoBtn" type="button"></button><button id="redoBtn" type="button"></button><button id="importBtn" type="button"></button><button id="exportBtn" type="button"></button><button id="saveBtn" type="button"></button><button id="langBtn" type="button"></button></div>
   <aside class="sidebar">
     <div class="side-title">Workspace</div>
     <button class="nav-item active" data-nav="editor"><span class="nav-icon">✳</span> Editor</button>
@@ -100,13 +118,13 @@
       </div>
     </section>
     <section data-view="device" class="hidden">
-      <div class="page-heading"><div><div class="eyebrow">DEVICE MANAGEMENT</div><h1>My device</h1><p>Connect to your ESP32-C3 and manage the existing firmware features.</p></div></div>
+      <div class="page-heading"><div><div class="eyebrow">DEVICE MANAGEMENT</div><h1>My device</h1><p>Connect to your ESP32-C3 and manage the existing firmware features.</p></div><button class="btn" id="backToStudio" type="button">← Quay lại Template Studio</button></div>
       <div class="device-page-grid">
         <section class="settings-card device-overview">
           <div class="eyebrow">CONNECTION</div><h2>ESP32-C3 · GC9A01</h2>
-          <p><span class="status-dot" id="deviceDot"></span><strong id="deviceStatus">Not connected</strong></p>
+          <p>Trạng thái kết nối được hiển thị ở thanh trên cùng.</p>
           <p>Connect to the watch to use time sync, weather sync, sleep, location and Wi-Fi controls.</p>
-          <button class="btn primary" id="connectBtn" type="button">Connect Bluetooth</button>
+          
         </section>
         <section class="settings-card">
           <div class="eyebrow">LEGACY FIRMWARE</div><h2>Legacy device controls</h2>
