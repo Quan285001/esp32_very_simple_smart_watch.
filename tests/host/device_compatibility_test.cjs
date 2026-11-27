@@ -3,7 +3,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const compatibility = require('../../web/device-compatibility.js');
-const presets = require('../../web/watch-face-presets.js');
+global.window = global;
+const presets = require('../../web/watch-face-catalog.js');
+const originalFaceCatalog = global.WfsTemplateFaces;
+const extendedFaceCatalog = global.WfsExtendedTemplateFaces;
 
 const root = path.resolve(__dirname, '../..');
 const appSource = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
@@ -15,6 +18,22 @@ assert.match(packageBuilder, /globalThis\.WfsDeviceCompatibility/,
   'the browser package builder must invoke the shared firmware compatibility preflight');
 assert.match(packageBuilder, /typeof compatibilityModule\.errors!==\x27function\x27/,
   'package creation must fail closed when the shared compatibility module is unavailable');
+
+const unifiedFaceIds = [
+  ...originalFaceCatalog.faces.map(face => face.id),
+  ...extendedFaceCatalog.faces.map(face => face.id),
+  ...presets.SPECS.filter(face => face.id.startsWith('ref-')).map(face => face.id)
+];
+assert.equal(unifiedFaceIds.length, 32, 'the unified catalog must expose exactly 32 face designs');
+assert.equal(new Set(unifiedFaceIds).size, 32, 'the unified catalog must not duplicate face IDs');
+const indexSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+assert.match(indexSource, /web\/watch-face-catalog\.js/,
+  'the app must load the unified watch-face catalog');
+assert.doesNotMatch(indexSource, /(?:template-face-renderers|extended-template-face-renderers|watch-face-presets)\.js/,
+  'the app must not load the retired split catalog scripts');
+const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
+assert.match(studioSource, /filter\(spec => spec\.id\.startsWith\('ref-'\)\)/,
+  'the four reference presets must be included in the visible Template Studio gallery');
 
 const fixture = JSON.parse(fs.readFileSync(
   path.join(root, 'shared/schemas/examples/minimal-watch-face-v1.json'), 'utf8'));
