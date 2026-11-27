@@ -106,7 +106,7 @@ function renderBackground(spec,options){return renderArtworkCanvas(spec,options|
 function renderThumbnail(spec){
  const canvas=renderArtworkCanvas(spec),c=canvas.getContext('2d');
  if(String(spec.style||'').startsWith('reference-')){
-  const text=(value,x,y,size,color,weight=600)=>{c.font=weight+' '+size+'px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(value,x,y)};
+ 
   if(spec.style==='reference-split-dual-digit'){text('10',222,150,126,'#f8fafc');text('AM',320,174,25,'#f8fafc');c.font='400 116px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.strokeStyle='#f1f5f9';c.lineWidth=4;c.strokeText('08',246,268);c.fillStyle='rgba(248,250,252,.18)';c.fillText('08',246,268);text('18:49',252,366,22,'#e2e8f0');text('86%',252,404,18,'#e2e8f0');return canvas.toDataURL('image/png')}
   const hand=(angle,length,width,color)=>{c.save();c.translate(240,240);c.rotate(angle);c.fillStyle=color;c.beginPath();c.moveTo(-12,-width*.45);c.lineTo(length,-1.5);c.lineTo(length,1.5);c.lineTo(-12,width*.45);c.closePath();c.fill();c.restore()};
   const h=-Math.PI/2-.42,m=-Math.PI/2+.9,sec=-Math.PI/2+1.65;
