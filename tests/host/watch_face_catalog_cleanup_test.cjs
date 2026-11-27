@@ -54,7 +54,7 @@ assert.strictEqual((studioHtml.match(/fonts\\.googleapis\\.com/g) || []).length,
 for (const family of ['DM+Sans', 'Space+Grotesk', 'Inter', 'JetBrains+Mono', 'Orbitron', 'Oswald']) {
   assert(studioHtml.includes(family), family + ' must remain available for the application shell and templates');
 }
-assert(appSource.includes('const GOOGLE_PREVIEW_FONTS = new Set(') &&
+assert(appSource.includes('const GOOGLE_PREVIEW_FONTS=new Set(') &&
   appSource.includes('function loadPreviewFont('),
   'optional editor fonts must remain available through on-demand loading');
 for (const [name, css] of [['base', baseCss], ['Template Studio', studioCss]]) {
