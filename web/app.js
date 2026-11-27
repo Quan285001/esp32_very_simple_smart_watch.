@@ -109,13 +109,14 @@ function renderAnalogClockPreview(element,object,now=new Date()){
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
  svg.setAttribute('viewBox','0 0 '+width+' '+height);svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.setAttribute('preserveAspectRatio','xMidYMid meet');
  const cx=width/2,cy=height/2,radius=Math.min(width,height)/2-2;
+ const cfg=object.handConfig||{};
  if(radius<8){element.append(svg);return}
  const add=(tag,attrs)=>{const node=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));svg.append(node);return node};
  const point=(degrees,r)=>{const angle=degrees*Math.PI/180;return{x:cx+Math.cos(angle)*r,y:cy+Math.sin(angle)*r}};
  if(cfg.showOuterRing!==false)add('circle',{cx,cy,r:radius,fill:'none',stroke:'currentColor','stroke-width':1});
  for(let tick=0;tick<12;tick++){const angle=tick*30-90,outer=point(angle,radius-2),inner=point(angle,radius-(tick%3===0?9:5));add('line',{x1:inner.x,y1:inner.y,x2:outer.x,y2:outer.y,stroke:'currentColor','stroke-width':1})}
  const seconds=now.getSeconds(),minutes=now.getMinutes()+seconds/60,hours=(now.getHours()%12)+minutes/60;
- const cfg=object.handConfig||{},defaults={hour:{length:48,width:5,color:'#f4f0e6',tail:4,visible:true},minute:{length:72,width:3,color:'#f4f0e6',tail:5,visible:true},second:{length:86,width:1.5,color:'#ff0000',tail:18,visible:true}};
+ const defaults={hour:{length:48,width:5,color:'#f4f0e6',tail:4,visible:true},minute:{length:72,width:3,color:'#f4f0e6',tail:5,visible:true},second:{length:86,width:1.5,color:'#ff0000',tail:18,visible:true}};
  const hands=[{key:'hour',angle:hours*30-90},{key:'minute',angle:minutes*6-90},{key:'second',angle:seconds*6-90}];
  for(const hand of hands){const h={...defaults[hand.key],...(cfg[hand.key]||{})},handOpacity=normalizeHandOpacity(h.opacity);if(h.visible===false||handOpacity<=0)continue;const end=point(hand.angle,radius*Math.max(0,Math.min(100,Number(h.length)||0))/100),back=point(hand.angle+180,radius*Math.max(0,Number(h.tail)||0)/100);add('line',{x1:back.x,y1:back.y,x2:end.x,y2:end.y,stroke:h.color||defaults[hand.key].color,'stroke-width':Math.max(.25,Number(h.width)||1),'stroke-linecap':'round',opacity:handOpacity})}
  add('circle',{cx,cy,r:Math.max(1,Number(cfg.centerRadius)||3),fill:cfg.centerColor||'currentColor'});
