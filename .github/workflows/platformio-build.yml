@@ -60,6 +60,8 @@ jobs:
         run: node --check web/app.js
       - name: Check Template Face renderer syntax
         run: node --check web/template-face-renderers.js
+      - name: Check Extended Template Face renderer syntax
+        run: node --check web/extended-template-face-renderers.js
       - name: Check Template Studio UI syntax
         run: node --check web/template-studio.js
       - name: Check Device Profile module syntax
