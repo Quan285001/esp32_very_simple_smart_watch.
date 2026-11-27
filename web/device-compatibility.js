@@ -86,6 +86,8 @@
       result.push('This device profile requires a ' + expectedShape + ' canvas');
     }
 
+    if (!caps.upload) result.push('This firmware does not currently accept face packages');
+
     const objects = Array.isArray(design.objects) ? design.objects : [];
     const maxObjects = Number.isInteger(caps.obj) && caps.obj >= 0 ? caps.obj : 16;
     if (objects.length > maxObjects) {
