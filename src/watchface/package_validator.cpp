@@ -158,25 +158,18 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
         return false;
     }
 
-    char* manifestText = static_cast<char*>(malloc(manifestLength + 1));
+    // Parse the manifest directly from SPIFFS instead of allocating a second
+    // manifestLength-sized text buffer. ArduinoJson owns only its parsed tree;
+    // that tree is cleared before the layout buffer/parser is allocated below.
     char* layoutText = nullptr;
-    if (manifestText == nullptr) {
+    if (!file.seek(WFS_HEADER_SIZE, SeekSet)) {
         error = PackageValidationError::Io;
         return false;
     }
-
-    const bool readOk = file.seek(WFS_HEADER_SIZE, SeekSet) &&
-                        file.read(reinterpret_cast<uint8_t*>(manifestText), manifestLength) == manifestLength;
-    if (!readOk) {
-        free(manifestText);
-        error = PackageValidationError::Io;
-        return false;
-    }
-    manifestText[manifestLength] = '\0';
 
     JsonDocument manifest;
     const DeserializationError manifestError =
-        deserializeJson(manifest, manifestText, manifestLength,
+        deserializeJson(manifest, file,
                         DeserializationOption::NestingLimit(8));
     static const char* const manifestKeys[] = {
         "packageFormatVersion", "schemaVersion", "designId", "name",
@@ -190,8 +183,6 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
         (manifest["packageFormatVersion"] | 0) != 1 ||
         (manifest["schemaVersion"] | 0) != 1 ||
         strcmp(profileId, DisplayProfileConfig::ID) != 0) {
-        free(manifestText);
-        free(layoutText);
         error = PackageValidationError::Manifest;
         return false;
     }
@@ -202,8 +193,6 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
     if (manifestDesignIdLength == 0 ||
         manifestDesignIdLength >= sizeof(manifestDesignId) ||
         (expectedDesignId != nullptr && strcmp(designId, expectedDesignId) != 0)) {
-        free(manifestText);
-        free(layoutText);
         error = PackageValidationError::DesignIdMismatch;
         return false;
     }
@@ -214,16 +203,12 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
     if (!WfsDigest::parseSha256Hex(manifest["layoutSha256"] | "", expectedLayoutDigest) ||
         !digestFileRange(file, WFS_HEADER_SIZE + manifestLength, layoutLength, actualLayoutDigest) ||
         memcmp(expectedLayoutDigest, actualLayoutDigest, 32) != 0) {
-        free(manifestText);
-        free(layoutText);
         error = PackageValidationError::LayoutDigest;
         return false;
     }
 
     JsonArrayConst assets = manifest["assets"].as<JsonArrayConst>();
     if (assets.isNull() || assets.size() != assetCount) {
-        free(manifestText);
-        free(layoutText);
         error = PackageValidationError::AssetManifest;
         return false;
     }
@@ -238,8 +223,6 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
     for (JsonObjectConst asset : assets) {
         if (asset.isNull() ||
             !hasOnlyKeys(asset, assetKeys, sizeof(assetKeys) / sizeof(assetKeys[0]))) {
-            free(manifestText);
-            free(layoutText);
             error = PackageValidationError::AssetManifest;
             return false;
         }
@@ -265,16 +248,12 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
             height == 0 || height > DisplayProfileConfig::MAX_BITMAP_HEIGHT ||
             byteLength != width * height * 2U || offset != expectedAssetOffset ||
             !WfsDigest::parseSha256Hex(assetShaText, expectedAssetDigest)) {
-            free(manifestText);
-            free(layoutText);
             error = PackageValidationError::AssetManifest;
             return false;
         }
 
         for (uint8_t previous = 0; previous < parsedAssetCount; ++previous) {
             if (strcmp(parsedAssets[previous].id, assetId) == 0) {
-                free(manifestText);
-                free(layoutText);
                 error = PackageValidationError::AssetManifest;
                 return false;
             }
@@ -290,8 +269,6 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
         const size_t absoluteOffset = WFS_HEADER_SIZE + manifestLength + layoutLength + offset;
         if (!digestFileRange(file, absoluteOffset, byteLength, actualAssetDigest) ||
             memcmp(expectedAssetDigest, actualAssetDigest, 32) != 0) {
-            free(manifestText);
-            free(layoutText);
             error = PackageValidationError::AssetDigest;
             return false;
         }
@@ -299,8 +276,6 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
     }
 
     if (static_cast<uint64_t>(manifestLength) + layoutLength + expectedAssetOffset != payloadLength) {
-        free(manifestText);
-        free(layoutText);
         error = PackageValidationError::Length;
         return false;
     }
@@ -308,15 +283,11 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
     uint16_t declaredCapabilityMask = 0;
     JsonArrayConst requiredCapabilities = manifest["requiredCapabilities"].as<JsonArrayConst>();
     if (requiredCapabilities.isNull()) {
-        free(manifestText);
-        free(layoutText);
         error = PackageValidationError::Manifest;
         return false;
     }
     for (JsonVariantConst capability : requiredCapabilities) {
         if (!capability.is<const char*>() || !isSupportedCapability(capability.as<const char*>())) {
-            free(manifestText);
-            free(layoutText);
             error = PackageValidationError::UnsupportedCapability;
             return false;
         }
@@ -325,8 +296,7 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
 
     // Release manifest parsing memory before allocating the layout parser
     // document; both JSON trees are never kept alive at the same time.
-    free(manifestText);
-    manifestText = nullptr;
+    // Drop the manifest's dynamic JSON pool before allocating layoutText.
     manifest.clear();
 
     // Allocate and read the layout only after the manifest JSON tree and text
