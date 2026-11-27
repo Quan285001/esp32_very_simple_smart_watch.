@@ -79,7 +79,8 @@
     customBgImage: null,
     bgDimPercent: 40,
     bgOffsetX: 0,
-    bgOffsetY: 0
+    bgOffsetY: 0,
+    bgImageScale: 1
   };
 
   // Watch Face Catalog: 3 Analog Dials + 5 Filtered Digital Faces
@@ -302,7 +303,7 @@
 
     if (state.customBgImage) {
       const img = state.customBgImage;
-      const scale = Math.max(W / img.width, H / img.height);
+      const scale = Math.max(W / img.width, H / img.height) * state.bgImageScale;
       const drawW = img.width * scale;
       const drawH = img.height * scale;
       ctx.fillStyle = state.overrideBgColor || defaultColor;
@@ -1088,6 +1089,7 @@
     setDim(value) { state.bgDimPercent = Math.max(0, Math.min(85, Number(value) || 0)); },
     setBackgroundImage(image) { state.customBgImage = image || null; },
     setBackgroundPosition(x, y) { state.bgOffsetX = Math.max(-180, Math.min(180, Number(x) || 0)); state.bgOffsetY = Math.max(-180, Math.min(180, Number(y) || 0)); },
+    setBackgroundScale(value) { state.bgImageScale = Math.max(0.5, Math.min(3, Number(value) || 1)); },
     clearBackgroundImage() { state.customBgImage = null; },
     resetBackground() { state.overrideBgColor = null; state.customBgImage = null; },
     getSettings() { return {overrideBgColor:state.overrideBgColor,sunburstEnabled:state.sunburstEnabled,vignetteEnabled:state.vignetteEnabled,customBgImage:state.customBgImage,bgDimPercent:state.bgDimPercent}; }
@@ -1117,7 +1119,8 @@
     customBgImage: null,
     bgDimPercent: 40,
     bgOffsetX: 0,
-    bgOffsetY: 0
+    bgOffsetY: 0,
+    bgImageScale: 1
   };
 
   function adjustHexBrightness(hex, percent) {
@@ -1148,7 +1151,7 @@
 
     if (state.customBgImage) {
       const img = state.customBgImage;
-      const scale = Math.max(W / img.width, H / img.height);
+      const scale = Math.max(W / img.width, H / img.height) * state.bgImageScale;
       const drawW = img.width * scale;
       const drawH = img.height * scale;
       ctx.fillStyle = state.overrideBgColor || defaultColor;
@@ -2332,6 +2335,7 @@
   function setDim(value) { state.bgDimPercent = Math.max(0, Math.min(85, Number(value) || 0)); }
   function setBackgroundImage(image) { state.customBgImage = image || null; }
   function setBackgroundPosition(x, y) { state.bgOffsetX = Math.max(-180, Math.min(180, Number(x) || 0)); state.bgOffsetY = Math.max(-180, Math.min(180, Number(y) || 0)); }
+  function setBackgroundScale(value) { state.bgImageScale = Math.max(0.5, Math.min(3, Number(value) || 1)); }
 
   window.WfsExtendedTemplateFaces = Object.freeze({
     faces: WATCH_FACES.map(({ id, category, title, subtitle, defaultBg }) =>
@@ -2342,7 +2346,8 @@
     setVignette,
     setDim,
     setBackgroundImage,
-    setBackgroundPosition
+    setBackgroundPosition,
+    setBackgroundScale
   });
 
 })();
@@ -2373,7 +2378,7 @@ const SPECS=[
 function referenceRadialDial(ctx,inner,mid,outer,options={}){
  ctx.save();ctx.beginPath();ctx.arc(240,240,240,0,Math.PI*2);ctx.clip();
  if(options.image&&options.image.complete&&options.image.naturalWidth){
-  const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
+  const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight)*Math.max(.5,Math.min(3,Number(options.scale)||1)),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
   ctx.fillStyle=options.color||outer;ctx.fillRect(0,0,480,480);
   ctx.drawImage(options.image,(480-dw)/2+(Number(options.offsetX)||0),(480-dh)/2+(Number(options.offsetY)||0),dw,dh);
   ctx.fillStyle='rgba(0,0,0,'+(Math.max(0,Math.min(85,Number(options.dim)||0))/100)+')';ctx.fillRect(0,0,480,480);
@@ -2415,7 +2420,7 @@ function renderArtworkCanvas(spec,options={}){
  const c=canvas.getContext('2d');const {bg,accent,secondary,style}=spec;
  const baseHex=/^#[0-9a-f]{6}$/i.test(options.color||'')?options.color:bg;
  if(options.image&&options.image.complete&&options.image.naturalWidth){
-  const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
+  const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight)*Math.max(.5,Math.min(3,Number(options.scale)||1)),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
   c.fillStyle=baseHex;c.fillRect(0,0,480,480);
   c.drawImage(options.image,(480-dw)/2+(Number(options.offsetX)||0),(480-dh)/2+(Number(options.offsetY)||0),dw,dh);
   c.fillStyle='rgba(0,0,0,'+(Math.max(0,Math.min(85,Number(options.dim)||0))/100)+')';c.fillRect(0,0,480,480);
