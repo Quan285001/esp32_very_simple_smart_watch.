@@ -19,7 +19,7 @@ assert 'sendError(0x0004, "data_payload_too_large")' in source
 capability_start = source.index("void sendCapabilities()")
 capability_end = source.index("\nvoid handleControlPacket", capability_start)
 capability_source = source[capability_start:capability_end]
-assert '\\"el\\":\\"t,dc,ac,d,w,s,i,wv\\"' in capability_source
+assert '\\"el\\":\\"t,dc,ac,d,w,s,i,v\\"' in capability_source
 assert '\\"wc\\":1' in capability_source
 format_literals = re.findall(r'"(?:\\.|[^"\\])*"', capability_source)
 assert len(format_literals) >= 2
