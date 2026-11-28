@@ -1932,11 +1932,13 @@
 
     ctx.save();
     // Giant HH in center
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f1f5f9';
     ctx.font = '400 184px "Inter", sans-serif';
-    ctx.fillText(t.hh, CX, CY + 8);
+    ctx.fillText(t.hh, CX, CY);
 
-    // Subtle date & MM footer
+    // Keep the live date and minute readout on one centered footer line.
     ctx.fillStyle = '#94a3b8';
     ctx.font = '600 18px "JetBrains Mono", monospace';
     ctx.fillText(`${t.weekdayShort.toUpperCase()} ${t.day} ${t.monthShort.toUpperCase()} · :${t.mm}`, CX, 388);
@@ -2220,7 +2222,7 @@ function createReferenceObjects(spec,assetId){
  const digital=(name,x,y,w,h,format,size,color,z,timeFormat='24h',weight=600)=>add('digital-clock',name,x,y,w,h,{clockMode:'digital',timeFormat,dataBinding:{source:'time',format},textStyle:textStyle(size,weight,color)},z);
  const staticText=(name,value,x,y,w,h,size,color,z,weight=600)=>add('text',name,x,y,w,h,{text:value,textStyle:textStyle(size,weight,color)},z);
  const date=(x,y,w,h,size,color,z)=>add('date','Date',x,y,w,h,{dataBinding:{source:'date',format:'DD MMM'},textStyle:textStyle(size,400,color)},z);
- const analog=(hour,minute,second,centerColor,centerRadius,z)=>{const object=add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',handConfig:{hour:{length:hour.length,width:hour.width,tail:hour.tail,color:hour.color},minute:{length:minute.length,width:minute.width,tail:minute.tail,color:minute.color},second:{length:second.length,width:second.width,tail:second.tail,color:second.color},centerColor,centerRadius}},z);if(spec.style==='reference-classic-12'||spec.style==='reference-chronometer-gmt')object.transform=WfsMergePatch.scaleTransformAroundCenter(object.transform,1.75,240);return object};
+ const analog=(hour,minute,second,centerColor,centerRadius,z)=>{const object=add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',handConfig:{hour:{length:hour.length,width:hour.width,tail:hour.tail,color:hour.color},minute:{length:minute.length,width:minute.width,tail:minute.tail,color:minute.color},second:{length:second.length,width:second.width,tail:second.tail,color:second.color},centerColor,centerRadius,showOuterRing:false,showHourTicks:false}},z);if(spec.style==='reference-classic-12'||spec.style==='reference-chronometer-gmt')object.transform=WfsMergePatch.scaleTransformAroundCenter(object.transform,1.75,240);return object};
  if(spec.style==='reference-classic-12'){
   analog({length:50,width:5,tail:8,color:'#f1f5f9'},{length:76,width:3.8,tail:10,color:'#f8fafc'},{length:88,width:1.5,tail:15,color:'#d9a452'},'#d9a452',3.5,1);
  }else if(spec.style==='reference-chronometer-gmt'){
@@ -2246,7 +2248,7 @@ function createObjects(spec,assetId){
  const add=(type,name,x,y,w,h,extra,z)=>{const object={id:'preset_'+spec.id+'_'+z,type,name,visible:true,locked:false,transform:{x,y,width:w,height:h,anchor:'top-left',rotation:0,opacity:1,zIndex:z},...extra};objects.push(object);return object};
  if(spec.category==='analog'){
   const colors=spec.style==='gold'?{hour:'#e5b869',minute:'#e5b869',second:'#f3d193'}:spec.style==='tactical'?{hour:'#ffffff',minute:'#ffffff',second:'#dc2626'}:{hour:'#f8fafc',minute:'#f8fafc',second:'#ef4444'};
-  add('analog-clock','Live analog hands',40,40,160,160,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3}},1);
+  add('analog-clock','Live analog hands',40,40,160,160,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3,showOuterRing:false,showHourTicks:false}},1);
  }else{
   const style=spec.style;
   if(style==='stacked'){add('digital-clock','Hours',52,68,136,52,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH'},textStyle:{fontSize:49,fontWeight:600,fill:'#f8fafc',fontFamily:'system-ui'}},1);add('digital-clock','Minutes',52,119,136,52,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'mm'},textStyle:{fontSize:49,fontWeight:600,fill:'#f8fafc',fontFamily:'system-ui'}},2);add('digital-clock','Seconds',155,105,48,22,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:13,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui'}},3)}
