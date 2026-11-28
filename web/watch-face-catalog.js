@@ -1508,71 +1508,424 @@
     ctx.restore();
   }
 
-  // 11. Elements Water (Guilloché & Metal Batons)
-  function renderM11ElementsWater(ctx, t) {
-    drawDialBase(ctx, '#091826', (c) => {
-      const g = c.createLinearGradient(0, 0, W, H);
-      g.addColorStop(0, '#0a1929');
-      g.addColorStop(0.5, '#132a42');
-      g.addColorStop(1, '#08131f');
-      c.fillStyle = g;
-      c.fillRect(0, 0, W, H);
+  // Elements Water is a self-contained renderer. Template Studio drives it from
+  // its existing preview scheduler; start()/stop() remain available to standalone callers.
+  class ElementsWaterWatchFace {
+    constructor(canvasOrId, options = {}) {
+      this.canvas = typeof canvasOrId === 'string'
+        ? document.getElementById(canvasOrId)
+        : canvasOrId;
+      if (!this.canvas) throw new Error('ElementsWaterWatchFace: canvas not found.');
+      this.ctx = this.canvas.getContext('2d');
+      if (!this.ctx) throw new Error('ElementsWaterWatchFace: 2D context unavailable.');
 
-      c.strokeStyle = 'rgba(125, 211, 252, 0.08)';
-      c.lineWidth = 3;
-      for (let y = 30; y < H - 20; y += 16) {
-        c.beginPath();
-        for (let x = 20; x <= W - 20; x += 20) {
-          const wy = y + Math.sin((x + y) * 0.035) * 7;
-          if (x === 20) c.moveTo(x, wy);
-          else c.lineTo(x, wy);
-        }
-        c.stroke();
+      this.baseSize = 600;
+      this.CX = 300;
+      this.CY = 300;
+      this.R = 300;
+      this.waveCanvas = document.createElement('canvas');
+      this.waveCanvas.width = this.baseSize;
+      this.waveCanvas.height = this.baseSize;
+      this.wctx = this.waveCanvas.getContext('2d');
+      if (!this.wctx) throw new Error('ElementsWaterWatchFace: offscreen 2D context unavailable.');
+
+      this.data = {
+        tempText: options.tempText ?? '75/55°',
+        leftValue: options.leftValue ?? '20',
+        leftProgress: options.leftProgress ?? 0.25,
+        bottomValue: options.bottomValue ?? '82',
+        dateValue: options.dateValue ?? null,
+        waveSpeed: options.waveSpeed ?? 1,
+        waveAmplitude: options.waveAmplitude ?? 1
+      };
+      this.setData(this.data);
+      this._rafId = null;
+      this._running = false;
+      this._loop = this._loop.bind(this);
+    }
+
+    setData(newData = {}) {
+      if (!newData || typeof newData !== 'object') return;
+      for (const key of ['tempText', 'leftValue', 'bottomValue']) {
+        if (Object.prototype.hasOwnProperty.call(newData, key)) this.data[key] = String(newData[key]);
       }
-    });
+      if (Object.prototype.hasOwnProperty.call(newData, 'dateValue')) {
+        this.data.dateValue = newData.dateValue == null ? null : String(newData.dateValue);
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'leftProgress')) {
+        const value = Number(newData.leftProgress);
+        this.data.leftProgress = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'waveSpeed')) {
+        const value = Number(newData.waveSpeed);
+        this.data.waveSpeed = Number.isFinite(value) ? Math.max(0, Math.min(4, value)) : 1;
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'waveAmplitude')) {
+        const value = Number(newData.waveAmplitude);
+        this.data.waveAmplitude = Number.isFinite(value) ? Math.max(0, Math.min(2, value)) : 1;
+      }
+    }
 
-    for (let h = 0; h < 12; h++) {
-      const a = (h * 30 - 90) * Math.PI / 180;
+    start() {
+      if (this._running) return;
+      if (typeof requestAnimationFrame !== 'function') {
+        throw new Error('ElementsWaterWatchFace: requestAnimationFrame is unavailable.');
+      }
+      this._running = true;
+      this._rafId = requestAnimationFrame(this._loop);
+    }
+
+    stop() {
+      this._running = false;
+      if (this._rafId !== null && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this._rafId);
+      }
+      this._rafId = null;
+    }
+
+    _loop(timestamp) {
+      if (!this._running) return;
+      this.renderFrame(new Date(), timestamp * 0.001);
+      this._rafId = requestAnimationFrame(this._loop);
+    }
+
+    renderFrame(now = new Date(), timeSec = Date.now() * 0.001, overrideData = null) {
+      if (overrideData) this.setData(overrideData);
+      if (!(now instanceof Date) || !Number.isFinite(now.getTime())) now = new Date();
+      const ctx = this.ctx;
+      const width = this.canvas.width;
+      const height = this.canvas.height;
+      const scale = Math.min(width, height) / this.baseSize;
       ctx.save();
-      ctx.translate(CX, CY);
-      ctx.rotate(a);
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(R - 54, -5, 28, 10);
+      ctx.clearRect(0, 0, width, height);
+      ctx.translate((width - this.baseSize * scale) / 2, (height - this.baseSize * scale) / 2);
+      ctx.scale(scale, scale);
+      ctx.beginPath();
+      ctx.arc(this.CX, this.CY, this.R, 0, Math.PI * 2);
+      ctx.clip();
+      this._drawFlowingGuilloche(Number.isFinite(timeSec) ? timeSec : 0);
+      ctx.drawImage(this.waveCanvas, 0, 0);
+      this._drawBezelAndIndices();
+      this._drawComplications(now);
+      this._drawHands(now);
       ctx.restore();
     }
 
-    ctx.save();
-    ctx.strokeStyle = 'rgba(226, 232, 240, 0.35)';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(CX - 114, CY + 12, 42, 0, Math.PI * 2);
-    ctx.stroke();
+    _drawFlowingGuilloche(timeSec) {
+      const ctx = this.wctx;
+      const { CX, CY, R, baseSize: size } = this;
+      const t = timeSec * this.data.waveSpeed;
+      const amp = this.data.waveAmplitude;
+      const gradient = ctx.createRadialGradient(CX, CY * 0.85, 20, CX, CY, R);
+      gradient.addColorStop(0, '#0e2236');
+      gradient.addColorStop(0.55, '#081421');
+      gradient.addColorStop(0.88, '#040a12');
+      gradient.addColorStop(1, '#020509');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
 
-    ctx.beginPath();
-    ctx.arc(CX, CY + 122, 54, 0, Math.PI * 2);
-    ctx.stroke();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(CX, CY, R - 18, 0, Math.PI * 2);
+      ctx.clip();
+      const strips = 54;
+      for (let i = -4; i <= strips + 4; i++) {
+        const ratio = i / strips;
+        const baseY = ratio * size;
+        const verticalBob = (
+          Math.sin(t * 1.45 + i * 0.42) * 7.5 +
+          Math.cos(t * 0.85 - i * 0.25) * 4
+        ) * amp;
+        const shimmer = 0.5 + 0.5 * Math.sin(i * 0.68 + t * 1.6) * Math.cos(i * 0.23 - t * 0.9);
+        ctx.beginPath();
+        for (let x = 0; x <= size; x += 6) {
+          const nx = x / size;
+          const wave1 = Math.sin(nx * Math.PI * 3.1 + t * 1.35 + i * 0.32) * 14 * amp;
+          const wave2 = Math.sin(nx * Math.PI * 5.6 - t * 1.05 + i * 0.58) * 6.5 * amp;
+          const wave3 = Math.cos(nx * Math.PI * 1.8 + t * 0.75 - i * 0.19) * 9 * amp;
+          const curve = Math.sin(nx * Math.PI) * -8;
+          const y = baseY + verticalBob + wave1 + wave2 + wave3 + curve;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.lineWidth = 5.5;
+        ctx.strokeStyle = 'rgba(3, 9, 16, ' + (0.42 + (1 - shimmer) * 0.28) + ')';
+        ctx.stroke();
+        ctx.lineWidth = 2.6;
+        const red = Math.round(22 + shimmer * 34);
+        const green = Math.round(52 + shimmer * 64);
+        const blue = Math.round(82 + shimmer * 86);
+        ctx.strokeStyle = 'rgba(' + red + ', ' + green + ', ' + blue + ', ' + (0.24 + shimmer * 0.36) + ')';
+        ctx.stroke();
+        if (shimmer > 0.52) {
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(115, 168, 212, ' + ((shimmer - 0.52) * 0.55) + ')';
+          ctx.stroke();
+        }
+      }
+      const vignette = ctx.createRadialGradient(CX, CY, R * 0.48, CX, CY, R - 16);
+      vignette.addColorStop(0, 'rgba(6, 15, 26, 0)');
+      vignette.addColorStop(0.75, 'rgba(4, 10, 18, 0.35)');
+      vignette.addColorStop(1, 'rgba(2, 5, 10, 0.85)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, size, size);
+      ctx.restore();
+    }
 
-    ctx.strokeStyle = 'rgba(248, 250, 252, 0.65)';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.roundRect(CX + 114, CY - 22, 66, 44, 10);
-    ctx.stroke();
+    _drawBezelAndIndices() {
+      const { ctx, CX, CY, R } = this;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(CX, CY, R, 0, Math.PI * 2);
+      ctx.arc(CX, CY, R - 26, 0, Math.PI * 2, true);
+      ctx.fillStyle = '#04080d';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(CX, CY, R - 26, 0, Math.PI * 2);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(130, 155, 180, 0.25)';
+      ctx.stroke();
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '600 24px "Inter", sans-serif';
-    ctx.fillText(String(t.day), CX + 147, CY + 1);
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '600 18px "JetBrains Mono", monospace';
-    ctx.fillText(`${t.monthShort.toUpperCase()} ${t.year}`, CX, CY - 92);
-    ctx.fillText(t.weekdayShort.toUpperCase(), CX - 114, CY + 13);
-    ctx.fillText(`${t.hh}:${t.mm}:${t.ss}`, CX, CY + 124);
-    ctx.restore();
+      for (let minute = 0; minute < 60; minute++) {
+        const angle = (minute * Math.PI) / 30 - Math.PI / 2;
+        const isHour = minute % 5 === 0;
+        const inner = isHour ? R - 21 : R - 16;
+        const outer = R - 7;
+        ctx.beginPath();
+        ctx.moveTo(CX + Math.cos(angle) * inner, CY + Math.sin(angle) * inner);
+        ctx.lineTo(CX + Math.cos(angle) * outer, CY + Math.sin(angle) * outer);
+        ctx.lineWidth = isHour ? 2.2 : 1.1;
+        ctx.strokeStyle = isHour ? 'rgba(195, 210, 225, 0.65)' : 'rgba(140, 160, 180, 0.32)';
+        ctx.stroke();
+      }
 
-    drawSwordHand(ctx, t.hAngle, 120, 20, 12, '#f1f5f9', '#94a3b8');
-    drawSwordHand(ctx, t.mAngle, 174, 24, 9.5, '#f8fafc', '#cbd5e1');
-    drawSimpleHand(ctx, t.sAngle, 198, 36, 2.5, '#e2e8f0', 6);
+      for (let hour = 0; hour < 12; hour++) {
+        const angle = (hour * Math.PI) / 6 - Math.PI / 2;
+        ctx.save();
+        ctx.translate(CX, CY);
+        ctx.rotate(angle);
+        const drawMarker = (offsetY, length, width) => {
+          const startX = R - 74;
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+          ctx.beginPath();
+          ctx.roundRect(startX + 2, offsetY - width / 2 + 3, length, width, 2);
+          ctx.fill();
+          const gradient = ctx.createLinearGradient(startX, offsetY - width / 2, startX, offsetY + width / 2);
+          gradient.addColorStop(0, '#f4f8fc');
+          gradient.addColorStop(0.45, '#cfd9e3');
+          gradient.addColorStop(0.55, '#8f9eab');
+          gradient.addColorStop(1, '#dce5ee');
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.roundRect(startX, offsetY - width / 2, length, width, 1.8);
+          ctx.fill();
+          ctx.lineWidth = 0.8;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.stroke();
+        };
+        if (hour === 0) {
+          drawMarker(-8.5, 42, 6.5);
+          drawMarker(8.5, 42, 6.5);
+        } else {
+          drawMarker(0, hour === 3 || hour === 6 || hour === 9 ? 38 : 40, 7);
+        }
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    _drawComplications(now) {
+      const { ctx, CX, CY, data } = this;
+      ctx.save();
+      ctx.font = '600 22px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillStyle = '#e8eff6';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(String(data.tempText), CX, CY - 118);
+      ctx.shadowBlur = 0;
+
+      const leftX = CX - 138;
+      const leftY = CY;
+      const leftRadius = 48;
+      ctx.beginPath();
+      ctx.arc(leftX, leftY, leftRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(6, 13, 22, 0.62)';
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(185, 202, 218, 0.65)';
+      ctx.stroke();
+      const startArc = Math.PI * 0.72;
+      const totalArc = Math.PI * 1.56;
+      const progress = Math.max(0, Math.min(1, Number(data.leftProgress) || 0));
+      ctx.beginPath();
+      ctx.arc(leftX, leftY, leftRadius - 11, startArc, startArc + totalArc);
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(130, 150, 170, 0.25)';
+      ctx.stroke();
+      if (progress > 0) {
+        ctx.beginPath();
+        ctx.arc(leftX, leftY, leftRadius - 11, startArc, startArc + totalArc * progress);
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#e6eef6';
+        ctx.stroke();
+      }
+      ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillStyle = '#eef4fa';
+      ctx.fillText(String(data.leftValue), leftX, leftY + 1);
+
+      const dayText = data.dateValue !== null && data.dateValue !== undefined
+        ? String(data.dateValue)
+        : String(now.getDate()).padStart(2, '0');
+      const boxWidth = 68;
+      const boxHeight = 44;
+      const boxX = CX + 138 - boxWidth / 2;
+      const boxY = CY - boxHeight / 2;
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10);
+      ctx.fillStyle = 'rgba(5, 11, 18, 0.78)';
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(185, 202, 218, 0.7)';
+      ctx.stroke();
+      ctx.font = '600 24px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillStyle = '#f0f5fa';
+      ctx.fillText(dayText, CX + 138, CY + 1);
+
+      const bottomX = CX;
+      const bottomY = CY + 132;
+      const bottomRadius = 64;
+      ctx.beginPath();
+      ctx.arc(bottomX, bottomY, bottomRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(6, 13, 22, 0.58)';
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = 'rgba(185, 202, 218, 0.65)';
+      ctx.stroke();
+      for (let tick = 0; tick < 12; tick++) {
+        const angle = (tick * Math.PI) / 6;
+        const inner = bottomRadius - 7;
+        const outer = bottomRadius - 2;
+        ctx.beginPath();
+        ctx.moveTo(bottomX + Math.cos(angle) * inner, bottomY + Math.sin(angle) * inner);
+        ctx.lineTo(bottomX + Math.cos(angle) * outer, bottomY + Math.sin(angle) * outer);
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(190, 208, 225, 0.55)';
+        ctx.stroke();
+      }
+      ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillStyle = '#eef4fa';
+      ctx.fillText(String(data.bottomValue), bottomX, bottomY - 4);
+      const moonX = bottomX;
+      const moonY = bottomY + 26;
+      ctx.beginPath();
+      ctx.arc(moonX, moonY, 8.5, 0.35 * Math.PI, 1.65 * Math.PI, false);
+      ctx.arc(moonX + 4.5, moonY - 1.5, 7, 1.55 * Math.PI, 0.45 * Math.PI, true);
+      ctx.closePath();
+      ctx.fillStyle = '#e8eff6';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    _drawHands(now) {
+      const { ctx, CX, CY } = this;
+      const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
+      const minutes = now.getMinutes() + seconds / 60;
+      const hours = (now.getHours() % 12) + minutes / 60;
+      const hourAngle = (hours * Math.PI) / 6 - Math.PI / 2;
+      const minuteAngle = (minutes * Math.PI) / 30 - Math.PI / 2;
+      const secondAngle = (seconds * Math.PI) / 30 - Math.PI / 2;
+      const drawDauphineHand = (angle, length, tail, halfWidth) => {
+        ctx.save();
+        ctx.translate(CX, CY);
+        ctx.rotate(angle);
+        ctx.save();
+        ctx.translate(4, 6);
+        ctx.beginPath();
+        ctx.moveTo(-tail, 0);
+        ctx.lineTo(14, -halfWidth);
+        ctx.lineTo(length, 0);
+        ctx.lineTo(14, halfWidth);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fill();
+        ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(-tail, 0);
+        ctx.lineTo(14, -halfWidth);
+        ctx.lineTo(length, 0);
+        ctx.closePath();
+        ctx.fillStyle = '#f3f7fb';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-tail, 0);
+        ctx.lineTo(14, halfWidth);
+        ctx.lineTo(length, 0);
+        ctx.closePath();
+        ctx.fillStyle = '#9aa8b6';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-tail, 0);
+        ctx.lineTo(14, -halfWidth);
+        ctx.lineTo(length, 0);
+        ctx.lineTo(14, halfWidth);
+        ctx.closePath();
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.stroke();
+        ctx.restore();
+      };
+      drawDauphineHand(hourAngle, 148, 22, 10.5);
+      drawDauphineHand(minuteAngle, 218, 28, 8.5);
+
+      ctx.save();
+      ctx.translate(CX, CY);
+      ctx.rotate(secondAngle);
+      ctx.beginPath();
+      ctx.moveTo(-58, 4);
+      ctx.lineTo(242, 4);
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-58, 0);
+      ctx.lineTo(242, 0);
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = '#dce5ee';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#d8e2ec';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#5a6875';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#6f7e8c';
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  let elementsWaterRenderer = null;
+  function getElementsWaterRenderer() {
+    if (!elementsWaterRenderer) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 600;
+      elementsWaterRenderer = new ElementsWaterWatchFace(canvas);
+    }
+    return elementsWaterRenderer;
+  }
+
+  function renderM11ElementsWater(ctx, t) {
+    const renderer = getElementsWaterRenderer();
+    renderer.renderFrame(t.rawDate, t.rawDate.getTime() * 0.001);
+    ctx.drawImage(renderer.canvas, 0, 0, W, H);
   }
 
   // 12. Elements Air (Mother-of-Pearl & Blued Steel)
@@ -2060,7 +2413,9 @@
     setDim,
     setBackgroundImage,
     setBackgroundPosition,
-    setBackgroundScale
+    setBackgroundScale,
+    setElementsWaterData(data) { getElementsWaterRenderer().setData(data); },
+    ElementsWaterWatchFace
   });
 
 })();
