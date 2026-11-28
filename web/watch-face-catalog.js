@@ -2731,7 +2731,7 @@ function createReferenceObjects(spec,assetId){
   // Firmware appends AM/PM for 12h clocks, so keep the period in the same live HH field.
   digital('Hours',32,38,176,52,'HH',42,'#f8fafc',1,'12h',600);
   digital('Minutes',56,92,128,58,'mm',52,'#f1f5f9',2,'24h',400);
-  digital('Sub time',64,168,112,18,'HH:mm',11,'#e2e8f0',3);
+  digital('Sub time',64,168,112,18,'HH:mm:ss',11,'#e2e8f0',3);
   staticText('Status','86%',64,188,112,18,11,'#e2e8f0',4);
  }else if(spec.style==='reference-minimal-arc'){
   date(72,48,96,20,11,'#f8fafc',1);
