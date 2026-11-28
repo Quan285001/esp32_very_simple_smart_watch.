@@ -276,6 +276,8 @@ Wi-Fi scan, weather fetch, startup work, location/credential updates and WFS tra
 
 ## 9. Power and diagnostics
 
+- BLE initialization is deferred until the user explicitly enables Bluetooth from Menu → Connectivity. Normal boot leaves the BLE host, GATT services and command queues uninitialized; the main loop skips BLE protocol polling until the stack is started.
+
 - Auto Light Sleep applies only on the clock screen after the configured idle period (15 seconds default).
 - Auto Sleep is suppressed while BLE is connected or background work is active.
 - Manual Light Sleep is available from the menu. Before sleep, Wi-Fi and BLE are shut down; the GC9A01 remains initialized but the panel is blanked. GPIO9 wakes the ESP32-C3.
