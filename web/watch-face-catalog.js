@@ -2718,8 +2718,8 @@ function renderBackground(spec,options){return renderArtworkCanvas(spec,options|
 function drawParametricWavePreview(ctx, config = {}, timeSec = 0) {
  const lineCount=Math.max(2,Math.min(12,Number(config.lineCount)||8));
  const segments=Math.max(4,Math.min(24,Number(config.segments)||18));
- const speed=Math.max(0,Math.min(4,Number(config.speed)||0.8));
- const amplitude=Math.max(0,Math.min(2,Number(config.amplitude)||0.75));
+ const speedValue=Number(config.speed),speed=Number.isFinite(speedValue)?Math.max(0,Math.min(4,speedValue)):0.8;
+ const amplitudeValue=Number(config.amplitude),amplitude=Number.isFinite(amplitudeValue)?Math.max(0,Math.min(2,amplitudeValue)):0.75;
  const phase=(Number(config.phase)||0)+(config.animate===false?0:timeSec*speed);
  const color=/^#[0-9a-f]{6}$/i.test(config.color||'')?config.color:'#164e63';
  const highlight=/^#[0-9a-f]{6}$/i.test(config.highlightColor||'')?config.highlightColor:'#3b82f6';
@@ -2815,7 +2815,7 @@ function renderLivePreview(spec,targetCanvas,now=new Date(),options={}){
   ctx.font=weight+' '+size+'px system-ui, sans-serif';
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=color;ctx.fillText(value,x,y);
  };
- if(spec.style==='m11-native')drawParametricWavePreview(ctx,spec.waveConfig,stamp.getTime()*0.001);
+ if(spec.style==='m11-native')drawParametricWavePreview(ctx,spec.waveConfig,stamp.getHours()*3600+stamp.getMinutes()*60+stamp.getSeconds()+stamp.getMilliseconds()/1000);
  const hand=(angle,length,width,color,tail=12)=>{
   ctx.save();ctx.translate(240,240);ctx.rotate(angle*Math.PI/180);
   ctx.fillStyle=color;ctx.beginPath();
