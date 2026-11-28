@@ -84,6 +84,7 @@ bool parseType(const char* value, FaceElementType& type) {
     else if (strcmp(value, "weather") == 0) type = FaceElementType::Weather;
     else if (strcmp(value, "shape") == 0) type = FaceElementType::Shape;
     else if (strcmp(value, "image") == 0) type = FaceElementType::Image;
+    else if (strcmp(value, "wave") == 0) type = FaceElementType::Wave;
     else return false;
     return true;
 }
@@ -136,7 +137,7 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
         "assetId", "shape", "dataBinding", "clockMode", "timeFormat",
         "showSeconds", "showAmPm", "handConfig", "text", "textStyle",
         "glyphOverrides", "glyphAtlasAssetId", "glyphFallback",
-        "weatherFields", "children", "renderHints"
+        "weatherFields", "children", "renderHints", "waveConfig"
     };
     if (!hasOnlyKeys(source, objectKeys, sizeof(objectKeys) / sizeof(objectKeys[0]))) return true;
 
@@ -156,16 +157,52 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
         "source", "format", "timezone", "fallbackText", "visibleWhenMissing"
     };
     static const char* const handConfigKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor", "showOuterRing", "showHourTicks"};
+    static const char* const waveConfigKeys[] = {
+        "lineCount", "segments", "speed", "amplitude", "phase",
+        "color", "highlightColor", "updateMs", "animate"
+    };
     static const char* const renderHintKeys[] = {
         "preferredUpdateMs", "staticLayer", "requiresAntialias", "requiresBitmap"
     };
 
+    // WAVE CONFIGURATION VALIDATION
+    // Accept only a bounded numeric program; never accept executable script or arrays.
+    const char* objectType = source["type"] | "";
+    if (strcmp(objectType, "wave") == 0) {
+        if (waveConfigObject.isNull()) return true;
+        const char* numericKeys[] = {"speed", "amplitude", "phase"};
+        for (const char* key : numericKeys) {
+            if (!waveConfigObject.containsKey(key)) continue;
+            const JsonVariantConst value = waveConfigObject[key];
+            if ((!value.is<float>() && !value.is<int>() && !value.is<unsigned int>()) ||
+                !isfinite(value.as<float>())) return true;
+        }
+        const int lineCount = waveConfigObject["lineCount"] | 8;
+        const int segments = waveConfigObject["segments"] | 18;
+        const int updateMs = waveConfigObject["updateMs"] | 160;
+        const float speed = waveConfigObject["speed"] | 0.8f;
+        const float amplitude = waveConfigObject["amplitude"] | 0.75f;
+        const float phase = waveConfigObject["phase"] | 0.0f;
+        if (lineCount < 2 || lineCount > 12 || segments < 4 || segments > 24 ||
+            updateMs < 100 || updateMs > 1000 || speed < 0.0f || speed > 4.0f ||
+            amplitude < 0.0f || amplitude > 2.0f ||
+            phase < -6.2832f || phase > 6.2832f) return true;
+        if (waveConfigObject.containsKey("animate") &&
+            !waveConfigObject["animate"].is<bool>()) return true;
+        if ((waveConfigObject.containsKey("color") &&
+             !waveConfigObject["color"].is<const char*>()) ||
+            (waveConfigObject.containsKey("highlightColor") &&
+             !waveConfigObject["highlightColor"].is<const char*>())) return true;
+    } else if (source.containsKey("waveConfig")) {
+        return true;
+    }
     JsonObjectConst transformObject = source["transform"].as<JsonObjectConst>();
     JsonObjectConst styleObject = source["style"].as<JsonObjectConst>();
     JsonObjectConst textStyleObject = source["textStyle"].as<JsonObjectConst>();
     JsonObjectConst bindingObject = source["dataBinding"].as<JsonObjectConst>();
     JsonObjectConst handConfigObject = source["handConfig"].as<JsonObjectConst>();
     JsonObjectConst renderHintsObject = source["renderHints"].as<JsonObjectConst>();
+    JsonObjectConst waveConfigObject = source["waveConfig"].as<JsonObjectConst>();
     if ((!transformObject.isNull() &&
          !hasOnlyKeys(transformObject, transformKeys, sizeof(transformKeys) / sizeof(transformKeys[0]))) ||
         (!styleObject.isNull() &&
@@ -177,7 +214,10 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
         (!handConfigObject.isNull() &&
          !hasOnlyKeys(handConfigObject, handConfigKeys, sizeof(handConfigKeys) / sizeof(handConfigKeys[0]))) ||
         (!renderHintsObject.isNull() &&
-         !hasOnlyKeys(renderHintsObject, renderHintKeys, sizeof(renderHintKeys) / sizeof(renderHintKeys[0])))) {
+         !hasOnlyKeys(renderHintsObject, renderHintKeys, sizeof(renderHintKeys) / sizeof(renderHintKeys[0]))) ||
+        (source.containsKey("waveConfig") &&
+         (waveConfigObject.isNull() ||
+          !hasOnlyKeys(waveConfigObject, waveConfigKeys, sizeof(waveConfigKeys) / sizeof(waveConfigKeys[0]))))) {
         return true;
     }
 
@@ -371,6 +411,7 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
          !source["showAmPm"].is<bool>())) return false;
     if (source.containsKey("weatherFields") && target.type != FaceElementType::Weather) return false;
     if (source.containsKey("shape") && target.type != FaceElementType::Shape) return false;
+    if ((target.type == FaceElementType::Wave) != source.containsKey("waveConfig")) return false;
 
     target.visible = source["visible"].isNull() ? true : source["visible"].as<bool>();
     JsonObjectConst transform = source["transform"].as<JsonObjectConst>();
@@ -467,6 +508,23 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
     else if (strcmp(shape, "rect") == 0) target.shapeKind = 0;
     else if (target.type == FaceElementType::Shape) return false;
 
+    // WAVE CONFIGURATION PARSING
+    // Defaults mirror shared/schemas/watch-face.schema.json and the Web preset.
+    if (target.type == FaceElementType::Wave) {
+        JsonObjectConst waveConfig = source["waveConfig"].as<JsonObjectConst>();
+        const int lineCount = waveConfig["lineCount"] | 8;
+        const int segments = waveConfig["segments"] | 18;
+        const int updateMs = waveConfig["updateMs"] | 160;
+        target.wave.lineCount = static_cast<uint8_t>(lineCount);
+        target.wave.segments = static_cast<uint8_t>(segments);
+        target.wave.updateMs = static_cast<uint16_t>(updateMs);
+        if (!readNumber(waveConfig["speed"], target.wave.speed, false, 0.8f) ||
+            !readNumber(waveConfig["amplitude"], target.wave.amplitude, false, 0.75f) ||
+            !readNumber(waveConfig["phase"], target.wave.phase, false, 0.0f) ||
+            !readColor(waveConfig["color"], target.wave.color, 0x2D4B) ||
+            !readColor(waveConfig["highlightColor"], target.wave.highlightColor, 0x5D9F)) return false;
+        target.wave.animate = waveConfig["animate"] | true;
+    }
     if (!copyString(source["timeFormat"], target.timeFormat, sizeof(target.timeFormat), false)) return false;
     JsonObjectConst handConfig = source["handConfig"].as<JsonObjectConst>();
     if (!handConfig.isNull()) {
@@ -686,7 +744,7 @@ FaceParseResult parseWatchFaceJson(const char* json, size_t length, FaceModel& o
             if (strcmp(type, "text") != 0 && strcmp(type, "digital-clock") != 0 &&
                 strcmp(type, "analog-clock") != 0 && strcmp(type, "date") != 0 &&
                 strcmp(type, "weather") != 0 && strcmp(type, "shape") != 0 &&
-                strcmp(type, "image") != 0) {
+                strcmp(type, "image") != 0 && strcmp(type, "wave") != 0) {
                 return {FaceParseError::UnsupportedElement, index};
             }
             return {FaceParseError::InvalidField, index};
