@@ -110,6 +110,21 @@ for (const value of ['29/23°', '85', '09', '76']) {
 }
 assert.ok(waterTarget.drawCalls.length > 0, 'Elements Water should composite its rendered face into the supplied template canvas');
 assert.equal(animationRequests, 0, 'Template Studio rendering must not create an independent animation loop');
+const customWaterBackground = { complete: true, naturalWidth: 120, naturalHeight: 60 };
+extendedFaceCatalog.setBackgroundImage(customWaterBackground);
+extendedFaceCatalog.setDim(20);
+extendedFaceCatalog.setBackgroundPosition(10, -5);
+extendedFaceCatalog.setBackgroundScale(1.2);
+extendedFaceCatalog.renderFace('m11', waterTarget, new Date(2026, 10, 28, 9, 42, 15, 0));
+assert.ok(waterCanvases[1].drawCalls.some(call => call[0] === customWaterBackground),
+  'Elements Water must retain the Template Studio personal background image');
+extendedFaceCatalog.setBackgroundImage(null);
+extendedFaceCatalog.setBackgroundColor(null);
+extendedFaceCatalog.setDim(40);
+extendedFaceCatalog.setBackgroundPosition(0, 0);
+extendedFaceCatalog.setBackgroundScale(1);
+extendedFaceCatalog.setSunburst(true);
+extendedFaceCatalog.setVignette(true);
 const waterClass = extendedFaceCatalog.ElementsWaterWatchFace;
 assert.equal(typeof waterClass, 'function', 'Elements Water module should be available through the namespaced catalog API');
 const standaloneCanvas = makeWaterCanvas(300, 400);
