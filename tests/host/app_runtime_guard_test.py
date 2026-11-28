@@ -9,8 +9,12 @@ assert "void setup()" in main
 assert "void loop()" not in main
 assert "void loop();" in header
 assert "void loop()" in runtime
+startup = runtime[runtime.index("if (!bootUiReady)") : runtime.index("const uint32_t now = millis();")]
+assert "beginBLE()" not in startup
+assert "toggleBLE()" not in startup
+assert "Bluetooth remains OFF; enable from menu" in startup
 for required in (
-    "BootCoordinator::takeBleInitRequest()",
+    "BootCoordinator::takeStartupReadyRequest()",
     "updateButtonManager()",
     "handleBLECommands()",
     "serviceBLE()",
