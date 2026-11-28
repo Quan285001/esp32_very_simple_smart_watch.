@@ -746,6 +746,7 @@ void drawWave(const FaceModel& face, const FaceObject& object, const struct tm& 
         const float bob = (sinf(phase * 1.45f + row * 0.42f) * 7.5f + cosf(phase * 0.85f - row * 0.25f) * 4.0f) * amplitude;
         int previousX = x;
         int previousY = static_cast<int>(lroundf(baseY + bob));
+        previousY = std::max(y, std::min(y + height - 1, previousY));
         const uint16_t color = (line % 3U == 0U) ? object.wave.highlightColor : object.wave.color;
         for (uint8_t segment = 1; segment <= object.wave.segments; ++segment) {
             const float nx = static_cast<float>(segment) / object.wave.segments;
@@ -754,7 +755,8 @@ void drawWave(const FaceModel& face, const FaceObject& object, const struct tm& 
             const float w3 = cosf(nx * PI_F * 1.8f + phase * 0.75f - row * 0.19f) * 9.0f;
             const float curve = sinf(nx * PI_F) * -8.0f;
             const int currentX = x + static_cast<int>(lroundf(nx * width));
-            const int currentY = static_cast<int>(lroundf(baseY + bob + (w1 + w2 + w3 + curve) * amplitude));
+            const int rawY = static_cast<int>(lroundf(baseY + bob + (w1 + w2 + w3 + curve) * amplitude));
+            const int currentY = std::max(y, std::min(y + height - 1, rawY));
             const int previousDx = previousX - static_cast<int>(canvas.width() / 2);
             const int previousDy = previousY - static_cast<int>(canvas.height() / 2);
             const int currentDx = currentX - static_cast<int>(canvas.width() / 2);
