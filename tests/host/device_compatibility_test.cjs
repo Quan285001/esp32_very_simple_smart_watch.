@@ -450,4 +450,93 @@ excessiveStroke.objects[0].style.strokeWidth = 33;
 assert.ok(errorsFor(excessiveStroke).some(error => error.includes('strokeWidth must be an integer')),
   'shape outlines above the firmware limit must be rejected before packaging');
 
+async function testUploadablePresetPackages() {
+  const builderStart = appSource.indexOf('async function buildWfsPackage(');
+  const builderEnd = appSource.indexOf('\nasync function sendWfsChunkWithRetry(', builderStart);
+  assert.ok(builderStart >= 0 && builderEnd > builderStart, 'WFS1 package builder must remain extractable');
+  const packageContext = {
+    state: {
+      wfsCapabilities: {
+        pid: 'esp32-c3-gc9a01-240', cw: 240, ch: 240, cs: 'circle',
+        bw: 240, bh: 240, obj: 16, assets: 16, json: 16384,
+        img: 1, stage: 128 * 1024, el: 't,dc,ac,d,w,s,i'
+      },
+      images: []
+    },
+    serializeDesign: design => structuredClone(design),
+    normalizeHandOpacity: value => value == null ? 1 : Number(value),
+    ensureSchemaLoaded: async () => ({}),
+    validateJsonSchema: () => [],
+    compositeBottomImageLayers: async () => null,
+    convertImageToRgb565: async () => ({
+      x: 0, y: 0, width: 240, height: 240,
+      bytes: new Uint8Array(240 * 240 * 2)
+    }),
+    WFS_FIRMWARE_PROFILE_ID: 'esp32-c3-gc9a01-240',
+    WFS_FIRMWARE_DISPLAY: { width: 240, height: 240 },
+    globalThis: { WfsDeviceCompatibility: compatibility },
+    crypto: require('node:crypto').webcrypto,
+    TextEncoder, TextDecoder, Uint8Array, DataView, Blob, Set, Math, Number, JSON, Error
+  };
+  packageContext.wfsHex = bytes => Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+  packageContext.wfsCrc32 = bytes => {
+    let crc = 0xffffffff;
+    for (const value of bytes) {
+      crc ^= value;
+      for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  };
+  const buildWfsPackage = vm.runInNewContext(
+    appSource.slice(builderStart, builderEnd) + '\nbuildWfsPackage;',
+    packageContext
+  );
+
+  for (const template of presets.SPECS) {
+    const assetId = 'preset_art_' + template.id;
+    const design = structuredClone(fixture);
+    design.name = template.name;
+    design.objects = presets.createObjects(template, assetId);
+    packageContext.state.images = [{ id: assetId }];
+    const result = await buildWfsPackage(design);
+    const bytes = new Uint8Array(await result.blob.arrayBuffer());
+    const header = new DataView(bytes.buffer, bytes.byteOffset, 64);
+    assert.equal(String.fromCharCode(...bytes.subarray(0, 4)), 'WFS1',
+      template.name + ': package must contain the WFS1 magic');
+    assert.equal(header.getUint16(4, true), 1, template.name + ': package version must be v1');
+    assert.equal(header.getUint16(6, true), 64, template.name + ': WFS1 header must be 64 bytes');
+    assert.equal(header.getUint16(16, true), 1, template.name + ': one artwork asset must be packaged');
+    assert.equal(header.getUint32(20, true), bytes.length - 64,
+      template.name + ': payload length must match the actual package bytes');
+    assert.equal(header.getUint32(56, true), packageContext.wfsCrc32(bytes.subarray(0, 56)),
+      template.name + ': header CRC32 must verify');
+    assert.equal(result.packageLength, bytes.length);
+    assert.ok(bytes.length <= packageContext.state.wfsCapabilities.stage,
+      template.name + ': package must fit the advertised staging limit');
+
+    const manifestLength = header.getUint32(8, true);
+    const layoutLength = header.getUint32(12, true);
+    const manifestStart = 64;
+    const layoutStart = manifestStart + manifestLength;
+    const assetStart = layoutStart + layoutLength;
+    const manifest = JSON.parse(new TextDecoder().decode(bytes.subarray(manifestStart, layoutStart)));
+    const layoutBytes = bytes.subarray(layoutStart, assetStart);
+    const layout = JSON.parse(new TextDecoder().decode(layoutBytes));
+    assert.equal(manifest.assets.length, 1, template.name + ': manifest must describe one artwork asset');
+    assert.equal(manifest.assets[0].byteLength, 240 * 240 * 2,
+      template.name + ': artwork payload must be RGB565 240x240');
+    assert.equal(layout.objects.length, design.objects.length,
+      template.name + ': packaged layout must preserve all generated objects');
+    assert.equal(layout.objects[0].assetId, manifest.assets[0].assetId,
+      template.name + ': packaged image reference must match its manifest entry');
+    const layoutDigest = new Uint8Array(await require('node:crypto').webcrypto.subtle.digest('SHA-256', layoutBytes));
+    assert.equal(manifest.layoutSha256, packageContext.wfsHex(layoutDigest),
+      template.name + ': manifest layout digest must match the serialized layout');
+  }
+}
+
+testUploadablePresetPackages()
+  .then(() => console.log('WFS1 package builder tests passed for all 12 uploadable presets.'))
+  .catch(error => { console.error(error); process.exitCode = 1; });
+
 console.log('WFS device compatibility preflight tests passed.');
