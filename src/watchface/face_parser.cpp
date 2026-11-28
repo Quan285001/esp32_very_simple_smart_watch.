@@ -527,8 +527,8 @@ bool parseObject(JsonObjectConst source, FaceObject& target) {
         if (!readNumber(waveConfig["speed"], target.wave.speed, false, 0.8f) ||
             !readNumber(waveConfig["amplitude"], target.wave.amplitude, false, 0.75f) ||
             !readNumber(waveConfig["phase"], target.wave.phase, false, 0.0f) ||
-            !readColor(waveConfig["color"], target.wave.color, 0x2D4B) ||
-            !readColor(waveConfig["highlightColor"], target.wave.highlightColor, 0x5D9F)) return false;
+            !readColor(waveConfig["color"], target.wave.color, 0x126C) ||
+            !readColor(waveConfig["highlightColor"], target.wave.highlightColor, 0x3C1E)) return false;
         target.wave.animate = waveConfig["animate"] | true;
     }
     if (!copyString(source["timeFormat"], target.timeFormat, sizeof(target.timeFormat), false)) return false;
