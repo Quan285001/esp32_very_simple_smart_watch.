@@ -39,7 +39,8 @@ manager = (ROOT / "src/communication/ble_manager.cpp").read_text()
 service_start = source.index("void serviceBLE()")
 service_end = source.index("void shutdownBLEForSleep()", service_start)
 service_loop = source[service_start:service_end]
-assert "serviceWfsBle();" in service_loop
+assert "if (!bleStackInitialized) return;" in service_loop
+assert service_loop.index("if (!bleStackInitialized) return;") < service_loop.index("serviceWfsBle();")
 
 request_start = manager.index("void requestWfsSessionReset()")
 request_end = manager.index("void resetWfsSession()", request_start)
