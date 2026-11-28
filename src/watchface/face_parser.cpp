@@ -177,6 +177,12 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
             if ((!value.is<float>() && !value.is<int>() && !value.is<unsigned int>()) ||
                 !isfinite(value.as<float>())) return true;
         }
+        const char* integerKeys[] = {"lineCount", "segments", "updateMs"};
+        for (const char* key : integerKeys) {
+            if (!waveConfigObject.containsKey(key)) continue;
+            const JsonVariantConst value = waveConfigObject[key];
+            if (!value.is<int>() && !value.is<unsigned int>()) return true;
+        }
         const int lineCount = waveConfigObject["lineCount"] | 8;
         const int segments = waveConfigObject["segments"] | 18;
         const int updateMs = waveConfigObject["updateMs"] | 160;
