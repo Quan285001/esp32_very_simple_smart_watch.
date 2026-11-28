@@ -770,20 +770,16 @@ void drawWave(const FaceModel& face, const FaceObject& object, const struct tm& 
             previousY = currentY;
         }
     }
-}
-
-// Commit the wave cadence only when its complete dirty region has been
-// rendered successfully. drawWave() is also called while composing analog
-// hand tiles; those partial incidental draws must not postpone the next
-// full wave refresh.
-void commitWaveFrame(uint8_t index, const FaceObject& object,
-                     const struct tm& timeInfo, int millisValue) {
-    if (index >= FACE_MAX_OBJECTS) return;
-    WaveRenderCacheEntry& cache = waveRenderCache[index];
-    strncpy(cache.objectId, object.id, sizeof(cache.objectId) - 1);
-    cache.objectId[sizeof(cache.objectId) - 1] = '\0';
-    cache.lastFrameMs = watchFaceFrameMs(timeInfo, millisValue);
-    cache.valid = true;
+    // Save the frame timestamp for the next dynamic refresh decision.
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        if (&face.objects[i] != &object) continue;
+        WaveRenderCacheEntry& cache = waveRenderCache[i];
+        strncpy(cache.objectId, object.id, sizeof(cache.objectId) - 1);
+        cache.objectId[sizeof(cache.objectId) - 1] = 0;
+        cache.lastFrameMs = watchFaceFrameMs(timeInfo, millisValue);
+        cache.valid = true;
+        break;
+    }
 }
 void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int millisValue) {
     const int w = static_cast<int>(lroundf(object.transform.width));
@@ -929,9 +925,6 @@ FaceRenderStatus renderWatchFace(const FaceModel& face, const struct tm& timeInf
             invalidateDynamicTextCache();
             return FaceRenderStatus::AssetReadFailed;
         }
-        if (object.visible && object.type == FaceElementType::Wave) {
-            commitWaveFrame(order[i], object, timeInfo, millisValue);
-        }
         if (object.visible && object.type == FaceElementType::AnalogClock) {
             int centerX = 0, centerY = 0, endpointX[3] = {}, endpointY[3] = {};
             if (calculateAnalogHandEndpoints(object, timeInfo, millisValue, centerX, centerY, endpointX, endpointY) &&
@@ -1032,9 +1025,6 @@ FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& 
             return FaceRenderStatus::AssetReadFailed;
         }
 
-        if (dynamicObject.type == FaceElementType::Wave) {
-            commitWaveFrame(order[i], dynamicObject, timeInfo, millisValue);
-        }
         commitDynamicTextCache(order[i], dynamicObject, timeInfo, weather);
     }
     return FaceRenderStatus::Ok;
