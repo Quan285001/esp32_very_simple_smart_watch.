@@ -710,7 +710,12 @@ uint32_t watchFaceFrameMs(const struct tm& timeInfo, int millisValue) {
 bool hasImageLayerAbove(const FaceModel& face, const FaceObject& object) {
     for (uint8_t i = 0; i < face.objectCount; ++i) {
         const FaceObject& candidate = face.objects[i];
-        if (candidate.visible && candidate.type == FaceElementType::Image && candidate.transform.zIndex > object.transform.zIndex) return true;
+        if (candidate.visible && candidate.type == FaceElementType::Image &&
+            candidate.transform.zIndex > object.transform.zIndex &&
+            intersects(candidate, static_cast<int>(lroundf(object.transform.x)),
+                static_cast<int>(lroundf(object.transform.y)),
+                static_cast<int>(lroundf(object.transform.width)),
+                static_cast<int>(lroundf(object.transform.height)))) return true;
     }
     return false;
 }
@@ -750,7 +755,15 @@ void drawWave(const FaceModel& face, const FaceObject& object, const struct tm& 
             const float curve = sinf(nx * PI_F) * -8.0f;
             const int currentX = x + static_cast<int>(lroundf(nx * width));
             const int currentY = static_cast<int>(lroundf(baseY + bob + (w1 + w2 + w3 + curve) * amplitude));
-            canvas.drawLine(previousX, previousY, currentX, currentY, color);
+            const int previousDx = previousX - static_cast<int>(canvas.width() / 2);
+            const int previousDy = previousY - static_cast<int>(canvas.height() / 2);
+            const int currentDx = currentX - static_cast<int>(canvas.width() / 2);
+            const int currentDy = currentY - static_cast<int>(canvas.height() / 2);
+            const int dialRadius = static_cast<int>(std::min(canvas.width(), canvas.height()) / 2) - 2;
+            if (previousDx * previousDx + previousDy * previousDy <= dialRadius * dialRadius &&
+                currentDx * currentDx + currentDy * currentDy <= dialRadius * dialRadius) {
+                canvas.drawLine(previousX, previousY, currentX, currentY, color);
+            }
             previousX = currentX;
             previousY = currentY;
         }
