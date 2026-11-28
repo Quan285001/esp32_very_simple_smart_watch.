@@ -51,8 +51,6 @@ if set(reference_preset_ids) != {"ref-classic-12", "ref-chronometer-gmt", "ref-s
     errors.append("The four reference-aligned WFS presets must be registered exactly once")
 if preset_ids.count("m13") != 1:
     errors.append("The Clean Large Digital extended template must have exactly one WFS1 adapter")
-if False:
-    errors.append("The four reference-aligned WFS presets must be registered exactly once")
 extended_ids = re.findall(r"id: '([^']+)',\s*category:", extended_renderer_js)
 if len(extended_ids) != 20 or len(set(extended_ids)) != 20 or set(extended_ids) != {f"m{i:02d}" for i in range(1, 21)}:
     errors.append("Extended renderer must define all 20 unique Gemini template ids")
