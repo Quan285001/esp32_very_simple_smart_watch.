@@ -170,7 +170,40 @@ function renderSelectionOverlay(canvas){
  if(!selected.locked)['nw','ne','sw','se'].forEach(corner=>{const handle=document.createElement('span');handle.className='resize-handle '+corner;handle.setAttribute('aria-label','Resize '+selected.name);handle.addEventListener('pointerdown',ev=>startResize(ev,selected.id,corner));overlay.append(handle)});
  stage.append(overlay);
 }
-function renderCanvas(){const c=$('#watchCanvas');if(!c)return;const canvas=state.design.canvas,width=Math.max(1,Number(canvas.width)||240),height=Math.max(1,Number(canvas.height)||240),shape=canvas.shape||'circle',stage=c.parentElement,stageWidth=Math.max(1,stage?.clientWidth||390),maxHeight=Math.max(160,(window.innerHeight||800)*0.56),scale=Math.min(stageWidth/width,390/width,maxHeight/height);c.style.width=Math.max(1,Math.floor(width*scale))+'px';c.style.height=Math.max(1,Math.floor(height*scale))+'px';c.style.aspectRatio=width+' / '+height;c.style.borderRadius=shape==='circle'?'50%':shape==='rounded-square'?'18%':shape==='rounded-rectangle'?'12px':'0';c.style.background=canvas.backgroundColor;c.innerHTML='';state.design.objects.filter(isObjectRenderable).sort((a,b)=>(a.transform.zIndex||0)-(b.transform.zIndex||0)).forEach(o=>{const el=document.createElement('div');el.className='watch-object'+(o.locked?' locked':'');el.dataset.id=o.id;const t=o.transform,s=o.textStyle||{},st=o.style||{};Object.assign(el.style,{left:(roundFirmwarePixel(t.x)/width*100)+'%',top:(roundFirmwarePixel(t.y)/height*100)+'%',width:(roundFirmwarePixel(t.width)/width*100)+'%',height:(roundFirmwarePixel(t.height)/height*100)+'%',zIndex:t.zIndex??0,opacity:objectOpacity(o),transform:'rotate('+(t.rotation||0)+'deg)',color:s.fill||st.fill||'#fff',fontSize:((s.fontSize||16)/width*100)+'cqw',fontWeight:s.fontWeight||400,fontFamily:s.fontFamily||'inherit',letterSpacing:(s.letterSpacing||0)+'px',background:s.backgroundColor||st.backgroundColor||'transparent',borderRadius:(st.cornerRadius||0)+'px',border:st.stroke?((st.strokeWidth||1)+'px solid '+st.stroke):'none',textAlign:s.textAlign||'center'});if(o.type==='shape'){renderShapePreview(el,o,st)}else if(o.type==='image'){const img=state.images.find(a=>a.id===o.assetId);if(img){const im=document.createElement('img');im.src=img.data;el.append(im)}else el.textContent='＋ Image'}else if(o.type==='weather'){renderWeatherPreview(el,o,s,t)}else if(o.type==='analog-clock'){renderAnalogClockPreview(el,o)}else if(o.type==='digital-clock')setDigitalClockPreview(el,objectText(o),s,t);else setPreviewText(el,objectText(o),s,t);el.addEventListener('pointerdown',e=>startDrag(e,o.id));el.addEventListener('click',e=>{e.stopPropagation();state.selected=o.id;render()});c.append(el)});const safe=canvas.safeArea||{top:0,right:0,bottom:0,left:0};if(safe.top||safe.right||safe.bottom||safe.left){const guide=document.createElement('div');guide.className='safe-area-guides';Object.assign(guide.style,{left:(safe.left/width*100)+'%',top:(safe.top/height*100)+'%',width:((width-safe.left-safe.right)/width*100)+'%',height:((height-safe.top-safe.bottom)/height*100)+'%'});c.append(guide)}renderSelectionOverlay(c);$('#canvasSize').textContent=width+' × '+height;$('#canvasSizeFooter').textContent=width+' × '+height;$('#canvasName').textContent=state.design.name;$('#layerCount').textContent=state.design.objects.length;updateProfileButton()}
+// -------------------- SHARED PARAMETRIC WAVE PREVIEW --------------------
+// The editor reads the same waveConfig object that the WFS1 exporter sends to ESP32.
+function renderWavePreview(element,object,now=new Date()){
+ const config=object.waveConfig||{},lineCount=Math.max(2,Math.min(12,Number(config.lineCount)||8));
+ const segments=Math.max(4,Math.min(24,Number(config.segments)||18));
+ const speed=Math.max(0,Math.min(4,Number(config.speed)||0.8));
+ const amplitude=Math.max(0,Math.min(2,Number(config.amplitude)||0.75));
+ const imageAbove=state.design?.objects?.some(item=>item.visible!==false&&item.type==='image'&&(item.transform?.zIndex||0)>(object.transform?.zIndex||0));
+ const phase=(Number(config.phase)||0)+((config.animate!==false&&!imageAbove)?now.getTime()*0.001*speed:0);
+ const canvas=element.querySelector('canvas')||document.createElement('canvas');
+ canvas.width=240;canvas.height=120;canvas.style.cssText='display:block;width:100%;height:100%;pointer-events:none';
+ if(!canvas.parentNode)element.append(canvas);
+ const ctx=canvas.getContext('2d');if(!ctx)return;
+ const color=/^#[0-9a-f]{6}$/i.test(config.color||'')?config.color:'#164e63';
+ const highlight=/^#[0-9a-f]{6}$/i.test(config.highlightColor||'')?config.highlightColor:'#3b82f6';
+ ctx.clearRect(0,0,240,120);
+ for(let line=0;line<lineCount;line++){
+  const row=line,baseY=(row+.5)*120/lineCount;
+  const bob=(Math.sin(phase*1.45+row*.42)*7.5+Math.cos(phase*.85-row*.25)*4)*amplitude;
+  ctx.beginPath();
+  for(let segment=0;segment<=segments;segment++){
+   const nx=segment/segments;
+   const w1=Math.sin(nx*Math.PI*3.1+phase*1.35+row*.32)*14;
+   const w2=Math.sin(nx*Math.PI*5.6-phase*1.05+row*.58)*6.5;
+   const w3=Math.cos(nx*Math.PI*1.8+phase*.75-row*.19)*9;
+   const curve=Math.sin(nx*Math.PI)*-8;
+   const px=nx*240,py=baseY+bob+(w1+w2+w3+curve)*amplitude;
+   if(segment===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+  }
+  ctx.strokeStyle=line%3===0?highlight:color;ctx.lineWidth=line%3===0?1.8:1.2;ctx.stroke();
+ }
+}
+
+function renderCanvas(){const c=$('#watchCanvas');if(!c)return;const canvas=state.design.canvas,width=Math.max(1,Number(canvas.width)||240),height=Math.max(1,Number(canvas.height)||240),shape=canvas.shape||'circle',stage=c.parentElement,stageWidth=Math.max(1,stage?.clientWidth||390),maxHeight=Math.max(160,(window.innerHeight||800)*0.56),scale=Math.min(stageWidth/width,390/width,maxHeight/height);c.style.width=Math.max(1,Math.floor(width*scale))+'px';c.style.height=Math.max(1,Math.floor(height*scale))+'px';c.style.aspectRatio=width+' / '+height;c.style.borderRadius=shape==='circle'?'50%':shape==='rounded-square'?'18%':shape==='rounded-rectangle'?'12px':'0';c.style.background=canvas.backgroundColor;c.innerHTML='';state.design.objects.filter(isObjectRenderable).sort((a,b)=>(a.transform.zIndex||0)-(b.transform.zIndex||0)).forEach(o=>{const el=document.createElement('div');el.className='watch-object'+(o.locked?' locked':'');el.dataset.id=o.id;const t=o.transform,s=o.textStyle||{},st=o.style||{};Object.assign(el.style,{left:(roundFirmwarePixel(t.x)/width*100)+'%',top:(roundFirmwarePixel(t.y)/height*100)+'%',width:(roundFirmwarePixel(t.width)/width*100)+'%',height:(roundFirmwarePixel(t.height)/height*100)+'%',zIndex:t.zIndex??0,opacity:objectOpacity(o),transform:'rotate('+(t.rotation||0)+'deg)',color:s.fill||st.fill||'#fff',fontSize:((s.fontSize||16)/width*100)+'cqw',fontWeight:s.fontWeight||400,fontFamily:s.fontFamily||'inherit',letterSpacing:(s.letterSpacing||0)+'px',background:s.backgroundColor||st.backgroundColor||'transparent',borderRadius:(st.cornerRadius||0)+'px',border:st.stroke?((st.strokeWidth||1)+'px solid '+st.stroke):'none',textAlign:s.textAlign||'center'});if(o.type==='wave'){renderWavePreview(el,o)}else if(o.type==='shape'){renderShapePreview(el,o,st)}else if(o.type==='image'){const img=state.images.find(a=>a.id===o.assetId);if(img){const im=document.createElement('img');im.src=img.data;el.append(im)}else el.textContent='＋ Image'}else if(o.type==='weather'){renderWeatherPreview(el,o,s,t)}else if(o.type==='analog-clock'){renderAnalogClockPreview(el,o)}else if(o.type==='digital-clock')setDigitalClockPreview(el,objectText(o),s,t);else setPreviewText(el,objectText(o),s,t);el.addEventListener('pointerdown',e=>startDrag(e,o.id));el.addEventListener('click',e=>{e.stopPropagation();state.selected=o.id;render()});c.append(el)});const safe=canvas.safeArea||{top:0,right:0,bottom:0,left:0};if(safe.top||safe.right||safe.bottom||safe.left){const guide=document.createElement('div');guide.className='safe-area-guides';Object.assign(guide.style,{left:(safe.left/width*100)+'%',top:(safe.top/height*100)+'%',width:((width-safe.left-safe.right)/width*100)+'%',height:((height-safe.top-safe.bottom)/height*100)+'%'});c.append(guide)}renderSelectionOverlay(c);$('#canvasSize').textContent=width+' × '+height;$('#canvasSizeFooter').textContent=width+' × '+height;$('#canvasName').textContent=state.design.name;$('#layerCount').textContent=state.design.objects.length;updateProfileButton()}
 function startDrag(e,id){const o=state.design.objects.find(x=>x.id===id);if(!o||o.locked)return;e.preventDefault();state.selected=id;const canvas=$('#watchCanvas'),logicalWidth=state.design.canvas.width,logicalHeight=state.design.canvas.height;state.drag={id,startX:e.clientX,startY:e.clientY,x:o.transform.x,y:o.transform.y,scaleX:logicalWidth/Math.max(1,canvas.clientWidth),scaleY:logicalHeight/Math.max(1,canvas.clientHeight)};e.currentTarget.setPointerCapture(e.pointerId);const move=ev=>{if(!state.drag)return;const d=state.drag;o.transform.x=Math.max(-logicalWidth,Math.min(logicalWidth,d.x+(ev.clientX-d.startX)*d.scaleX));o.transform.y=Math.max(-logicalHeight,Math.min(logicalHeight,d.y+(ev.clientY-d.startY)*d.scaleY));renderCanvas()};const end=()=>{state.drag=null;saveDraft();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',end)}
 function startResize(e,id,corner){
  e.preventDefault();e.stopPropagation();
@@ -308,6 +341,7 @@ function updateLiveEditorObjects(now=new Date()){
  const objects=new Map(state.design.objects.map(object=>[object.id,object]));
  canvas.querySelectorAll('.watch-object[data-id]').forEach(element=>{
   const object=objects.get(element.dataset.id);if(!object||object.visible===false)return;
+  if(object.type==='wave'){renderWavePreview(element,object,now);return;}
   if(object.type==='digital-clock'||object.type==='date'){
    const glyph=element.querySelector('span');if(glyph)glyph.textContent=objectText(object,now);
    return;
@@ -345,7 +379,7 @@ function renderLiveTemplateCards(now=new Date()){
 let livePreviewRaf=null,lastLivePreviewFrame=0;
 function livePreviewIsActive(){
  if(state.view==='templates')return !!document.querySelector('canvas[data-template-live]');
- if(state.view==='editor')return !!state.design?.objects?.some(object=>object.visible!==false&&['analog-clock','digital-clock','date'].includes(object.type));
+ if(state.view==='editor')return !!state.design?.objects?.some(object=>object.visible!==false&&['analog-clock','digital-clock','date','wave'].includes(object.type));
  return false;
 }
 function runLivePreviewFrame(timestamp){
