@@ -2646,11 +2646,9 @@ function renderThumbnail(spec,options={}){
 
 
  if(spec.style==='clean-digital'){
-  add('date','Weekday and date',30,58,180,20,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{fontSize:12,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui',textAlign:'center'}},1);
-  add('digital-clock','Time',18,91,204,64,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:54,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui',textAlign:'center'}},2);
-  add('date','Year',70,158,42,16,{dataBinding:{source:'date',format:'YYYY'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},3);
-  add('text','Date separator',112,158,14,16,{text:'|',textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},4);
-  add('digital-clock','Seconds',126,158,44,16,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},5);
+  text('SAT 28 NOV',240,138,24,'#94a3b8',600);
+  text('09:42',240,242,108,'#f8fafc',400);
+  text('2026 | :15',240,336,24,'#38bdf8',600);
  }else if(spec.category==='analog'){
   const colors=spec.style==='gold'?['#e5b869','#e5b869','#f3d193']:spec.style==='tactical'?['#ffffff','#ffffff','#dc2626']:['#f8fafc','#f8fafc','#ef4444'];
   const angles=[-Math.PI/2-0.42,-Math.PI/2+0.9,-Math.PI/2+1.65],lengths=[116,151,166],widths=[9,6,3];
@@ -2764,7 +2762,13 @@ function createObjects(spec,assetId){
  if(String(spec.style||'').startsWith('reference-'))return createReferenceObjects(spec,assetId);
  const objects=[{id:'preset_bg_'+spec.id,type:'image',name:'Preset artwork',assetId,visible:true,locked:true,transform:{x:0,y:0,width:240,height:240,anchor:'top-left',rotation:0,opacity:1,zIndex:0}}];
  const add=(type,name,x,y,w,h,extra,z)=>{const object={id:'preset_'+spec.id+'_'+z,type,name,visible:true,locked:false,transform:{x,y,width:w,height:h,anchor:'top-left',rotation:0,opacity:1,zIndex:z},...extra};objects.push(object);return object};
- if(spec.category==='analog'){
+ if(spec.style==='clean-digital'){
+  add('date','Weekday and date',30,58,180,20,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{fontSize:12,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui',textAlign:'center'}},1);
+  add('digital-clock','Time',18,91,204,64,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:54,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui',textAlign:'center'}},2);
+  add('date','Year',70,158,42,16,{dataBinding:{source:'date',format:'YYYY'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},3);
+  add('text','Date separator',112,158,14,16,{text:'|',textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},4);
+  add('digital-clock','Seconds',126,158,44,16,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},5);
+ }else if(spec.category==='analog'){
   const colors=spec.style==='gold'?{hour:'#e5b869',minute:'#e5b869',second:'#f3d193'}:spec.style==='tactical'?{hour:'#ffffff',minute:'#ffffff',second:'#dc2626'}:{hour:'#f8fafc',minute:'#f8fafc',second:'#ef4444'};
   add('analog-clock','Live analog hands',40,40,160,160,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3,showOuterRing:false,showHourTicks:false}},1);
  }else{
