@@ -2633,7 +2633,7 @@ function renderArtworkCanvas(spec,options={}){
   c.fillStyle='#93a5f8';c.beginPath();c.roundRect(206,80,68,38,19);c.fill();
  }else if(style==='m16-native'){
   ring(216,'rgba(239,68,68,.22)',2);line(80,240,400,240,'rgba(148,163,184,.12)',1);
- }else if(style==='angled'{
+ }else if(style==='angled'){
   line(64,420,64,56,'rgba(248,250,252,.35)',3);line(64,56,445,275,'rgba(248,250,252,.35)',3);line(118,126,450,315,'rgba(248,250,252,.35)',3);
   c.save();c.translate(286,236);c.rotate(29*Math.PI/180);c.fillStyle='rgba(15,23,42,.82)';c.fillRect(-126,-24,252,48);c.strokeStyle='rgba(248,250,252,.45)';c.lineWidth=2;c.strokeRect(-126,-24,252,48);
   const days=['M','T','W','T','F','S','S'];days.forEach((day,index)=>{c.font='700 22px Arial';c.textAlign='center';c.textBaseline='middle';c.fillStyle=index===4?'#38bdf8':'#f1f5f9';c.fillText(day,-96+index*32,0)});c.restore();
