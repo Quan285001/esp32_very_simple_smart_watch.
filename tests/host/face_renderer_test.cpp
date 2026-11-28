@@ -390,6 +390,30 @@ int main() {
     assert(canvas.fillRectCalls[0].w==91 && canvas.fillRectCalls[0].h==5);
     assert(canvas.fillRectCalls[0].color==face.objects[0].fillColor);
 
+    // -------------------- PARAMETRIC WAVE RENDERER TESTS --------------------
+    face=baseFace(); face.objectCount=1;
+    face.objects[0]=baseObject(FaceElementType::Wave,"water-wave");
+    face.objects[0].transform.x=18; face.objects[0].transform.y=64;
+    face.objects[0].transform.width=204; face.objects[0].transform.height=112;
+    face.objects[0].transform.zIndex=1;
+    face.objects[0].wave={6,12,0.8f,0.75f,0.0f,0x126C,0x3B8F,160,true};
+    canvas.reset();
+    assert(validateFaceModelForRenderer(face)==FaceRenderStatus::Ok);
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==72);
+
+    // The wave object is dynamic, but its own updateMs gate avoids repainting
+    // the complete wave grid on every 40 ms clock interpolation pass.
+    canvas.reset();
+    assert(renderWatchFaceDynamic(face,timeInfo,80,weather)==FaceRenderStatus::Ok);
+    assert(canvas.calls.empty());
+    canvas.reset();
+    assert(renderWatchFaceDynamic(face,timeInfo,160,weather)==FaceRenderStatus::Ok);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==72);
+
+    // Invalid in-memory models are rejected even if they bypass the JSON parser.
+    face.objects[0].wave.segments=25;
+    assert(validateFaceModelForRenderer(face)==FaceRenderStatus::UnsupportedTransform);
     std::cout << "WFS Face renderer host tests passed.\n";
     return 0;
 }
