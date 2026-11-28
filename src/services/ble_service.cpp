@@ -235,6 +235,10 @@ void toggleBLE() {
  * @brief Processes deferred advertising restarts from the application loop.
  */
 void serviceBLE() {
+    // No BLE work is scheduled until the user enables Bluetooth. This keeps
+    // the idle application loop free of protocol polling before first use.
+    if (!bleStackInitialized) return;
+
     serviceWfsBle();
     const uint32_t dropped =
         __atomic_exchange_n(&commandQueueDropCount, 0, __ATOMIC_RELAXED);
