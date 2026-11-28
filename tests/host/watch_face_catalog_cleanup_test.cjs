@@ -73,4 +73,4 @@ assert(appSource.includes("legacyStatus('Connect to a WFS v1 watch first');toast
 assert(appSource.includes("legacyStatus('This firmware does not currently accept face packages');toast('This firmware does not currently accept face packages');return"),
   'firmware upload capability rejection must be visible in the persistent status area');
 assert(studioHtml.includes('id="templateTransferStatus"') && studioHtml.includes('aria-live="polite"'), 'Template Studio must provide a persistent WFS transfer status region');
-assert(studioHtml.includes('web/app.js?v=wfs1-ui-status-1'), 'app.js changes must use a refreshed cache key');
+assert(studioHtml.includes('web/app.js?v=live-analog-hands-1'), 'app.js changes must use a refreshed cache key');
