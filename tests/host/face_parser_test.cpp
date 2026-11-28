@@ -199,6 +199,20 @@ int main(int argc, char** argv) {
     assert(model.objects[0].analogShowOuterRing == false);
     assert(model.objects[0].analogShowHourTicks == false);
 
+    const std::string defaultAnalogFace = R"JSON({
+      "schemaVersion":1,"designId":"analog-defaults","name":"Analog Defaults",
+      "deviceProfileId":"esp32-c3-gc9a01-240",
+      "canvas":{"width":240,"height":240,"shape":"circle","backgroundColor":"#000000"},
+      "objects":[{
+        "id":"analog-defaults","type":"analog-clock","clockMode":"analog","name":"Analog Defaults",
+        "transform":{"x":20,"y":20,"width":200,"height":200}
+      }]
+    })JSON";
+    result = parse(defaultAnalogFace, model);
+    assert(result);
+    assert(model.objects[0].analogShowOuterRing == true);
+    assert(model.objects[0].analogShowHourTicks == true);
+
     const std::string invalidOuterRingType = replaceOnce(analogFace,
         R"JSON("showOuterRing":false)JSON", R"JSON("showOuterRing":"false")JSON");
     result = parse(invalidOuterRingType, model);
