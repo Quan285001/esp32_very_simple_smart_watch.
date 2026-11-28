@@ -333,6 +333,10 @@ configuredAnalogFace.objects[0].handConfig = {
 };
 assert.deepEqual(errorsFor(configuredAnalogFace), [],
   'custom analog hand appearance must be accepted for firmware upload');
+const invalidHourTicks = structuredClone(configuredAnalogFace);
+invalidHourTicks.objects[0].handConfig.showHourTicks = 0;
+assert.ok(errorsFor(invalidHourTicks).some(error => error.includes('analog hour tick visibility')),
+  'non-boolean analog hour tick visibility must be rejected before firmware parsing');
 const badAnalogHand = structuredClone(configuredAnalogFace);
 badAnalogHand.objects[0].handConfig.hour.width = 25;
 assert.ok(errorsFor(badAnalogHand).some(error => error.includes('hour hand width')),
