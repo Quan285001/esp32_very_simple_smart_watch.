@@ -232,6 +232,34 @@ int main(int argc, char** argv) {
     result = parse(handConfigOnText, model);
     assert(!result && result.error == FaceParseError::UnsupportedProperty);
 
+    // -------------------- PARAMETRIC WAVE OBJECT TESTS --------------------
+    std::string validWave = replaceOnce(TEXT_FACE,
+        R"JSON("type": "text")JSON", R"JSON("type": "wave")JSON");
+    validWave = replaceOnce(validWave, R"JSON("text": "Hello")JSON",
+        R"JSON("waveConfig":{"lineCount":6,"segments":12,"speed":1.2,"amplitude":0.8,"phase":0.25,"color":"#164E63","highlightColor":"#3B82F6","updateMs":200,"animate":true})JSON");
+    result = parse(validWave, model);
+    assert(result && model.objects[0].type == FaceElementType::Wave);
+    assert(model.objects[0].wave.lineCount == 6);
+    assert(model.objects[0].wave.segments == 12);
+    assert(model.objects[0].wave.speed == 1.2f);
+    assert(model.objects[0].wave.amplitude == 0.8f);
+    assert(model.objects[0].wave.updateMs == 200);
+    assert(model.objects[0].wave.animate == true);
+    assert(model.objects[0].wave.color == 0x15A8);
+
+    const std::string oversizedWave = replaceOnce(validWave,
+        R"JSON("lineCount":6)JSON", R"JSON("lineCount":13)JSON");
+    result = parse(oversizedWave, model);
+    assert(!result && result.error == FaceParseError::UnsupportedProperty);
+    const std::string fractionalWaveSegments = replaceOnce(validWave,
+        R"JSON("segments":12)JSON", R"JSON("segments":12.5)JSON");
+    result = parse(fractionalWaveSegments, model);
+    assert(!result && result.error == FaceParseError::UnsupportedProperty);
+    const std::string waveConfigOnText = replaceOnce(TEXT_FACE,
+        R"JSON("text": "Hello")JSON",
+        R"JSON("text": "Hello", "waveConfig":{"lineCount":6})JSON");
+    result = parse(waveConfigOnText, model);
+    assert(!result && result.error == FaceParseError::UnsupportedProperty);
     std::cout << "WFS Face parser host tests passed.\n";
     return 0;
 }
