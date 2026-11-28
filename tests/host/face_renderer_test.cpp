@@ -39,8 +39,10 @@ public:
         calls.push_back("line"); lineColors.push_back(color);
     }
     void pushRgb565Row(int, int, uint16_t, const uint16_t*) override { calls.push_back("image-row"); }
+    std::vector<int> clipHeights;
     void setClipRect(int x, int y, int w, int h) override {
         ++clipCalls; clipX=x; clipY=y; clipW=w; clipH=h;
+        clipHeights.push_back(h);
         if (h != 1) allClipRowsOne = false;
         calls.push_back("clip");
     }
@@ -49,7 +51,7 @@ public:
                   uint16_t, float, CanvasTextAlignment) override {
         calls.push_back(std::string("text:") + text);
     }
-    void reset() { calls.clear(); clipCalls=0; resetCalls=0; clipX=clipY=clipW=clipH=-1; allClipRowsOne=true; lineColors.clear(); fillRectCalls.clear(); circleFillRadii.clear(); circleFillColors.clear(); }
+    void reset() { calls.clear(); clipCalls=0; resetCalls=0; clipX=clipY=clipW=clipH=-1; allClipRowsOne=true; clipHeights.clear(); lineColors.clear(); fillRectCalls.clear(); circleFillRadii.clear(); circleFillColors.clear(); }
 };
 
 static TestCanvas canvas;
@@ -412,6 +414,38 @@ int main() {
     canvas.reset();
     assert(renderWatchFaceDynamic(face,timeInfo,160,weather)==FaceRenderStatus::Ok);
     assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==72);
+
+    // Regression: a partial Wave redraw caused by an overlapping analog-hand
+    // restoration must not commit the Wave cadence. Otherwise the later
+    // full Wave update in this same dynamic pass is incorrectly skipped.
+    face=baseFace(); face.objectCount=2;
+    face.objects[0]=baseObject(FaceElementType::AnalogClock,"clock-under-wave");
+    face.objects[0].transform.x=0; face.objects[0].transform.y=0;
+    face.objects[0].transform.width=240; face.objects[0].transform.height=240;
+    face.objects[0].transform.zIndex=0;
+    face.objects[1]=baseObject(FaceElementType::Wave,"wave-over-clock");
+    face.objects[1].transform.x=0; face.objects[1].transform.y=0;
+    face.objects[1].transform.width=240; face.objects[1].transform.height=240;
+    face.objects[1].transform.zIndex=1;
+    face.objects[1].wave={4,4,0.8f,0.75f,0.0f,0x126C,0x3C1E,160,true};
+    timeInfo.tm_sec=0;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+
+    // The analog clock moves at 80 ms and restores only clipped hand rows.
+    // Wave is not due yet, so no complete 240px Wave redraw should occur.
+    canvas.reset();
+    assert(renderWatchFaceDynamic(face,timeInfo,80,weather)==FaceRenderStatus::Ok);
+    assert(!canvas.clipHeights.empty());
+    assert(std::find(canvas.clipHeights.begin(),canvas.clipHeights.end(),240)==canvas.clipHeights.end());
+
+    // At 160 ms, the analog-hand restoration again draws only partial Wave
+    // rows. The Wave's own pass must still see its original timestamp and
+    // perform one complete redraw of its full bounds.
+    canvas.reset();
+    assert(renderWatchFaceDynamic(face,timeInfo,160,weather)==FaceRenderStatus::Ok);
+    assert(std::find(canvas.clipHeights.begin(),canvas.clipHeights.end(),240)!=canvas.clipHeights.end());
+    timeInfo.tm_sec=9;
 
     // A higher-z image overlapping the wave freezes the wave at phase zero.
     // The static wave remains below the image, so transparent image pixels can reveal it.
