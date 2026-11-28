@@ -2529,7 +2529,10 @@ const SPECS=[
 {id:'tall-vertical',category:'digital',name:'Tall Vertical Split (:MM)',bg:'#120714',accent:'#f9a8d4',secondary:'#fda4af',style:'tall'},
 {id:'thin-outline',category:'digital',name:'Thin Outline Wide (09 07)',bg:'#070a08',accent:'#a3e635',secondary:'#bef264',style:'outline'},
 {id:'angled-tech',category:'digital',name:'Angled Tech Strip',bg:'#07080c',accent:'#38bdf8',secondary:'#f43f5e',style:'angled'},
-{id:'m13',category:'digital',name:'Clean Large Digital',bg:'#050608',accent:'#38bdf8',secondary:'#94a3b8',style:'clean-digital'}
+{id:'m13',category:'digital',name:'Clean Large Digital',bg:'#050608',accent:'#38bdf8',secondary:'#94a3b8',style:'clean-digital'},
+{id:'m01',category:'digital',name:'Digital Bold Slim',bg:'#060709',accent:'#a3e635',secondary:'#cbd5e1',style:'m01-native'},
+{id:'m10',category:'digital',name:'Minute Track & Pill',bg:'#050608',accent:'#93a5f8',secondary:'#cbd5e1',style:'m10-native'},
+{id:'m16',category:'digital',name:'Crimson Night Digital',bg:'#050608',accent:'#ef4444',secondary:'#f8fafc',style:'m16-native'}
 ,{id:'ref-classic-12',category:'analog',name:'Classic Baton 12',description:'Fine chapter ring · Warm hour batons · 12 marker',bg:'#060709',accent:'#d9a452',secondary:'#e2e8f0',style:'reference-classic-12'},
 {id:'ref-chronometer-gmt',category:'analog',name:'Chronometer Ring GMT',description:'Metallic bezel · Minute track · Arrowhead indices',bg:'#07080a',accent:'#cbd5e1',secondary:'#d4af6a',style:'reference-chronometer-gmt'},
 {id:'ref-split-dual-digit',category:'digital',name:'Split Dual Digital',description:'Bold hours · Light minutes · Bottom readouts',bg:'#04141c',accent:'#f8fafc',secondary:'#cbd5e1',style:'reference-split-dual-digit'},
@@ -2622,7 +2625,15 @@ function renderArtworkCanvas(spec,options={}){
 
  }else if(style==='outline'){
   ring(220,'rgba(163,230,53,.22)',2);
- }else if(style==='angled'){
+ }else if(style==='m01-native'){
+  ring(218,'rgba(163,230,53,.24)',2);line(44,352,436,352,'rgba(163,230,53,.24)',2);
+ }else if(style==='m10-native'){
+  for(let i=0;i<60;i++){const a=(i*6-90)*Math.PI/180,major=i%5===0;line(240+Math.cos(a)*218,240+Math.sin(a)*218,240+Math.cos(a)*(major?196:205),240+Math.sin(a)*(major?196:205),major?'#cbd5e1':'#64748b',major?3:2)}
+  for(let m=5;m<=60;m+=5){const a=(m*6-90)*Math.PI/180;txt(String(m),240+Math.cos(a)*176,240+Math.sin(a)*176,17,m%15===0?'#93a5f8':'#e2e8f0',600)}
+  c.fillStyle='#93a5f8';c.beginPath();c.roundRect(206,80,68,38,19);c.fill();
+ }else if(style==='m16-native'){
+  ring(216,'rgba(239,68,68,.22)',2);line(80,240,400,240,'rgba(148,163,184,.12)',1);
+ }else if(style==='angled'{
   line(64,420,64,56,'rgba(248,250,252,.35)',3);line(64,56,445,275,'rgba(248,250,252,.35)',3);line(118,126,450,315,'rgba(248,250,252,.35)',3);
   c.save();c.translate(286,236);c.rotate(29*Math.PI/180);c.fillStyle='rgba(15,23,42,.82)';c.fillRect(-126,-24,252,48);c.strokeStyle='rgba(248,250,252,.45)';c.lineWidth=2;c.strokeRect(-126,-24,252,48);
   const days=['M','T','W','T','F','S','S'];days.forEach((day,index)=>{c.font='700 22px Arial';c.textAlign='center';c.textBaseline='middle';c.fillStyle=index===4?'#38bdf8':'#f1f5f9';c.fillText(day,-96+index*32,0)});c.restore();
@@ -2645,7 +2656,13 @@ function renderThumbnail(spec,options={}){
  
 
 
- if(spec.style==='clean-digital'){
+ if(spec.style==='m01-native'){
+  text('NOV 28 · 2026',240,118,24,'#cbd5e1',600);text('09',142,250,116,'#a3e635',300);text('42',338,250,116,'#a3e635',300);text('SAT · :15',240,374,23,'#a3e635',600);
+ }else if(spec.style==='m10-native'){
+  text('28',240,116,25,'#090d16',700);text('SAT',240,160,25,'#f8fafc',600);text('09:42',240,250,92,'#f8fafc',400);text('NOV 2026 · :15',240,340,20,'#94a3b8',600);
+ }else if(spec.style==='m16-native'){
+  text('09:42',240,110,62,'#ef4444',700);text('28 NOV',240,166,30,'#ef4444',700);
+ }else if(spec.style==='clean-digital'){
   text('SAT 28 NOV',240,138,24,'#94a3b8',600);
   text('09:42',240,242,108,'#f8fafc',400);
   text('2026 | :15',240,336,24,'#38bdf8',600);
@@ -2680,6 +2697,7 @@ function renderLivePreview(spec,targetCanvas,now=new Date(),options={}){
  ctx.clearRect(0,0,targetCanvas.width,targetCanvas.height);
  ctx.drawImage(cached.base,0,0,targetCanvas.width,targetCanvas.height);
  const stamp=now instanceof Date&&Number.isFinite(now.getTime())?now:new Date();
+ const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
  const seconds=stamp.getSeconds()+stamp.getMilliseconds()/1000;
  const minutes=stamp.getMinutes()+seconds/60;
  const hours24=stamp.getHours(),hours12=hours24%12||12;
@@ -2699,7 +2717,18 @@ function renderLivePreview(spec,targetCanvas,now=new Date(),options={}){
   ctx.lineTo(length,0);ctx.lineTo(length*.78,width*.65);ctx.lineTo(-tail,width*.45);
   ctx.closePath();ctx.fill();ctx.restore();
  };
- if(spec.style==='reference-split-dual-digit'){
+ if(spec.style==='m01-native'){
+  text(months[stamp.getMonth()]+' '+String(stamp.getDate()).padStart(2,'0')+' · '+stamp.getFullYear(),240,118,24,'#cbd5e1',600);
+  text(String(stamp.getHours()).padStart(2,'0'),142,250,116,'#a3e635',300);text(String(stamp.getMinutes()).padStart(2,'0'),338,250,116,'#a3e635',300);
+  text(['SUN','MON','TUE','WED','THU','FRI','SAT'][stamp.getDay()]+' · :'+String(stamp.getSeconds()).padStart(2,'0'),240,374,23,'#a3e635',600);
+ }else if(spec.style==='m10-native'){
+  text(String(stamp.getDate()).padStart(2,'0'),240,116,25,'#090d16',700);text(['SUN','MON','TUE','WED','THU','FRI','SAT'][stamp.getDay()],240,160,25,'#f8fafc',600);
+  text(String(stamp.getHours()).padStart(2,'0')+':'+String(stamp.getMinutes()).padStart(2,'0'),240,250,92,'#f8fafc',400);
+  text(months[stamp.getMonth()]+' '+stamp.getFullYear()+' · :'+String(stamp.getSeconds()).padStart(2,'0'),240,340,20,'#94a3b8',600);
+ }else if(spec.style==='m16-native'){
+  text(String(stamp.getHours()).padStart(2,'0')+':'+String(stamp.getMinutes()).padStart(2,'0'),240,110,62,'#ef4444',700);
+  text(String(stamp.getDate()).padStart(2,'0')+' '+months[stamp.getMonth()],240,166,30,'#ef4444',700);
+ }else if(spec.style==='reference-split-dual-digit'){
   text(String(hours12).padStart(2,'0'),222,150,126,'#f8fafc',400);
   text(hours24>=12?'PM':'AM',320,174,25,'#f8fafc',600);
   ctx.font='400 116px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
@@ -2762,7 +2791,22 @@ function createObjects(spec,assetId){
  if(String(spec.style||'').startsWith('reference-'))return createReferenceObjects(spec,assetId);
  const objects=[{id:'preset_bg_'+spec.id,type:'image',name:'Preset artwork',assetId,visible:true,locked:true,transform:{x:0,y:0,width:240,height:240,anchor:'top-left',rotation:0,opacity:1,zIndex:0}}];
  const add=(type,name,x,y,w,h,extra,z)=>{const object={id:'preset_'+spec.id+'_'+z,type,name,visible:true,locked:false,transform:{x,y,width:w,height:h,anchor:'top-left',rotation:0,opacity:1,zIndex:z},...extra};objects.push(object);return object};
- if(spec.style==='clean-digital'){
+ if(spec.style==='m01-native'){
+  add('date','Date',28,48,184,18,{dataBinding:{source:'date',format:'ddd DD MMM YYYY'},textStyle:{fontSize:12,fontWeight:600,fill:'#cbd5e1',fontFamily:'system-ui',textAlign:'center'}},1);
+  add('digital-clock','Hours',24,91,92,72,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH'},textStyle:{fontSize:48,fontWeight:400,fill:'#a3e635',fontFamily:'system-ui',textAlign:'center'}},2);
+  add('digital-clock','Minutes',124,91,92,72,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'mm'},textStyle:{fontSize:48,fontWeight:400,fill:'#a3e635',fontFamily:'system-ui',textAlign:'center'}},3);
+  add('digital-clock','Seconds',72,174,96,20,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:12,fontWeight:600,fill:'#a3e635',fontFamily:'system-ui',textAlign:'center'}},4);
+ }else if(spec.style==='m10-native'){
+  add('date','Day of month',102,38,36,20,{dataBinding:{source:'date',format:'DD'},textStyle:{fontSize:17,fontWeight:600,fill:'#090d16',fontFamily:'system-ui',textAlign:'center'}},1);
+  add('date','Weekday',82,76,76,20,{dataBinding:{source:'date',format:'ddd'},textStyle:{fontSize:13,fontWeight:600,fill:'#f8fafc',fontFamily:'system-ui',textAlign:'center'}},2);
+  add('digital-clock','Time',22,99,196,58,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:43,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui',textAlign:'center'}},3);
+  add('date','Month and year',46,164,148,20,{dataBinding:{source:'date',format:'MMM YYYY'},textStyle:{fontSize:11,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui',textAlign:'center'}},4);
+  add('digital-clock','Seconds',94,185,52,16,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:10,fontWeight:600,fill:'#93a5f8',fontFamily:'system-ui',textAlign:'center'}},5);
+ }else if(spec.style==='m16-native'){
+  add('digital-clock','Digital time',48,30,144,34,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:27,fontWeight:600,fill:'#ef4444',fontFamily:'system-ui',textAlign:'center'}},1);
+  add('date','Date',76,58,88,22,{dataBinding:{source:'date',format:'DD MMM'},textStyle:{fontSize:14,fontWeight:600,fill:'#ef4444',fontFamily:'system-ui',textAlign:'center'}},2);
+  add('analog-clock','Live analog hands',24,78,192,140,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui'},handConfig:{hour:{length:54,width:4,tail:10,color:'#e2e8f0'},minute:{length:78,width:3,tail:12,color:'#f8fafc'},second:{length:0,width:0,tail:0,color:'#ef4444'},centerColor:'#1e293b',centerRadius:3,showOuterRing:false,showHourTicks:false}},3);
+ }else if(spec.style==='clean-digital'){
   add('date','Weekday and date',30,58,180,20,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{fontSize:12,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui',textAlign:'center'}},1);
   add('digital-clock','Time',18,91,204,64,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:54,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui',textAlign:'center'}},2);
   add('date','Year',70,158,42,16,{dataBinding:{source:'date',format:'YYYY'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},3);
