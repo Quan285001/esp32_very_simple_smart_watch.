@@ -2646,11 +2646,11 @@ function renderThumbnail(spec,options={}){
 
 
  if(spec.style==='clean-digital'){
-  add('date','Weekday and date',30,58,180,20,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:textStyle(12,600,'#94a3b8')},1);
-  digital('Time',18,91,204,64,'HH:mm',54,'#f8fafc',2,'24h',400);
-  add('date','Year',70,158,42,16,{dataBinding:{source:'date',format:'YYYY'},textStyle:textStyle(11,600,spec.accent)},3);
-  staticText('Date separator','|',112,158,14,16,11,spec.accent,4,600);
-  digital('Seconds',126,158,44,16,'ss',11,spec.accent,5,'24h',600);
+  add('date','Weekday and date',30,58,180,20,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{fontSize:12,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui',textAlign:'center'}},1);
+  add('digital-clock','Time',18,91,204,64,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:54,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui',textAlign:'center'}},2);
+  add('date','Year',70,158,42,16,{dataBinding:{source:'date',format:'YYYY'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},3);
+  add('text','Date separator',112,158,14,16,{text:'|',textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},4);
+  add('digital-clock','Seconds',126,158,44,16,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},5);
  }else if(spec.category==='analog'){
   const colors=spec.style==='gold'?['#e5b869','#e5b869','#f3d193']:spec.style==='tactical'?['#ffffff','#ffffff','#dc2626']:['#f8fafc','#f8fafc','#ef4444'];
   const angles=[-Math.PI/2-0.42,-Math.PI/2+0.9,-Math.PI/2+1.65],lengths=[116,151,166],widths=[9,6,3];
