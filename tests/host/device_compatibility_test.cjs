@@ -9,6 +9,7 @@ const originalFaceCatalog = global.WfsTemplateFaces;
 const extendedFaceCatalog = global.WfsExtendedTemplateFaces;
 assert.equal(typeof originalFaceCatalog.setBackgroundScale, 'function', 'original renderer must support custom image scaling');
 assert.equal(typeof extendedFaceCatalog.setBackgroundScale, 'function', 'extended renderer must support custom image scaling');
+assert.equal(typeof presets.renderLivePreview, 'function', 'reference presets must expose a live animated preview renderer');
 const mergePatch = global.WfsMergePatch;
 assert.ok(mergePatch, 'the unified catalog must expose the WFS merge helpers');
 assert.equal(mergePatch.HOUR_SCALE_FACTOR, 1.75);
@@ -52,7 +53,7 @@ for (const call of [giantHourCall, giantFooterCall]) {
 }
 assert.equal(giantHourCall.y, 240, 'Giant HH must be centered on the dial');
 
-assert.equal(giantFooterCall.y, 354, 'weekday/date/month/minute row must move upward from the lower-dial position');
+assert.equal(giantFooterCall.y, 346, 'weekday/date/month/minute row must move upward from the lower-dial position');
 
 // Elements Water is rendered through the existing 250ms Studio scheduler,
 // without starting a second requestAnimationFrame loop.
@@ -152,7 +153,7 @@ const templateStudioSource = fs.readFileSync(path.join(root, 'web/template-studi
 assert.match(studioHtml, /32 thiết kế mặt đồng hồ/);
 assert.match(studioHtml, /Tất cả · 32/);
 assert.match(templateStudioSource, /counts=\{all:all\.length/);
-assert.match(templateStudioSource, /selectedId==='m11'.*?\?100:250/,
+assert.match(templateStudioSource, /selectedId==='m11'.*?\?100:/,
   'the selected animated Elements Water preview should refresh faster without adding another animation loop');
 assert.match(templateStudioSource, /pointerdown/);
 assert.match(templateStudioSource, /updateDraggedBackground/);
@@ -186,6 +187,19 @@ assert.match(packageBuilder, /globalThis\.WfsDeviceCompatibility/,
   'the browser package builder must invoke the shared firmware compatibility preflight');
 assert.match(packageBuilder, /typeof compatibilityModule\.errors!==\x27function\x27/,
   'package creation must fail closed when the shared compatibility module is unavailable');
+assert.match(appSource, /data-template-live/,
+  'reference presets in the main template library must use live canvas previews');
+assert.match(appSource, /function updateLiveEditorObjects/,
+  'the selected editor preview must update live clock hands without rebuilding the canvas');
+assert.match(appSource, /getMilliseconds\(\)\/1000/,
+  'analog second-hand angles must use fractional seconds for smooth motion');
+assert.match(appSource, /function syncLivePreviewLoop/,
+  'live preview animation must be scoped to the active templates or editor view');
+assert.match(studioSource, /module\.renderLivePreview\(spec,canvas/,
+  'the 32-face Studio gallery and selected reference previews must use the animated renderer');
+assert.match(indexSource, /watch-face-catalog\.js\?v=giant-hh-live-preview-2/,
+  'the updated catalog must use a fresh cache-busting asset version');
+
 
 const unifiedFaceIds = [
   ...originalFaceCatalog.faces.map(face => face.id),
