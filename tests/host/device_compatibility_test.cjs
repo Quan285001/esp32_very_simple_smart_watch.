@@ -25,11 +25,12 @@ const secondsContext = {
   stroke(){},fill(){},fillText(...args){secondsDrawCalls.push(['text',...args])}
 };
 const syncedSeconds = mergePatch.drawSyncedGiantHhSeconds(secondsContext, {
-  cx: 240, cy: 240, dotRadius: 222, secOrbitRadius: 148, secondValue: 15
+  cx: 240, cy: 240, dotRadius: 222, secOrbitRadius: 190, secondValue: 15
 });
 assert.equal(syncedSeconds.seconds, 15);
-assert.deepEqual(syncedSeconds.label240, { x: 182, y: 108, width: 24, height: 24 });
-assert.deepEqual(secondsDrawCalls.find(call => call[0] === 'text'), ['text','15',388,240]);
+assert.deepEqual(syncedSeconds.label240, { x: 203, y: 108, width: 24, height: 24 });
+assert.deepEqual(secondsDrawCalls.find(call => call[0] === 'text'), ['text','15',430,240]);
+assert.equal(222 - 190, 32, 'seconds label center should sit closer to the white dot');
 
 const m20TextCalls = [];
 const m20Context = new Proxy({
@@ -51,7 +52,7 @@ for (const call of [giantHourCall, giantFooterCall]) {
 }
 assert.equal(giantHourCall.y, 240, 'Giant HH must be centered on the dial');
 
-assert.equal(giantFooterCall.y, 388, 'date and minute footer must retain its lower-dial position');
+assert.equal(giantFooterCall.y, 354, 'weekday/date/month/minute row must move upward from the lower-dial position');
 
 // Elements Water is rendered through the existing 250ms Studio scheduler,
 // without starting a second requestAnimationFrame loop.
