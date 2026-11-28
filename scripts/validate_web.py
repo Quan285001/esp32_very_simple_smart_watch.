@@ -44,12 +44,12 @@ renderer_ids = re.findall(r"id: '([^']+)',\s*category:", original_renderer_js)
 preset_ids = re.findall(r"\{id:'([^']+)',category:", preset_js)
 if len(renderer_ids) != 8 or len(set(renderer_ids)) != 8:
     errors.append("Template renderer must define exactly eight unique watch faces")
-if set(renderer_ids) != set(preset_ids[:8]) or len(preset_ids) != 16:
+if set(renderer_ids) != set(preset_ids[:8]) or len(preset_ids) != 32:
     errors.append("The original eight Template renderers must remain aligned with the WFS preset catalog")
 reference_preset_ids = [preset_id for preset_id in preset_ids if preset_id.startswith('ref-')]
 if set(reference_preset_ids) != {"ref-classic-12", "ref-chronometer-gmt", "ref-split-dual-digit", "ref-minimal-arc"} or len(reference_preset_ids) != 4:
     errors.append("The four reference-aligned WFS presets must be registered exactly once")
-for extended_id in ("m01", "m10", "m13", "m16"):
+for extended_id in (f"m{i:02d}" for i in range(1, 21)):
     if preset_ids.count(extended_id) != 1:
         errors.append(f"The {extended_id} extended template must have exactly one WFS1 adapter")
 extended_ids = re.findall(r"id: '([^']+)',\s*category:", extended_renderer_js)
