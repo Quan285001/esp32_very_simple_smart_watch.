@@ -440,8 +440,8 @@ int main() {
     };
     assert(hasFullWaveRegion()); // scheduled full wave redraw at 160 ms
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,200,weather)==FaceRenderStatus::Ok);
-    assert(!hasFullWaveRegion()); // only 40 ms since the last full wave redraw
+    assert(renderWatchFaceDynamic(face,timeInfo,280,weather)==FaceRenderStatus::Ok);
+    assert(!hasFullWaveRegion()); // 120 ms since the last full wave redraw
     canvas.reset();
     assert(renderWatchFaceDynamic(face,timeInfo,320,weather)==FaceRenderStatus::Ok);
     assert(hasFullWaveRegion()); // incidental hand-tile composition did not reset cadence
