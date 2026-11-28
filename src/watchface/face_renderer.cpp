@@ -194,9 +194,18 @@ struct AnalogHandCacheEntry {
 AnalogHandCacheEntry analogHandCache[FACE_MAX_OBJECTS] = {};
 AnalogHandDebugSnapshot analogHandDebugSnapshot = {};
 
+// Independent low-frequency animation cadence for parametric wave objects.
+struct WaveRenderCacheEntry {
+    char objectId[FACE_ID_CAPACITY];
+    uint32_t lastFrameMs;
+    bool valid;
+};
+WaveRenderCacheEntry waveRenderCache[FACE_MAX_OBJECTS] = {};
+
 void invalidateDynamicTextCache() {
     memset(dynamicTextCache, 0, sizeof(dynamicTextCache));
     memset(analogHandCache, 0, sizeof(analogHandCache));
+    memset(waveRenderCache, 0, sizeof(waveRenderCache));
 }
 
 bool calculateAnalogHandEndpoints(const FaceObject& object, const struct tm& timeInfo,
