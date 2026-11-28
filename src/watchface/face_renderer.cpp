@@ -729,6 +729,16 @@ bool waveFrameDue(const FaceModel& face, uint8_t index, const FaceObject& object
     return static_cast<uint32_t>(watchFaceFrameMs(timeInfo, millisValue) - cache.lastFrameMs) >= object.wave.updateMs;
 }
 
+void commitWaveFrame(uint8_t objectIndex, const FaceObject& object,
+                    const struct tm& timeInfo, int millisValue) {
+    if (objectIndex >= FACE_MAX_OBJECTS) return;
+    WaveRenderCacheEntry& cache = waveRenderCache[objectIndex];
+    strncpy(cache.objectId, object.id, sizeof(cache.objectId) - 1);
+    cache.objectId[sizeof(cache.objectId) - 1] = '\0';
+    cache.lastFrameMs = watchFaceFrameMs(timeInfo, millisValue);
+    cache.valid = true;
+}
+
 void drawWave(const FaceModel& face, const FaceObject& object, const struct tm& timeInfo, int millisValue) {
     DisplayCanvas& canvas = getDisplayCanvas();
     const int x = static_cast<int>(lroundf(object.transform.x));
@@ -769,16 +779,6 @@ void drawWave(const FaceModel& face, const FaceObject& object, const struct tm& 
             previousX = currentX;
             previousY = currentY;
         }
-    }
-    // Save the frame timestamp for the next dynamic refresh decision.
-    for (uint8_t i = 0; i < face.objectCount; ++i) {
-        if (&face.objects[i] != &object) continue;
-        WaveRenderCacheEntry& cache = waveRenderCache[i];
-        strncpy(cache.objectId, object.id, sizeof(cache.objectId) - 1);
-        cache.objectId[sizeof(cache.objectId) - 1] = 0;
-        cache.lastFrameMs = watchFaceFrameMs(timeInfo, millisValue);
-        cache.valid = true;
-        break;
     }
 }
 void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int millisValue) {
@@ -938,6 +938,10 @@ FaceRenderStatus renderWatchFace(const FaceModel& face, const struct tm& timeInf
                 memcpy(entry.endpointY, endpointY, sizeof(endpointY));
                 entry.valid = true;
             }
+        } else if (object.visible && object.type == FaceElementType::Wave) {
+            // A full-scene render establishes the cadence baseline. Partial
+            // redraws (for example, an analog-hand tile) must not update it.
+            commitWaveFrame(order[i], object, timeInfo, millisValue);
         } else if (object.visible &&
                    (object.type == FaceElementType::DigitalClock ||
                     object.type == FaceElementType::Date ||
@@ -1026,6 +1030,11 @@ FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& 
         }
 
         commitDynamicTextCache(order[i], dynamicObject, timeInfo, weather);
+        if (dynamicObject.type == FaceElementType::Wave) {
+            // Commit only after the complete Wave bounds were redrawn
+            // successfully, never from drawWave() during clipped composition.
+            commitWaveFrame(order[i], dynamicObject, timeInfo, millisValue);
+        }
     }
     return FaceRenderStatus::Ok;
 }
