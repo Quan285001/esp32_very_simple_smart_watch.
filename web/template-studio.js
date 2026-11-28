@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s);
 const presetPreviewImages=new Map();
 const faces=()=>{
  const original=(window.WfsTemplateFaces?.faces||[]).map(face=>({...face,uploadSupported:true}));
- const extended=(window.WfsExtendedTemplateFaces?.faces||[]).map(face=>({...face,uploadSupported:false}));
+ const extended=(window.WfsExtendedTemplateFaces?.faces||[]).map(face=>({...face,uploadSupported:!!presets()?.SPECS?.some(spec=>spec.id===face.id)}));
  const references=(window.WfsWatchFacePresets?.SPECS||[]).filter(spec=>spec.id.startsWith('ref-')).map(spec=>({
   id:spec.id,category:spec.category,title:spec.name,subtitle:spec.description||'Reference-aligned design',
   defaultBg:spec.bg,uploadSupported:true
