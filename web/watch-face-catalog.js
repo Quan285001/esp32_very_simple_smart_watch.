@@ -2361,7 +2361,7 @@
 
     // Seconds label follows the same angular position as the white dot.
     WfsMergePatch.drawSyncedGiantHhSeconds(ctx, {
-      cx: CX, cy: CY, dotRadius: R - 18, secOrbitRadius: 148, secondValue: t.secFloat
+      cx: CX, cy: CY, dotRadius: R - 18, secOrbitRadius: 190, secondValue: t.secFloat
     });
 
     ctx.save();
@@ -2375,7 +2375,7 @@
     // Keep the live date and minute readout on one centered footer line.
     ctx.fillStyle = '#94a3b8';
     ctx.font = '600 18px "JetBrains Mono", monospace';
-    ctx.fillText(`${t.weekdayShort.toUpperCase()} ${t.day} ${t.monthShort.toUpperCase()} · :${t.mm}`, CX, 388);
+    ctx.fillText(`${t.weekdayShort.toUpperCase()} ${t.day} ${t.monthShort.toUpperCase()} · :${t.mm}`, CX, 354);
     ctx.restore();
   }
 
