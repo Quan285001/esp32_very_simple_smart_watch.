@@ -1,95 +1,88 @@
 # Firmware Rebuild Plan — Frontend-First
 
 **Working branch:** `rebuild/firmware-from-wfs`  
-**Baseline commit:** `f5531ca7b3a8e740749845d959921504450a2181`  
-**Target:** ESP32-C3 DevKitM-1 + GC9A01 240x240, Arduino / PlatformIO  
-**Frontend policy:** frozen; no changes to `index.html` or `web/**` during firmware rebuild unless the owner explicitly approves a contract correction.
+**Baseline:** `f5531ca7b3a8e740749845d959921504450a2181`  
+**Target:** ESP32-C3 DevKitM-1 + GC9A01 240×240, Arduino / PlatformIO  
+**Frontend policy:** frozen; no changes to `index.html` or `web/**` unless the owner explicitly approves a contract correction.
 
-## 1. User-approved retention scope
+## 1. Revised implementation decision
+
+The source audit shows that this baseline already contains a substantial, integrated WFS v1 implementation: bounded `FaceModel`, JSON parser, renderer, WFS1 package validator, RGB565 image path, two-slot storage, BLE session/transfer state machine, and host regression tests. Therefore, a destructive clean-slate rewrite would duplicate working code and create unnecessary regression risk.
+
+The correct frontend-first rebuild strategy is to **reuse and verify the existing implementation, then change only proven contract defects**. Do not delete the current WFS engine or retained UI merely to make the branch look like a rewrite. This decision supersedes the initial assumption that all of `src/communication/**` and `src/watchface/**` must be replaced.
+
+## 2. User-approved retention scope
 
 Keep unchanged:
 - `index.html` and all `web/**` frontend files.
 - Existing menu UI: `src/face/face_menu.cpp`.
-- Existing weather UI and weather functionality: `src/face/face_weather.cpp`, `src/services/weather_service.*`, `src/services/weather_coordinator.*`, and the time/Wi-Fi dependencies required by those services.
+- Existing weather UI/services: `src/face/face_weather.cpp`, `src/services/weather_service.*`, `src/services/weather_coordinator.*`, plus required time/Wi-Fi dependencies.
 - Boot terminal UI: `src/boot_terminal.cpp`.
+- GC9A01/TFT_eSPI physical display configuration and one TFT instance.
 
-Preserve platform-critical configuration and dependencies where needed:
-- `platformio.ini`, `src/config.h`, pin/driver configuration, `scripts/patch_tft_c3.py`.
-- Existing TFT_eSPI dependency and one physical TFT instance.
-- Button input and app state required by the retained menu.
-- Existing boot/service behavior required to start retained weather and menu screens.
+Preserve required application state, button input, boot lifecycle, diagnostics and power management. Bluetooth must remain off/uninitialized after the boot terminal completes and start only when explicitly enabled from the menu. Do not change the menu redraw cadence.
 
-The user asked to remove the remaining firmware implementation and rebuild it. Removal is staged: no existing firmware file is deleted until its retained dependants have been mapped and the replacement compiles. The original baseline remains recoverable through Git history and the untouched development branch.
+## 3. Canonical firmware input contract
 
-## 2. Frontend contract is authoritative
+The firmware accepts only declarative WFS1 packages. JavaScript, C++, bytecode and other executable user content are never accepted.
 
-Canonical inputs to the new firmware:
+Canonical sources:
 - `shared/schemas/watch-face.schema.json`
 - `shared/capabilities/esp32-c3-gc9a01-240.json`
-- `shared/schemas/device-profile.schema.json`
 - `docs/package/wface-v1.md`
-- Actual serialization and package-building behavior in `web/app.js`
-- Device compatibility mapping in `web/device-compatibility.js`
+- `web/app.js` package builder
+- `web/device-compatibility.js` device preflight
+- Firmware parser, validator and capability response.
 
-The firmware consumes declarative WFS1 packages only. No JavaScript, C++, bytecode, or executable user-supplied content is accepted as a watch-face definition.
+The device runtime supports at most 16 objects and 16 assets, with 240×240 RGB565 bitmap bounds and a 115,200-byte maximum full-frame asset. The schema's 128-object ceiling is an editor/schema ceiling, not the device runtime limit.
 
-## 3. Target firmware boundaries
+## 4. Implementation already present at the baseline
 
-1. **Platform / Display HAL** — board, GC9A01, TFT_eSPI ownership, bounded drawing API, input.
-2. **Retained device UI and services** — menu, boot terminal, weather, time and Wi-Fi.
-3. **WFS transport** — GATT lifecycle, protocol framing, session, chunk ACK/retry, Verify and Apply.
-4. **Package and storage** — WFS1 parser, integrity checks, staging, two-slot commit and rollback.
-5. **Design model** — bounded representation matching the schema and device profile.
-6. **Rendering** — deterministic z-order, clipping, element renderers, dynamic invalidation and resource limits.
-7. **Runtime orchestration** — startup, screen ownership, scheduling and power policy.
+- `src/watchface/face_model.*`: fixed-capacity design and asset model.
+- `src/watchface/face_parser.*`: bounded JSON parsing and element/property rejection.
+- `src/watchface/face_renderer.*`: z-order rendering, dynamic invalidation and element renderers including parametric Wave.
+- `src/watchface/package_validator.*`: WFS1 header, CRC32, SHA-256, manifest/layout/assets and capability validation.
+- `src/communication/protocol.*`: framed protocol and CRC16.
+- `src/communication/ble_manager.*`, `transfer_manager.*`: BLE queueing, sessions, stop-and-wait chunks, Verify and Apply.
+- `src/storage/face_storage.*`: inactive-slot staging and NVS active-slot commit/rollback.
+- Host parser, renderer, protocol, transfer, display-canvas and Web contract tests.
 
-Each boundary must have explicit ownership; BLE callbacks must not parse full packages, perform flash writes, or draw to the display.
+The implementation review and test record are in `docs/architecture/firmware-rebuild-execution-review.md`.
 
-## 4. Initial source inventory
+## 5. Transfer success definition
 
-The current tree contains 165 tracked files, including 67 files under `src/` and 9 frontend entry/style/script files. The 67 firmware source files are inventoried in the initial Git tree at the baseline commit.
+A 100% byte counter means only that all package bytes have been acknowledged. Installation is successful only after:
+1. TRANSFER_BEGIN reservation succeeds;
+2. all DATA chunks are acknowledged with the expected cumulative byte count;
+3. TRANSFER_END / Verify returns `ok: true`;
+4. explicit APPLY returns `ok: true` (or a lost Apply ACK is reconciled by confirmed active-face status).
 
-### Retain as-is initially
-- `src/face/face_menu.cpp`
-- `src/face/face_weather.cpp`
-- `src/boot_terminal.cpp`
-- `src/services/weather_service.cpp`, `weather_service.h`
-- `src/services/weather_coordinator.cpp`, `weather_coordinator.h`
-- The minimum time/Wi-Fi/app-state/input/display dependencies required by the above.
-- Board configuration and build scripts.
+The Web error message and device serial log must be used to distinguish Verify from Apply failures. Do not infer a cause from the progress reaching 100%.
 
-### Rebuild or replace after dependency mapping
-- `src/communication/**` WFS transport implementation.
-- `src/watchface/**` parser/model/renderer/manager/package validation.
-- `src/storage/face_storage.*` and storage policy where package transaction semantics require it.
-- App/runtime glue that currently couples retained UI/services to the old Watch Face stack.
-- Display abstractions only where required to provide a stable rendering backend; do not replace TFT_eSPI without measured evidence.
+## 6. Acceptance gates
 
-### Not automatically deleted
-Tests, shared schemas, capability profiles, documentation, build scripts and frontend validation scripts are not disposable firmware runtime. Keep them as contract/regression assets and update them only when the new implementation is verified against them.
-
-## 5. Contract risks found during initial inspection
-
-- The shared schema permits up to 128 design objects, while the active ESP32-C3 profile declares a runtime limit of 16. The web compatibility preflight must reject designs exceeding the device profile before transfer; firmware must independently enforce the same limit.
-- The device profile declares `wave.parametric`; Web compatibility maps `wave` to that capability. Firmware must advertise and validate the same capability.
-- The profile declares 16 assets and a maximum asset size of 115,200 bytes. Package validation, transfer admission and storage checks must agree with those limits.
-- Browser preview and device rendering are not assumed pixel-identical. Every unsupported property/effect must be rejected or explicitly degraded according to a documented capability rule, never silently ignored.
-- A transfer reaching 100% is not success. Success requires successful package verification, durable slot commit and confirmed activation.
-
-## 6. Required acceptance gates
-
-- Frontend file hashes remain unchanged throughout firmware-only implementation.
-- Schema/profile/package fixtures are consumed by host tests.
-- Every supported element type has positive, malformed, boundary and unsupported-feature tests.
-- Transfer tests cover disconnect, duplicate/out-of-order chunk, timeout, retry, Verify failure, Apply failure, power loss and rollback.
-- PlatformIO `c3_clock` build succeeds.
-- Host tests and CI succeed.
+- Frontend files remain unchanged.
+- Shared schema, device profile, Web preflight and firmware parser/renderer contract checks pass.
+- Parser tests cover every supported element, including Wave and malformed Wave configuration.
+- Renderer tests cover Wave cadence, clipping, overlap restoration and dynamic invalidation.
+- Host protocol/transfer tests pass.
+- PlatformIO `c3_clock` build passes.
+- GitHub Actions runs on this rebuild branch and passes.
 - Physical ESP32-C3 validation is recorded separately; CI is not hardware validation.
 
-## 7. Immediate next steps
+## 7. Remaining execution sequence
 
-1. Complete the dependency graph for the retained menu/weather/boot files.
-2. Extract exact Web package-builder fields and compare them with the shared schema and device profile.
-3. Define the new firmware interfaces and compile a minimal skeleton while retaining the existing UI/services.
-4. Replace the old WFS implementation in isolated layers, adding tests before integration.
-5. Only then remove superseded firmware files from this rebuild branch.
+1. Complete the exact source-to-wire contract audit and resolve only demonstrated mismatches.
+2. Run the full existing host and PlatformIO acceptance suite on this branch.
+3. Fix any reproducible failures and add focused regression tests.
+4. Produce a firmware artifact from the green workflow.
+5. Keep the branch isolated and open a reviewable PR; do not merge to `main` without explicit instruction.
+6. Perform physical upload, verify/apply, reboot recovery, weather/menu/boot and power regression with the hardware owner.
+
+## 8. Explicit non-goals
+
+- No Web frontend redesign or package format change.
+- No switch from TFT_eSPI without measured evidence.
+- No arbitrary executable face scripts or generated per-face C++.
+- No removal of menu, weather or boot terminal.
+- No claim of physical BLE, display, SPIFFS or power validation from host tests alone.
