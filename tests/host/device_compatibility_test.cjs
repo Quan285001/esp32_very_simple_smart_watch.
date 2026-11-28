@@ -210,7 +210,7 @@ assert.doesNotMatch(indexSource, /(?:template-face-renderers|extended-template-f
 const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
 assert.match(studioSource, /module\.renderLivePreview\(spec,canvas/,
   'the 32-face Studio gallery and selected reference previews must use the animated renderer');
-assert.match(indexSource, /watch-face-catalog\.js\?v=m13-wfs1-adapter-1/,
+assert.match(indexSource, /watch-face-catalog\.js\?v=m16-wfs1-adapters-1/,
   'the updated catalog must use a fresh cache-busting asset version');
 assert.match(studioSource, /filter\(spec=>spec\.id\.startsWith\('ref-'\)\)/,
   'the four reference presets must be included in the visible Template Studio gallery');
@@ -647,7 +647,7 @@ async function testUploadablePresetPackages() {
 }
 
 testUploadablePresetPackages()
-  .then(() => console.log('WFS1 package builder tests passed for all 13 uploadable presets.'))
+  .then(() => console.log('WFS1 package builder tests passed for all 16 uploadable presets.'))
   .catch(error => { console.error(error); process.exitCode = 1; });
 
 console.log('WFS device compatibility preflight tests passed.');
@@ -660,3 +660,10 @@ assert.ok(m13Objects.length <= 16, 'm13 must stay within the firmware object lim
 assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'HH:mm'), 'm13 main time must stay live: ' + JSON.stringify(m13Objects));
 assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'ss'), 'm13 seconds must stay live');
 assert.ok(m13Objects.some(object => object.type === 'date' && object.dataBinding?.format === 'YYYY'), 'm13 year must stay live');
+for (const id of ['m01','m10','m16']) {
+ const spec=presets.SPECS.find(item=>item.id===id);assert.ok(spec,id+' must be registered as a WFS1 preset');
+ const objects=presets.createObjects(spec,id+'_artwork');assert.ok(objects.length<=16,id+' must fit the firmware object limit');
+ assert.ok(objects.some(object=>object.type==='image'),id+' must include generated artwork');
+ assert.ok(objects.some(object=>object.type==='digital-clock'),id+' must keep time live');
+ if(id==='m16')assert.ok(objects.some(object=>object.type==='analog-clock'),'m16 hands must remain live');
+}
