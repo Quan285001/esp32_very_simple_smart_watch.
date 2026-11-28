@@ -31,6 +31,27 @@ assert.equal(syncedSeconds.seconds, 15);
 assert.deepEqual(syncedSeconds.label240, { x: 182, y: 108, width: 24, height: 24 });
 assert.deepEqual(secondsDrawCalls.find(call => call[0] === 'text'), ['text','15',388,240]);
 
+const m20TextCalls = [];
+const m20Context = new Proxy({
+  fillText(text, x, y) { m20TextCalls.push({ text, x, y, align: this.textAlign, baseline: this.textBaseline }); },
+  createRadialGradient() { return { addColorStop() {} }; },
+  createConicGradient() { return { addColorStop() {} }; }
+}, {
+  get(target, key) { return key in target ? target[key] : () => {}; },
+  set(target, key, value) { target[key] = value; return true; }
+});
+extendedFaceCatalog.renderFace('m20', { getContext: () => m20Context }, new Date(2026, 10, 28, 9, 42, 15, 0));
+const giantHourCall = m20TextCalls.find(call => call.text === '09');
+const giantFooterCall = m20TextCalls.find(call => call.text === 'SAT 28 NOV · :42');
+assert.ok(giantHourCall && giantFooterCall, 'Giant HH & Amber Arc must render live hour and date/minute text');
+for (const call of [giantHourCall, giantFooterCall]) {
+  assert.equal(call.x, 240, 'Giant HH and footer must share the dial centerline');
+  assert.equal(call.align, 'center', 'Giant HH and footer must be horizontally centered');
+  assert.equal(call.baseline, 'middle', 'Giant HH and footer must use a vertically centered text baseline');
+}
+assert.equal(giantHourCall.y, 240, 'Giant HH must be centered on the dial');
+assert.equal(giantFooterCall.y, 388, 'date and minute footer must retain its lower-dial position');
+
 
 const root = path.resolve(__dirname, '../..');
 const studioHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -171,7 +192,7 @@ assert.deepEqual([minimalArcClock.transform.x, minimalArcClock.transform.y, mini
 assert.deepEqual(referencePresets.map(template => template.id).sort(), [
   'ref-classic-12', 'ref-chronometer-gmt', 'ref-minimal-arc', 'ref-split-dual-digit'
 ].sort(), 'the four reference-aligned templates must be registered in the shared preset catalog');
-for (const template of referencePresets) {
+for (const template of presets.SPECS) {
   const assetId = 'preset_art_' + template.id;
   const generatedDesign = structuredClone(fixture);
   generatedDesign.name = template.name;
@@ -180,6 +201,13 @@ for (const template of referencePresets) {
     template.name + ': generated WFS v1 preset must pass ESP32-C3 compatibility preflight');
   assert.ok(generatedDesign.objects.length <= profile.nominalLimits.maxObjects,
     template.name + ': generated object count must fit the device profile');
+  const analogClock = generatedDesign.objects.find(object => object.type === 'analog-clock');
+  if (analogClock) {
+    assert.equal(analogClock.handConfig.showOuterRing, false,
+      template.name + ': artwork-backed analog templates must not draw a duplicate firmware outer ring');
+    assert.equal(analogClock.handConfig.showHourTicks, false,
+      template.name + ': artwork-backed analog templates must not draw duplicate firmware hour ticks');
+  }
   for (const object of generatedDesign.objects) {
     assert.equal(object.transform.opacity, 1, template.name + ': object opacity must be fully opaque');
     assert.equal(object.transform.rotation, 0, template.name + ': object rotation must be zero');
