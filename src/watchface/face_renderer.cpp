@@ -680,6 +680,73 @@ void drawShape(const FaceObject& object) {
     }
 }
 
+// -------------------- PARAMETRIC WAVE RENDERER --------------------
+// Convert local time plus sub-second interpolation to a bounded frame clock.
+uint32_t watchFaceFrameMs(const struct tm& timeInfo, int millisValue) {
+    const uint32_t seconds = static_cast<uint32_t>(timeInfo.tm_hour * 3600 + timeInfo.tm_min * 60 + timeInfo.tm_sec);
+    const uint32_t fraction = static_cast<uint32_t>(std::max(0, std::min(999, millisValue)));
+    return seconds * 1000UL + fraction;
+}
+
+bool hasImageLayerAbove(const FaceModel& face, const FaceObject& object) {
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        const FaceObject& candidate = face.objects[i];
+        if (candidate.visible && candidate.type == FaceElementType::Image && candidate.transform.zIndex > object.transform.zIndex) return true;
+    }
+    return false;
+}
+
+bool waveFrameDue(const FaceModel& face, uint8_t index, const FaceObject& object, const struct tm& timeInfo, int millisValue) {
+    if (index >= FACE_MAX_OBJECTS) return false;
+    WaveRenderCacheEntry& cache = waveRenderCache[index];
+    const bool sameObject = cache.valid && strcmp(cache.objectId, object.id) == 0;
+    if (!sameObject) return true;
+    if (!object.wave.animate || hasImageLayerAbove(face, object)) return false;
+    return static_cast<uint32_t>(watchFaceFrameMs(timeInfo, millisValue) - cache.lastFrameMs) >= object.wave.updateMs;
+}
+
+void drawWave(const FaceModel& face, const FaceObject& object, const struct tm& timeInfo, int millisValue) {
+    DisplayCanvas& canvas = getDisplayCanvas();
+    const int x = static_cast<int>(lroundf(object.transform.x));
+    const int y = static_cast<int>(lroundf(object.transform.y));
+    const int width = static_cast<int>(lroundf(object.transform.width));
+    const int height = static_cast<int>(lroundf(object.transform.height));
+    if (width < 8 || height < 8) return;
+    const bool animate = object.wave.animate && !hasImageLayerAbove(face, object);
+    const float elapsed = animate ? watchFaceFrameMs(timeInfo, millisValue) * 0.001f : 0.0f;
+    const float phase = object.wave.phase + elapsed * object.wave.speed;
+    const float amplitude = object.wave.amplitude;
+    for (uint8_t line = 0; line < object.wave.lineCount; ++line) {
+        const float row = static_cast<float>(line);
+        const float baseY = y + (row + 0.5f) * height / object.wave.lineCount;
+        const float bob = (sinf(phase * 1.45f + row * 0.42f) * 7.5f + cosf(phase * 0.85f - row * 0.25f) * 4.0f) * amplitude;
+        int previousX = x;
+        int previousY = static_cast<int>(lroundf(baseY + bob));
+        const uint16_t color = (line % 3U == 0U) ? object.wave.highlightColor : object.wave.color;
+        for (uint8_t segment = 1; segment <= object.wave.segments; ++segment) {
+            const float nx = static_cast<float>(segment) / object.wave.segments;
+            const float w1 = sinf(nx * PI_F * 3.1f + phase * 1.35f + row * 0.32f) * 14.0f;
+            const float w2 = sinf(nx * PI_F * 5.6f - phase * 1.05f + row * 0.58f) * 6.5f;
+            const float w3 = cosf(nx * PI_F * 1.8f + phase * 0.75f - row * 0.19f) * 9.0f;
+            const float curve = sinf(nx * PI_F) * -8.0f;
+            const int currentX = x + static_cast<int>(lroundf(nx * width));
+            const int currentY = static_cast<int>(lroundf(baseY + bob + (w1 + w2 + w3 + curve) * amplitude));
+            canvas.drawLine(previousX, previousY, currentX, currentY, color);
+            previousX = currentX;
+            previousY = currentY;
+        }
+    }
+    // Save the frame timestamp for the next dynamic refresh decision.
+    for (uint8_t i = 0; i < face.objectCount; ++i) {
+        if (&face.objects[i] != &object) continue;
+        WaveRenderCacheEntry& cache = waveRenderCache[i];
+        strncpy(cache.objectId, object.id, sizeof(cache.objectId) - 1);
+        cache.objectId[sizeof(cache.objectId) - 1] = 0;
+        cache.lastFrameMs = watchFaceFrameMs(timeInfo, millisValue);
+        cache.valid = true;
+        break;
+    }
+}
 void drawAnalogClock(const FaceObject& object, const struct tm& timeInfo, int millisValue) {
     const int w = static_cast<int>(lroundf(object.transform.width));
     const int h = static_cast<int>(lroundf(object.transform.height));
