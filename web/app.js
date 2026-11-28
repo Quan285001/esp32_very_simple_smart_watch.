@@ -71,7 +71,7 @@ function setHandOpacityPercent(hand,value){const percent=Number(value),opacity=N
 function normalizeDesignOpacity(design){const normalized=clone(design);const visit=object=>{if(object?.transform&&Object.prototype.hasOwnProperty.call(object.transform,'opacity'))object.transform.opacity=normalizeOpacity(object.transform.opacity);if(object?.handConfig&&typeof object.handConfig==='object'){for(const key of ['hour','minute','second']){const hand=object.handConfig[key];if(!hand)continue;const hasOpacity=Object.prototype.hasOwnProperty.call(hand,'opacity');hand.opacity=hasOpacity?normalizeHandOpacity(hand.opacity):(hand.visible===false?0:1);hand.visible=hand.opacity>0}}if(Array.isArray(object?.children))object.children.forEach(visit)};(normalized.objects||[]).forEach(visit);return normalized}
 function serializeDesign(design){return normalizeDesignOpacity(design)}
 function selectedObject(){return state.design?.objects.find(o=>o.id===state.selected)}
-function objectText(o){const now=new Date(),pad=n=>String(n).padStart(2,'0');if(o.type==='digital-clock'){let hour=now.getHours();if(o.timeFormat==='12h')hour=hour%12||12;const fmt=o.dataBinding?.format||'HH:mm';let value=fmt.replace(/HH/g,pad(hour)).replace(/mm/g,pad(now.getMinutes())).replace(/ss/g,pad(now.getSeconds()));if(o.showSeconds&&!fmt.includes('ss'))value+=':'+pad(now.getSeconds());if(o.timeFormat==='12h')value+=now.getHours()>=12?' PM':' AM';return value}if(o.type==='date'){const weekdays=['SUN','MON','TUE','WED','THU','FRI','SAT'],months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],fmt=o.dataBinding?.format||'ddd, DD MMM';return fmt.replace(/YYYY|ddd|MMM|MM|DD/g,token=>token==='YYYY'?String(now.getFullYear()):token==='ddd'?weekdays[now.getDay()]:token==='MMM'?months[now.getMonth()]:token==='MM'?pad(now.getMonth()+1):pad(now.getDate()))}if(o.type==='weather')return '27 C';if(o.type==='analog-clock')return '◷';if(o.type==='image')return '';if(o.type==='text')return o.text??'';return o.text||o.name}
+function objectText(o,now=new Date()){const pad=n=>String(n).padStart(2,'0');if(o.type==='digital-clock'){let hour=now.getHours();if(o.timeFormat==='12h')hour=hour%12||12;const fmt=o.dataBinding?.format||'HH:mm';let value=fmt.replace(/HH/g,pad(hour)).replace(/mm/g,pad(now.getMinutes())).replace(/ss/g,pad(now.getSeconds()));if(o.showSeconds&&!fmt.includes('ss'))value+=':'+pad(now.getSeconds());if(o.timeFormat==='12h')value+=now.getHours()>=12?' PM':' AM';return value}if(o.type==='date'){const weekdays=['SUN','MON','TUE','WED','THU','FRI','SAT'],months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],fmt=o.dataBinding?.format||'ddd, DD MMM';return fmt.replace(/YYYY|ddd|MMM|MM|DD/g,token=>token==='YYYY'?String(now.getFullYear()):token==='ddd'?weekdays[now.getDay()]:token==='MMM'?months[now.getMonth()]:token==='MM'?pad(now.getMonth()+1):pad(now.getDate()))}if(o.type==='weather')return '27 C';if(o.type==='analog-clock')return '◷';if(o.type==='image')return '';if(o.type==='text')return o.text??'';return o.text||o.name}
 // TFT_eSPI GLCD Font 1 (Adafruit_GFX 5x7), all 256 byte glyphs.
 // Column bytes and 6x8 cells mirror the firmware's TFT_eSprite rasterizer.
 function setDigitalClockPreview(element,text,style,boxSize){
@@ -118,10 +118,10 @@ function renderAnalogClockPreview(element,object,now=new Date()){
  const point=(degrees,r)=>{const angle=degrees*Math.PI/180;return{x:cx+Math.cos(angle)*r,y:cy+Math.sin(angle)*r}};
  if(cfg.showOuterRing!==false)add('circle',{cx,cy,r:radius,fill:'none',stroke:'currentColor','stroke-width':1});
  for(let tick=0;tick<12;tick++){const angle=tick*30-90,outer=point(angle,radius-2),inner=point(angle,radius-(tick%3===0?9:5));add('line',{x1:inner.x,y1:inner.y,x2:outer.x,y2:outer.y,stroke:'currentColor','stroke-width':1})}
- const seconds=now.getSeconds(),minutes=now.getMinutes()+seconds/60,hours=(now.getHours()%12)+minutes/60;
+ const seconds=now.getSeconds()+now.getMilliseconds()/1000,minutes=now.getMinutes()+seconds/60,hours=(now.getHours()%12)+minutes/60;
  const defaults={hour:{length:48,width:5,color:'#f4f0e6',tail:4,visible:true},minute:{length:72,width:3,color:'#f4f0e6',tail:5,visible:true},second:{length:86,width:1.5,color:'#ff0000',tail:18,visible:true}};
  const hands=[{key:'hour',angle:hours*30-90},{key:'minute',angle:minutes*6-90},{key:'second',angle:seconds*6-90}];
- for(const hand of hands){const h={...defaults[hand.key],...(cfg[hand.key]||{})},handOpacity=normalizeHandOpacity(h.opacity);if(h.visible===false||handOpacity<=0)continue;const end=point(hand.angle,radius*Math.max(0,Math.min(100,Number(h.length)||0))/100),back=point(hand.angle+180,radius*Math.max(0,Number(h.tail)||0)/100);add('line',{x1:back.x,y1:back.y,x2:end.x,y2:end.y,stroke:h.color||defaults[hand.key].color,'stroke-width':Math.max(.25,Number(h.width)||1),'stroke-linecap':'round',opacity:handOpacity})}
+ for(const hand of hands){const h={...defaults[hand.key],...(cfg[hand.key]||{})},handOpacity=normalizeHandOpacity(h.opacity);if(h.visible===false||handOpacity<=0)continue;const end=point(hand.angle,radius*Math.max(0,Math.min(100,Number(h.length)||0))/100),back=point(hand.angle+180,radius*Math.max(0,Number(h.tail)||0)/100);add('line',{'data-live-hand':hand.key,x1:back.x,y1:back.y,x2:end.x,y2:end.y,stroke:h.color||defaults[hand.key].color,'stroke-width':Math.max(.25,Number(h.width)||1),'stroke-linecap':'round',opacity:handOpacity})}
  add('circle',{cx,cy,r:Math.max(1,Number(cfg.centerRadius)||3),fill:cfg.centerColor||'currentColor'});
  element.append(svg);
 }
@@ -265,7 +265,10 @@ function renderTemplates(){
   const isPreset=!!t.category&&!!presetModule;
   const b=document.createElement('button');b.className='template-card';b.dataset.category=category;
   const thumb=document.createElement('div');thumb.className='template-thumb';
-  if(isPreset&&typeof presetModule.renderThumbnail==='function'){
+  if(isPreset&&t.id.startsWith('ref-')&&typeof presetModule.renderLivePreview==='function'){
+   const preview=document.createElement('canvas');preview.className='template-thumb-image';preview.width=480;preview.height=480;preview.dataset.templateLive=t.id;
+   presetModule.renderLivePreview(t,preview,new Date());thumb.append(preview);
+  }else if(isPreset&&typeof presetModule.renderThumbnail==='function'){
    let image=templateThumbnailCache.get(t.id);
    if(!image){image=presetModule.renderThumbnail(t);templateThumbnailCache.set(t.id,image)}
    const img=document.createElement('img');img.className='template-thumb-image';img.alt=t.name+' watch face preview';img.src=image;thumb.append(img);
@@ -298,8 +301,69 @@ function renderTemplates(){
  });
 }
 function renderLibrary(){const g=$('#libraryGrid');g.innerHTML='';const list=getDesigns();if(!list.length){g.innerHTML='<div class="empty-state">Your saved designs will appear here.</div>';return}list.forEach(d=>{const card=document.createElement('article');card.className='design-card';const preview=document.createElement('div');preview.className='design-preview';preview.style.background=d.canvas.backgroundColor;preview.textContent=d.objects.find(o=>o.type==='digital-clock')?'10:08':'◷';const title=document.createElement('h3');title.textContent=d.name;const desc=document.createElement('p');desc.textContent=d.objects.length+' layers · '+new Date(d.updatedAt).toLocaleDateString();const row=document.createElement('div');row.className='field-row';const open=document.createElement('button');open.className='btn small';open.textContent='Open';open.onclick=()=>loadDesign(d);const remove=document.createElement('button');remove.className='btn small danger';remove.textContent='Delete';remove.onclick=()=>{localStorage.setItem(STORAGE_KEY,JSON.stringify(getDesigns().filter(x=>x.designId!==d.designId)));renderLibrary()};row.append(open,remove);card.append(preview,title,desc,row);g.append(card)})}
-function showView(view){state.view=view;document.body.dataset.view=view;document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('hidden',el.dataset.view!==view));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));if(view==='library')renderLibrary();if(view==='templates')renderTemplates();if(view==='settings')renderSettings();if(view==='editor')render()}
-function render(){if(!state.design)return;$('#designName').value=state.design.name;renderCanvas();renderObjects();renderInspector();updateProfileButton();$('#modeHint').textContent='Select a layer to adjust its position, size, appearance and behavior.'}
+function showView(view){state.view=view;document.body.dataset.view=view;document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('hidden',el.dataset.view!==view));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));if(view==='library')renderLibrary();if(view==='templates')renderTemplates();if(view==='settings')renderSettings();if(view==='editor')render();syncLivePreviewLoop()}
+function render(){if(!state.design)return;$('#designName').value=state.design.name;renderCanvas();renderObjects();renderInspector();updateProfileButton();$('#modeHint').textContent='Select a layer to adjust its position, size, appearance and behavior.';syncLivePreviewLoop()}
+function updateLiveEditorObjects(now=new Date()){
+ const canvas=$('#watchCanvas');if(!canvas||!state.design)return;
+ const objects=new Map(state.design.objects.map(object=>[object.id,object]));
+ canvas.querySelectorAll('.watch-object[data-id]').forEach(element=>{
+  const object=objects.get(element.dataset.id);if(!object||object.visible===false)return;
+  if(object.type==='digital-clock'||object.type==='date'){
+   const glyph=element.querySelector('span');if(glyph)glyph.textContent=objectText(object,now);
+   return;
+  }
+  if(object.type!=='analog-clock')return;
+  const svg=element.querySelector('svg');if(!svg)return;
+  const width=Math.max(1,roundFirmwarePixel(object.transform?.width??100));
+  const height=Math.max(1,roundFirmwarePixel(object.transform?.height??100));
+  const cx=width/2,cy=height/2,radius=Math.min(width,height)/2-2,cfg=object.handConfig||{};
+  const seconds=now.getSeconds()+now.getMilliseconds()/1000;
+  const minutes=now.getMinutes()+seconds/60;
+  const hours=(now.getHours()%12)+minutes/60;
+  const angles={hour:hours*30-90,minute:minutes*6-90,second:seconds*6-90};
+  const defaults={hour:{length:48,tail:4},minute:{length:72,tail:5},second:{length:86,tail:18}};
+  svg.querySelectorAll('line[data-live-hand]').forEach(line=>{
+   const key=line.getAttribute('data-live-hand'),hand={...defaults[key],...(cfg[key]||{})};
+   if(!Object.prototype.hasOwnProperty.call(angles,key))return;
+   const angle=angles[key]*Math.PI/180;
+   const endRadius=radius*Math.max(0,Math.min(100,Number(hand.length)||0))/100;
+   const tailRadius=radius*Math.max(0,Number(hand.tail)||0)/100;
+   line.setAttribute('x1',String(cx-Math.cos(angle)*tailRadius));
+   line.setAttribute('y1',String(cy-Math.sin(angle)*tailRadius));
+   line.setAttribute('x2',String(cx+Math.cos(angle)*endRadius));
+   line.setAttribute('y2',String(cy+Math.sin(angle)*endRadius));
+  });
+ });
+}
+function renderLiveTemplateCards(now=new Date()){
+ const module=globalThis.WfsWatchFacePresets;if(typeof module?.renderLivePreview!=='function')return;
+ document.querySelectorAll('canvas[data-template-live]').forEach(canvas=>{
+  const spec=module.SPECS.find(item=>item.id===canvas.dataset.templateLive);
+  if(spec)module.renderLivePreview(spec,canvas,now);
+ });
+}
+let livePreviewRaf=null,lastLivePreviewFrame=0;
+function livePreviewIsActive(){
+ if(state.view==='templates')return !!document.querySelector('canvas[data-template-live]');
+ if(state.view==='editor')return !!state.design?.objects?.some(object=>object.visible!==false&&['analog-clock','digital-clock','date'].includes(object.type));
+ return false;
+}
+function runLivePreviewFrame(timestamp){
+ livePreviewRaf=null;
+ if(timestamp-lastLivePreviewFrame>=32){
+  const now=new Date();
+  if(state.view==='templates')renderLiveTemplateCards(now);
+  else if(state.view==='editor')updateLiveEditorObjects(now);
+  lastLivePreviewFrame=timestamp;
+ }
+ if(livePreviewIsActive())livePreviewRaf=window.requestAnimationFrame(runLivePreviewFrame);
+}
+function syncLivePreviewLoop(){
+ if(livePreviewRaf!==null&&typeof window.cancelAnimationFrame==='function')window.cancelAnimationFrame(livePreviewRaf);
+ livePreviewRaf=null;lastLivePreviewFrame=0;
+ if(livePreviewIsActive()&&typeof window.requestAnimationFrame==='function')livePreviewRaf=window.requestAnimationFrame(runLivePreviewFrame);
+}
+
 function download(name,data,type){const a=document.createElement('a');const url=URL.createObjectURL(new Blob([data],{type}));a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
 async function exportJSON(){try{const usedCustomFonts=state.design.objects.some(object=>String(object.textStyle?.fontFamily||'').startsWith('WFSFont_'));if(usedCustomFonts)throw Error('This project uses imported fonts stored only in this browser. Portable font bundling is not implemented yet; switch those layers to a built-in font before exporting.');await ensureSchemaLoaded();const errors=validateDesign(state.design);if(errors.length){toast('Fix '+errors.length+' design issue(s) before export');return}const assetIds=[...new Set(state.design.objects.filter(o=>o.type==='image').map(o=>o.assetId))];const assets=assetIds.map(id=>state.images.find(a=>a.id===id));if(assets.some(a=>!a))throw Error('One or more image layers have missing source assets');const project={format:'watch-face-studio-project',version:1,design:serializeDesign(state.design),assets:assets.map(a=>({id:a.id,name:a.name,data:a.data}))};if(assets.reduce((total,a)=>total+a.data.length,0)>8000000)throw Error('Bundled image data exceeds the 8 MB portable project limit');const projectSchema=await ensureProjectSchemaLoaded();const projectErrors=validateJsonSchema(projectSchema,project);if(projectErrors.length)throw Error(projectErrors[0]);download((state.design.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')||'watch-face')+'.wfsproject.json',JSON.stringify(project,null,2),'application/json');toast('Portable project exported with '+assets.length+' image asset(s)')}catch(e){toast('Export blocked: '+e.message)}}
 function resolveSchemaRef(ref,root){if(typeof ref!=='string'||!ref.startsWith('#/'))return null;let value=root;for(const part of ref.slice(2).split('/')){const key=part.replace(/~1/g,'/').replace(/~0/g,'~');value=value?.[key]}return value||null}
