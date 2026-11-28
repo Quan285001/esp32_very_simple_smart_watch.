@@ -12,12 +12,13 @@
     date: ['date', 'date.basic'],
     weather: ['weather', 'weather.temperature'],
     shape: ['shape', 'shape.basic'],
-    image: ['image', 'image.rgb565']
+    image: ['image', 'image.rgb565'],
+    wave: ['wave', 'wave.parametric']
   });
   const SUPPORTED_TYPES = new Set(Object.keys(TYPE_CAPABILITY));
   const ELEMENT_CODES = Object.freeze({
     t: 'text', dc: 'digital-clock', ac: 'analog-clock',
-    d: 'date', w: 'weather', s: 'shape', i: 'image'
+    d: 'date', w: 'weather', s: 'shape', i: 'image', wv: 'wave'
   });
   const SAFE_FONTS = new Set(['system-ui', 'sans-serif', 'inherit']);
   const SUPPORTED_FORMAT_TOKENS = Object.freeze({
@@ -134,6 +135,12 @@
       }
       if (hasOwn(object, 'showAmPm') && type !== 'digital-clock') {
         result.push(name + ': showAmPm is only valid on digital clocks');
+      }
+      if (hasOwn(object, 'waveConfig') && type !== 'wave') {
+        result.push(name + ': waveConfig is only valid on wave elements');
+      }
+      if (type === 'wave' && (!object.waveConfig || typeof object.waveConfig !== 'object' || Array.isArray(object.waveConfig))) {
+        result.push(name + ': wave elements require a waveConfig object');
       }
       if (hasOwn(object, 'children') &&
           (!Array.isArray(object.children) || object.children.length > 0)) {
@@ -301,6 +308,31 @@
       }
       if (object.glyphFallback && object.glyphFallback !== 'compatibility-error') {
         result.push(name + ': selected glyph fallback mode is not supported');
+      }
+      // Match the firmware parser's fixed wave sampling and timing budgets.
+      if (type === 'wave' && object.waveConfig && typeof object.waveConfig === 'object') {
+        const wave = object.waveConfig;
+        const integerRanges = [['lineCount',2,12,8],['segments',4,24,18],['updateMs',100,1000,160]];
+        for (const [key,min,max,fallback] of integerRanges) {
+          const value = wave[key] ?? fallback;
+          if (!Number.isInteger(value) || value < min || value > max) {
+            result.push(name + ': waveConfig.' + key + ' must be an integer from ' + min + ' to ' + max);
+          }
+        }
+        for (const [key,min,max,fallback] of [['speed',0,4,0.8],['amplitude',0,2,0.75],['phase',-6.2832,6.2832,0]]) {
+          const value = wave[key] ?? fallback;
+          if (!finiteNumber(value) || value < min || value > max) {
+            result.push(name + ': waveConfig.' + key + ' is outside the firmware range');
+          }
+        }
+        for (const key of ['color','highlightColor']) {
+          if (wave[key] !== undefined && !/^#[0-9a-f]{6}$/i.test(String(wave[key]))) {
+            result.push(name + ': waveConfig.' + key + ' must be #RRGGBB');
+          }
+        }
+        if (wave.animate !== undefined && typeof wave.animate !== 'boolean') {
+          result.push(name + ': waveConfig.animate must be boolean');
+        }
       }
       if (Object.keys(handConfig).length && type !== 'analog-clock') {
         result.push(name + ': handConfig is only valid on analog clocks');
