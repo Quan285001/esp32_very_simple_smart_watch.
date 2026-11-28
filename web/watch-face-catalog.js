@@ -2375,7 +2375,7 @@
     // Keep the live date and minute readout on one centered footer line.
     ctx.fillStyle = '#94a3b8';
     ctx.font = '600 18px "JetBrains Mono", monospace';
-    ctx.fillText(`${t.weekdayShort.toUpperCase()} ${t.day} ${t.monthShort.toUpperCase()} · :${t.mm}`, CX, 354);
+    ctx.fillText(`${t.weekdayShort.toUpperCase()} ${t.day} ${t.monthShort.toUpperCase()} · :${t.mm}`, CX, 346);
     ctx.restore();
   }
 
@@ -2650,6 +2650,70 @@ function renderThumbnail(spec,options={}){
  }
  return canvas.toDataURL('image/png');
 }
+const livePreviewBaseCache=new WeakMap();
+function renderLivePreview(spec,targetCanvas,now=new Date(),options={}){
+ if(!spec||!targetCanvas||typeof targetCanvas.getContext!=='function')return;
+ const ctx=targetCanvas.getContext('2d');if(!ctx)return;
+ const image=options.image||null;
+ const key=[spec.id,options.color||spec.bg,options.dim??0,options.sunburst!==false,options.vignette!==false,options.offsetX??0,options.offsetY??0,options.scale??1].join('|');
+ let cached=livePreviewBaseCache.get(targetCanvas);
+ if(!cached||cached.key!==key||cached.image!==image){
+  cached={key,image,base:renderArtworkCanvas(spec,options)};
+  livePreviewBaseCache.set(targetCanvas,cached);
+ }
+ ctx.clearRect(0,0,targetCanvas.width,targetCanvas.height);
+ ctx.drawImage(cached.base,0,0,targetCanvas.width,targetCanvas.height);
+ const stamp=now instanceof Date&&Number.isFinite(now.getTime())?now:new Date();
+ const seconds=stamp.getSeconds()+stamp.getMilliseconds()/1000;
+ const minutes=stamp.getMinutes()+seconds/60;
+ const hours24=stamp.getHours(),hours12=hours24%12||12;
+ const hourAngle=((hours24%12)+minutes/60)*30-90;
+ const minuteAngle=minutes*6-90;
+ const secondAngle=seconds*6-90;
+ ctx.save();
+ ctx.scale(targetCanvas.width/480,targetCanvas.height/480);
+ const text=(value,x,y,size,color,weight=600)=>{
+  ctx.font=weight+' '+size+'px system-ui, sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=color;ctx.fillText(value,x,y);
+ };
+ const hand=(angle,length,width,color,tail=12)=>{
+  ctx.save();ctx.translate(240,240);ctx.rotate(angle*Math.PI/180);
+  ctx.fillStyle=color;ctx.beginPath();
+  ctx.moveTo(-tail,-width*.45);ctx.lineTo(length*.78,-width*.65);
+  ctx.lineTo(length,0);ctx.lineTo(length*.78,width*.65);ctx.lineTo(-tail,width*.45);
+  ctx.closePath();ctx.fill();ctx.restore();
+ };
+ if(spec.style==='reference-split-dual-digit'){
+  text(String(hours12).padStart(2,'0'),222,150,126,'#f8fafc',400);
+  text(hours24>=12?'PM':'AM',320,174,25,'#f8fafc',600);
+  ctx.font='400 116px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.strokeStyle='#f1f5f9';ctx.lineWidth=4;
+  ctx.strokeText(String(stamp.getMinutes()).padStart(2,'0'),246,268);
+  ctx.fillStyle='rgba(248,252,255,.18)';
+  ctx.fillText(String(stamp.getMinutes()).padStart(2,'0'),246,268);
+  text(String(hours12).padStart(2,'0')+':'+String(stamp.getMinutes()).padStart(2,'0')+':'+String(stamp.getSeconds()).padStart(2,'0'),252,366,22,'#e2e8f0',500);
+  text('86%',252,404,18,'#e2e8f0',600);
+ }else{
+  const classic=spec.style==='reference-classic-12';
+  const minimal=spec.style==='reference-minimal-arc';
+  const hourColor=classic?'#f1f5f9':'#f8fafc';
+  const minuteColor=classic?'#f8fafc':'#f1f5f9';
+  const secondColor=classic?'#d9a452':minimal?'#e2e8f0':'#e2e8f0';
+  hand(hourAngle,minimal?104:116,10,hourColor,14);
+  hand(minuteAngle,minimal?145:151,7,minuteColor,14);
+  hand(secondAngle,minimal?166:166,3,secondColor,18);
+  ctx.beginPath();ctx.arc(240,240,7,0,Math.PI*2);
+  ctx.fillStyle=classic?'#d9a452':'#f8fafc';ctx.fill();
+  if(minimal){
+   const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+   text(String(stamp.getDate()).padStart(2,'0')+' '+months[stamp.getMonth()],240,126,22,'#f8fafc',600);
+   text('31',240,336,44,'#f8fafc',600);
+   text('26  31',240,370,18,'#cbd5e1',500);
+  }
+ }
+ ctx.restore();
+}
+
 function lighten(hex,delta){const n=parseInt(hex.slice(1),16);const f=v=>Math.max(0,Math.min(255,v+delta));return '#'+[f(n>>16),f((n>>8)&255),f(n&255)].map(v=>v.toString(16).padStart(2,'0')).join('')}
 function createReferenceObjects(spec,assetId){
  const objects=[{id:'preset_bg_'+spec.id,type:'image',name:spec.name+' artwork',assetId,visible:true,locked:true,transform:{x:0,y:0,width:240,height:240,anchor:'top-left',opacity:1,rotation:0,zIndex:0}}];
@@ -2698,6 +2762,6 @@ function createObjects(spec,assetId){
  }
  return objects;
 }
-root.WfsWatchFacePresets=Object.freeze({SPECS,renderBackground,renderThumbnail,createObjects});
+root.WfsWatchFacePresets=Object.freeze({SPECS,renderBackground,renderThumbnail,renderLivePreview,createObjects});
 if(typeof module==='object'&&module.exports)module.exports=root.WfsWatchFacePresets;
 })(typeof globalThis!=='undefined'?globalThis:this);
