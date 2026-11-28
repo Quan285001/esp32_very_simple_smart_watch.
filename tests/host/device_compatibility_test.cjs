@@ -226,7 +226,7 @@ const capabilities = {
   json: 16384,
   stage: 128 * 1024,
   img: 1,
-  el: 't,dc,ac,d,w,s,i',
+  el: 't,dc,ac,d,w,s,i,wv',
   wc: 1
 };
 
@@ -236,6 +236,14 @@ function errorsFor(design, assetIds = []) {
 
 assert.deepEqual(errorsFor(fixture), [],
   'committed minimal fixture must be accepted by the device compatibility preflight');
+
+const waveDesign = structuredClone(fixture);
+waveDesign.objects = [{id:'water-wave',type:'wave',name:'Water wave',visible:true,transform:{x:18,y:64,width:204,height:112,rotation:0,opacity:1,zIndex:1},waveConfig:{lineCount:8,segments:18,speed:0.8,amplitude:0.75,phase:0,color:'#164e63',highlightColor:'#3b82f6',updateMs:160,animate:true}}];
+assert.deepEqual(errorsFor(waveDesign), [], 'bounded parametric wave design must pass device compatibility preflight');
+const invalidWaveDesign = structuredClone(waveDesign);
+invalidWaveDesign.objects[0].waveConfig.segments = 25;
+assert.ok(errorsFor(invalidWaveDesign).some(message => message.includes('waveConfig.segments')),
+  'wave sampling budget beyond firmware limits must be rejected before BLE upload');
 
 const negotiatedProfileCaps = { ...capabilities, pid: 'test-320-rect', cw: 320, ch: 200, cs: 'rectangle' };
 const negotiatedProfileDesign = structuredClone(fixture);
@@ -259,7 +267,7 @@ templateContext.uid = () => 'template-object-' + (++templateObjectId);
 vm.runInNewContext(appSource.slice(templateStart, templateEnd) +
   '\nglobalThis.templates = templates; globalThis.fromTemplate = fromTemplate;', templateContext);
 const supportedTemplateTypes = new Set([
-  'text', 'digital-clock', 'analog-clock', 'date', 'weather', 'shape', 'image'
+  'text', 'digital-clock', 'analog-clock', 'date', 'weather', 'shape', 'image', 'wave'
 ]);
 for (const template of templateContext.templates) {
   const generatedDesign = templateContext.fromTemplate(template);
