@@ -61,6 +61,8 @@ This file distinguishes software verification from physical-board evidence. A gr
 
 ### Diagnostics and power
 
+- BLE host/GATT initialization is lazy: boot completes with Bluetooth uninitialized, and the user starts it from Menu → Connectivity. The main loop skips BLE protocol polling before initialization.
+
 - Diagnostics capture free heap, minimum free heap, largest free block, fragmentation estimate and task stack high-water values.
 - Worker tasks emit memory snapshots before exit; ESP-IDF stack high-water values are reported in bytes.
 - WFS receive/verify/apply timing and heap deltas are logged.
