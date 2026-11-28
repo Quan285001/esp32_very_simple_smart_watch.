@@ -525,7 +525,8 @@
               }},
             "centerRadius": {"type":"number","minimum":0.5,"maximum":12},
             "centerColor": {"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},
-            "showOuterRing": {"type":"boolean","default":true}
+            "showOuterRing": {"type":"boolean","default":true},
+            "showHourTicks": {"type":"boolean","default":true}
           }
         },
         "text": {
