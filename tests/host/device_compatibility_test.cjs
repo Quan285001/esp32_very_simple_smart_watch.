@@ -226,7 +226,7 @@ const capabilities = {
   json: 16384,
   stage: 128 * 1024,
   img: 1,
-  el: 't,dc,ac,d,w,s,i,wv',
+  el: 't,dc,ac,d,w,s,i,v',
   wc: 1
 };
 
