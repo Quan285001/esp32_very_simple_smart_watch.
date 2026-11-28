@@ -457,7 +457,7 @@ async function testUploadablePresetPackages() {
   const packageContext = {
     state: {
       wfsCapabilities: {
-        pid: 'esp32-c3-gc9a01-240', cw: 240, ch: 240, cs: 'circle',
+        upload: 1, pid: 'esp32-c3-gc9a01-240', cw: 240, ch: 240, cs: 'circle',
         bw: 240, bh: 240, obj: 16, assets: 16, json: 16384,
         img: 1, stage: 128 * 1024, el: 't,dc,ac,d,w,s,i'
       },
