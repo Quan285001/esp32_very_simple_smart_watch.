@@ -412,6 +412,26 @@ int main() {
     assert(renderWatchFaceDynamic(face,timeInfo,160,weather)==FaceRenderStatus::Ok);
     assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==72);
 
+    // A higher-z image overlapping the wave freezes the wave at phase zero.
+    // The static wave remains below the image, so transparent image pixels can reveal it.
+    face=baseFace(); face.objectCount=2; face.assetCount=1; face.containsImageAssets=true;
+    face.objects[0]=baseObject(FaceElementType::Wave,"water-wave");
+    face.objects[0].transform.x=18; face.objects[0].transform.y=64;
+    face.objects[0].transform.width=204; face.objects[0].transform.height=112;
+    face.objects[0].transform.zIndex=1;
+    face.objects[0].wave={6,12,0.8f,0.75f,0.0f,0x126C,0x3C1E,160,true};
+    face.objects[1]=baseObject(FaceElementType::Image,"photo-layer");
+    face.objects[1].transform.x=0; face.objects[1].transform.y=0;
+    face.objects[1].transform.width=240; face.objects[1].transform.height=240;
+    face.objects[1].transform.zIndex=2;
+    strncpy(face.objects[1].assetId,"photo",sizeof(face.objects[1].assetId)-1);
+    strncpy(face.assets[0].id,"photo",sizeof(face.assets[0].id)-1);
+    face.assets[0].width=240; face.assets[0].height=240;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    canvas.reset();
+    assert(renderWatchFaceDynamic(face,timeInfo,240,weather)==FaceRenderStatus::Ok);
+    assert(canvas.calls.empty());
     // Invalid in-memory models are rejected even if they bypass the JSON parser.
     face.objects[0].wave.segments=25;
     assert(validateFaceModelForRenderer(face)==FaceRenderStatus::UnsupportedTransform);
