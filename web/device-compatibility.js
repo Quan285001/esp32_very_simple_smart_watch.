@@ -328,6 +328,9 @@
       if (handConfig.showOuterRing !== undefined && typeof handConfig.showOuterRing !== 'boolean') {
         result.push(name + ': analog outer ring visibility must be boolean');
       }
+      if (handConfig.showHourTicks !== undefined && typeof handConfig.showHourTicks !== 'boolean') {
+        result.push(name + ': analog hour tick visibility must be boolean');
+      }
       if (handConfig.centerColor !== undefined && !/^#[0-9a-f]{6}$/i.test(String(handConfig.centerColor))) {
         result.push(name + ': analog center color must be #RRGGBB');
       }
