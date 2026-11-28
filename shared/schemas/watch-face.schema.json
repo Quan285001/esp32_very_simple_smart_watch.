@@ -397,7 +397,8 @@
             "sunrise-sunset",
             "gauge",
             "progress-ring",
-            "group"
+            "group",
+            "wave"
           ]
         },
         "name": {
@@ -431,6 +432,21 @@
             "line",
             "arc"
           ]
+        },
+        "waveConfig": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lineCount": { "type": "integer", "minimum": 2, "maximum": 12, "default": 8 },
+            "segments": { "type": "integer", "minimum": 4, "maximum": 24, "default": 18 },
+            "speed": { "type": "number", "minimum": 0, "maximum": 4, "default": 0.8 },
+            "amplitude": { "type": "number", "minimum": 0, "maximum": 2, "default": 0.75 },
+            "phase": { "type": "number", "minimum": -6.2832, "maximum": 6.2832, "default": 0 },
+            "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "default": "#164E63" },
+            "highlightColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "default": "#3B82F6" },
+            "updateMs": { "type": "integer", "minimum": 100, "maximum": 1000, "default": 160 },
+            "animate": { "type": "boolean", "default": true }
+          }
         },
         "dataBinding": {
           "type": "object",
@@ -693,6 +709,13 @@
               "children"
             ]
           }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "wave" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["waveConfig"] }
         }
       ]
     }
