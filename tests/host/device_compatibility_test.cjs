@@ -647,7 +647,7 @@ async function testUploadablePresetPackages() {
 }
 
 testUploadablePresetPackages()
-  .then(() => console.log('WFS1 package builder tests passed for all 12 uploadable presets.'))
+  .then(() => console.log('WFS1 package builder tests passed for all 13 uploadable presets.'))
   .catch(error => { console.error(error); process.exitCode = 1; });
 
 console.log('WFS device compatibility preflight tests passed.');
