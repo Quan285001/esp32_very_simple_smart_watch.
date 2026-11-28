@@ -2600,6 +2600,31 @@ function renderArtworkCanvas(spec,options={}){
  const canvas=document.createElement('canvas');canvas.width=480;canvas.height=480;
  const c=canvas.getContext('2d');const {bg,accent,secondary,style}=spec;
  const baseHex=/^#[0-9a-f]{6}$/i.test(options.color||'')?options.color:bg;
+
+ // Elements Water has one decorative renderer: use the same Guilloche implementation
+ // as the live template preview when creating the WFS1 artwork snapshot. The watch
+ // receives these exact RGB565 pixels; live hands remain native WFS objects.
+ if(style==='m11-native'){
+  const WaterRenderer=root.WfsExtendedTemplateFaces&&root.WfsExtendedTemplateFaces.ElementsWaterWatchFace;
+  if(typeof WaterRenderer!=='function')throw new Error('Elements Water renderer is unavailable');
+  const waterCanvas=document.createElement('canvas');waterCanvas.width=600;waterCanvas.height=600;
+  const water=new WaterRenderer(waterCanvas);
+  water.setData({
+   backgroundImage:options.image||null,
+   backgroundColor:baseHex,
+   backgroundDim:options.dim??0,
+   backgroundOffsetX:options.offsetX??0,
+   backgroundOffsetY:options.offsetY??0,
+   backgroundScale:options.scale??1,
+   backgroundSunburst:options.sunburst!==false,
+   backgroundVignette:options.vignette!==false
+  });
+  water._drawFlowingGuilloche(0);
+  water.ctx.drawImage(water.waveCanvas,0,0);
+  water._drawBezelAndIndices();
+  c.drawImage(waterCanvas,0,0,480,480);
+  return canvas;
+ }
  if(options.image&&options.image.complete&&options.image.naturalWidth){
   const scale=Math.max(480/options.image.naturalWidth,480/options.image.naturalHeight)*Math.max(.5,Math.min(3,Number(options.scale)||1)),dw=options.image.naturalWidth*scale,dh=options.image.naturalHeight*scale;
   c.fillStyle=baseHex;c.fillRect(0,0,480,480);
@@ -2666,7 +2691,6 @@ function renderArtworkCanvas(spec,options={}){
   else if(style==='m07-native'){ring(190,'rgba(226,232,240,.16)',3);c.beginPath();c.arc(240,240,30,-Math.PI/2,Math.PI/2);c.fillStyle='#e5e7eb';c.fill();c.beginPath();c.arc(254,232,28,0,Math.PI*2);c.fillStyle='#060709';c.fill();txt('12',240,64,36,'#e5b869',700)}
   else if(style==='m08-native'){ring(204,'rgba(139,92,246,.35)',3);for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*200,240+Math.sin(a)*200,240+Math.cos(a)*176,240+Math.sin(a)*176,'#8b5cf6',4)}txt('VIOLET',240,356,13,'#8b5cf6',700)}
   else if(style==='m09-native'){for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);c.fillStyle='#38bdf8';c.fillRect(190,-5,24,10);c.restore()}c.fillStyle='#0b2233';c.beginPath();c.roundRect(170,330,140,48,12);c.fill();c.strokeStyle='#38bdf8';c.lineWidth=2;c.stroke()}
-  else if(style==='m11-native'){for(let r=72;r<=184;r+=14){c.beginPath();c.ellipse(240,240,r,r*.72,0,0,Math.PI*2);c.strokeStyle='rgba(56,189,248,.18)';c.lineWidth=2;c.stroke()}for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*212,240+Math.sin(a)*212,240+Math.cos(a)*186,240+Math.sin(a)*186,'#cbd5e1',5)}txt('WATER',240,354,14,'#7dd3fc',700)}
   else if(style==='m12-native'){for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*190,240+Math.sin(a)*190,240+Math.cos(a)*164,240+Math.sin(a)*164,'#94a3b8',10)}ring(132,'rgba(30,58,138,.3)',3);ring(76,'rgba(30,58,138,.22)',3);txt('PEARL',240,74,14,'#1e3a8a',700)}
   else if(style==='m14-native'){txt('12',240,104,72,'#e2e8f0',200);for(let h=1;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*194,240+Math.sin(a)*194,240+Math.cos(a)*178,240+Math.sin(a)*178,'#64748b',3)}}
   else if(style==='m15-native'){c.beginPath();c.arc(240,240,218,-.35,.55);c.strokeStyle='rgba(255,255,255,.28)';c.lineWidth=10;c.stroke();c.beginPath();c.arc(240,240,218,.15,.55);c.strokeStyle='#f8fafc';c.lineWidth=10;c.stroke()}
