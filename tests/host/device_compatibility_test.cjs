@@ -136,6 +136,8 @@ const templateStudioSource = fs.readFileSync(path.join(root, 'web/template-studi
 assert.match(studioHtml, /32 thiết kế mặt đồng hồ/);
 assert.match(studioHtml, /Tất cả · 32/);
 assert.match(templateStudioSource, /counts=\{all:all\.length/);
+assert.match(templateStudioSource, /selectedId==='m11'.*?\?100:250/,
+  'the selected animated Elements Water preview should refresh faster without adding another animation loop');
 assert.match(templateStudioSource, /pointerdown/);
 assert.match(templateStudioSource, /updateDraggedBackground/);
 assert.match(templateStudioSource, /studio-image-selection/);
