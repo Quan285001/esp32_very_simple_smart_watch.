@@ -63,6 +63,16 @@ FaceRenderStatus preflight(const FaceModel& face) {
             object.glyphScaleY < 0.1f || object.glyphScaleY > 8.0f) {
             return FaceRenderStatus::UnsupportedTransform;
         }
+        // Validate manually constructed FaceModels too, not only parser output.
+        if (object.type == FaceElementType::Wave &&
+            (object.wave.lineCount < 2 || object.wave.lineCount > 12 ||
+             object.wave.segments < 4 || object.wave.segments > 24 ||
+             object.wave.updateMs < 100 || object.wave.updateMs > 1000 ||
+             !isfinite(object.wave.speed) || object.wave.speed < 0.0f || object.wave.speed > 4.0f ||
+             !isfinite(object.wave.amplitude) || object.wave.amplitude < 0.0f || object.wave.amplitude > 2.0f ||
+             !isfinite(object.wave.phase) || object.wave.phase < -6.2832f || object.wave.phase > 6.2832f)) {
+            return FaceRenderStatus::UnsupportedTransform;
+        }
         if (object.type == FaceElementType::Image) {
             bool foundAsset = false;
             for (uint8_t assetIndex = 0; assetIndex < face.assetCount; ++assetIndex) {
