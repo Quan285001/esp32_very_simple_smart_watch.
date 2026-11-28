@@ -1536,7 +1536,15 @@
         bottomValue: options.bottomValue ?? '82',
         dateValue: options.dateValue ?? null,
         waveSpeed: options.waveSpeed ?? 1,
-        waveAmplitude: options.waveAmplitude ?? 1
+        waveAmplitude: options.waveAmplitude ?? 1,
+        backgroundImage: options.backgroundImage ?? null,
+        backgroundColor: options.backgroundColor ?? null,
+        backgroundDim: options.backgroundDim ?? 0,
+        backgroundOffsetX: options.backgroundOffsetX ?? 0,
+        backgroundOffsetY: options.backgroundOffsetY ?? 0,
+        backgroundScale: options.backgroundScale ?? 1,
+        backgroundSunburst: options.backgroundSunburst ?? true,
+        backgroundVignette: options.backgroundVignette ?? true
       };
       this.setData(this.data);
       this._rafId = null;
@@ -1563,6 +1571,33 @@
       if (Object.prototype.hasOwnProperty.call(newData, 'waveAmplitude')) {
         const value = Number(newData.waveAmplitude);
         this.data.waveAmplitude = Number.isFinite(value) ? Math.max(0, Math.min(2, value)) : 1;
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'backgroundImage')) {
+        this.data.backgroundImage = newData.backgroundImage || null;
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'backgroundColor')) {
+        this.data.backgroundColor = /^#[0-9a-f]{6}$/i.test(newData.backgroundColor || '')
+          ? newData.backgroundColor : null;
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'backgroundDim')) {
+        const value = Number(newData.backgroundDim);
+        this.data.backgroundDim = Number.isFinite(value) ? Math.max(0, Math.min(85, value)) : 0;
+      }
+      for (const key of ['backgroundOffsetX', 'backgroundOffsetY']) {
+        if (Object.prototype.hasOwnProperty.call(newData, key)) {
+          const value = Number(newData[key]);
+          this.data[key] = Number.isFinite(value) ? Math.max(-180, Math.min(180, value)) : 0;
+        }
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'backgroundScale')) {
+        const value = Number(newData.backgroundScale);
+        this.data.backgroundScale = Number.isFinite(value) ? Math.max(0.5, Math.min(3, value)) : 1;
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'backgroundSunburst')) {
+        this.data.backgroundSunburst = !!newData.backgroundSunburst;
+      }
+      if (Object.prototype.hasOwnProperty.call(newData, 'backgroundVignette')) {
+        this.data.backgroundVignette = !!newData.backgroundVignette;
       }
     }
 
@@ -1616,13 +1651,47 @@
       const { CX, CY, R, baseSize: size } = this;
       const t = timeSec * this.data.waveSpeed;
       const amp = this.data.waveAmplitude;
-      const gradient = ctx.createRadialGradient(CX, CY * 0.85, 20, CX, CY, R);
-      gradient.addColorStop(0, '#0e2236');
-      gradient.addColorStop(0.55, '#081421');
-      gradient.addColorStop(0.88, '#040a12');
-      gradient.addColorStop(1, '#020509');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, size, size);
+      const image = this.data.backgroundImage;
+      if (image && image.complete !== false && (image.naturalWidth || image.width)) {
+        const imageWidth = image.naturalWidth || image.width;
+        const imageHeight = image.naturalHeight || image.height;
+        const imageScale = Math.max(size / imageWidth, size / imageHeight) * this.data.backgroundScale;
+        const drawWidth = imageWidth * imageScale;
+        const drawHeight = imageHeight * imageScale;
+        ctx.fillStyle = this.data.backgroundColor || '#081421';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(
+          image,
+          (size - drawWidth) / 2 + this.data.backgroundOffsetX * (size / 480),
+          (size - drawHeight) / 2 + this.data.backgroundOffsetY * (size / 480),
+          drawWidth,
+          drawHeight
+        );
+        if (this.data.backgroundDim > 0) {
+          ctx.fillStyle = 'rgba(0, 0, 0, ' + (this.data.backgroundDim / 100) + ')';
+          ctx.fillRect(0, 0, size, size);
+        }
+      } else if (this.data.backgroundColor) {
+        ctx.fillStyle = this.data.backgroundColor;
+        ctx.fillRect(0, 0, size, size);
+        if (this.data.backgroundSunburst && typeof ctx.createConicGradient === 'function') {
+          const burst = ctx.createConicGradient(0, CX, CY);
+          const light = adjustHexBrightness(this.data.backgroundColor, 18);
+          const dark = adjustHexBrightness(this.data.backgroundColor, -12);
+          [[0, dark], [0.14, light], [0.28, dark], [0.5, light], [0.66, dark], [0.84, light], [1, dark]]
+            .forEach(([stop, color]) => burst.addColorStop(stop, color));
+          ctx.fillStyle = burst;
+          ctx.fillRect(0, 0, size, size);
+        }
+      } else {
+        const gradient = ctx.createRadialGradient(CX, CY * 0.85, 20, CX, CY, R);
+        gradient.addColorStop(0, '#0e2236');
+        gradient.addColorStop(0.55, '#081421');
+        gradient.addColorStop(0.88, '#040a12');
+        gradient.addColorStop(1, '#020509');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+      }
 
       ctx.save();
       ctx.beginPath();
@@ -1663,12 +1732,14 @@
           ctx.stroke();
         }
       }
-      const vignette = ctx.createRadialGradient(CX, CY, R * 0.48, CX, CY, R - 16);
-      vignette.addColorStop(0, 'rgba(6, 15, 26, 0)');
-      vignette.addColorStop(0.75, 'rgba(4, 10, 18, 0.35)');
-      vignette.addColorStop(1, 'rgba(2, 5, 10, 0.85)');
-      ctx.fillStyle = vignette;
-      ctx.fillRect(0, 0, size, size);
+      if (this.data.backgroundVignette) {
+        const vignette = ctx.createRadialGradient(CX, CY, R * 0.48, CX, CY, R - 16);
+        vignette.addColorStop(0, 'rgba(6, 15, 26, 0)');
+        vignette.addColorStop(0.75, 'rgba(4, 10, 18, 0.35)');
+        vignette.addColorStop(1, 'rgba(2, 5, 10, 0.85)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, size, size);
+      }
       ctx.restore();
     }
 
@@ -1924,6 +1995,16 @@
 
   function renderM11ElementsWater(ctx, t) {
     const renderer = getElementsWaterRenderer();
+    renderer.setData({
+      backgroundImage: state.customBgImage,
+      backgroundColor: state.overrideBgColor,
+      backgroundDim: state.bgDimPercent,
+      backgroundOffsetX: state.bgOffsetX,
+      backgroundOffsetY: state.bgOffsetY,
+      backgroundScale: state.bgImageScale,
+      backgroundSunburst: state.sunburstEnabled,
+      backgroundVignette: state.vignetteEnabled
+    });
     renderer.renderFrame(t.rawDate, t.rawDate.getTime() * 0.001);
     ctx.drawImage(renderer.canvas, 0, 0, W, H);
   }
