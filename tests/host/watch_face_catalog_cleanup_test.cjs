@@ -27,6 +27,20 @@ assert(waterRenderer.indexOf('ctx.stroke();') < waterRenderer.indexOf('ctx.drawI
 assert(waterRenderer.indexOf('ctx.drawImage(\n          image,') < waterRenderer.indexOf('this.data.backgroundDim'),
   'personal image dimming must remain applied after the image layer');
 
+const artworkStart=source.indexOf('function renderArtworkCanvas(spec,options={})');
+const artworkEnd=source.indexOf('function renderBackground(spec,options)',artworkStart);
+const artworkRenderer=source.slice(artworkStart,artworkEnd);
+assert(artworkRenderer.includes("if(style==='m11-native')"),
+  'Elements Water WFS artwork must use its dedicated shared renderer path');
+assert(artworkRenderer.includes('new WaterRenderer(waterCanvas)') &&
+       artworkRenderer.includes('water._drawFlowingGuilloche(0)') &&
+       artworkRenderer.includes('water._drawBezelAndIndices()'),
+  'Elements Water device artwork must reuse the live Guilloche and bezel implementation');
+assert(!artworkRenderer.includes('c.ellipse(240,240,r,r*.72'),
+  'Elements Water must not fall back to the old static ellipse approximation');
+assert(artworkRenderer.includes('water.ctx.arc(water.CX,water.CY,water.R'),
+  'Elements Water exported artwork must remain clipped to the circular dial');
+
 assert(source.includes('function getFormattedTimeAndDate('));
 assert.strictEqual((source.match(/function drawSwordHand\s*\(/g) || []).length, 2,
   'the two renderer-specific sword-hand implementations must remain distinct');
