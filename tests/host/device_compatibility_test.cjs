@@ -99,7 +99,7 @@ extendedFaceCatalog.setElementsWaterData({
 });
 const waterTarget = makeWaterCanvas(480, 480);
 extendedFaceCatalog.renderFace('m11', waterTarget, new Date(2026, 10, 28, 9, 42, 15, 0));
-assert.equal(waterCanvases.length, 2, 'Elements Water should allocate one reusable face canvas and one wave buffer');
+assert.equal(waterCanvases.length, 3, 'Elements Water should allocate one face canvas and one wave buffer alongside the supplied target canvas');
 assert.deepEqual([waterCanvases[0].width, waterCanvases[0].height], [600, 600],
   'Elements Water should render on its private 600x600 logical canvas');
 assert.deepEqual([waterCanvases[1].width, waterCanvases[1].height], [600, 600],
