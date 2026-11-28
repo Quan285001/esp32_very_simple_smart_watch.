@@ -157,6 +157,13 @@ for token in [
     require(token in compat, f"Web capability decoder is missing firmware element code: {token}")
 require('strcmp(value, "weather.condition") == 0' in validator,
         "Firmware weather-condition capability is not supported")
+require("'wave':'wave.parametric'" in app,
+        "Web WFS1 manifest builder must declare the parametric Wave capability")
+require('strcmp(value, "wave.parametric") == 0' in validator,
+        "Firmware package validator must recognize the parametric Wave capability")
+require('case FaceElementType::Wave:' in validator and
+        'requiredCapabilityMask |= capabilityBit("wave.parametric");' in validator,
+        "Firmware package validator must require the parametric Wave capability for Wave objects")
 
 # Template Studio must feed its generated design into the same WFS1 uploader.
 require("module.createObjects(spec,assetId)" in studio,
