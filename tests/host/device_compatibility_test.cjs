@@ -210,7 +210,7 @@ assert.doesNotMatch(indexSource, /(?:template-face-renderers|extended-template-f
 const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
 assert.match(studioSource, /module\.renderLivePreview\(spec,canvas/,
   'the 32-face Studio gallery and selected reference previews must use the animated renderer');
-assert.match(indexSource, /watch-face-catalog\.js\?v=elements-water-image-layer-1/,
+assert.match(indexSource, /watch-face-catalog\.js\?v=m13-wfs1-adapter-1/,
   'the updated catalog must use a fresh cache-busting asset version');
 assert.match(studioSource, /filter\(spec=>spec\.id\.startsWith\('ref-'\)\)/,
   'the four reference presets must be included in the visible Template Studio gallery');
@@ -651,3 +651,12 @@ testUploadablePresetPackages()
   .catch(error => { console.error(error); process.exitCode = 1; });
 
 console.log('WFS device compatibility preflight tests passed.');
+
+// m13 is the first extended template with a complete native WFS1 adapter.
+const m13Spec = presets.SPECS.find(spec => spec.id === 'm13');
+assert.ok(m13Spec, 'Clean Large Digital must be present in the WFS1 preset catalog');
+const m13Objects = presets.createObjects(m13Spec, 'm13_artwork');
+assert.ok(m13Objects.length <= 16, 'm13 must stay within the firmware object limit');
+assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'HH:mm'), 'm13 main time must stay live');
+assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'ss'), 'm13 seconds must stay live');
+assert.ok(m13Objects.some(object => object.type === 'date' && object.dataBinding?.format === 'YYYY'), 'm13 year must stay live');
