@@ -1649,29 +1649,17 @@
     _drawFlowingGuilloche(timeSec) {
       const ctx = this.wctx;
       const { CX, CY, R, baseSize: size } = this;
-      const t = timeSec * this.data.waveSpeed;
-      const amp = this.data.waveAmplitude;
       const image = this.data.backgroundImage;
-      if (image && image.complete !== false && (image.naturalWidth || image.width)) {
-        const imageWidth = image.naturalWidth || image.width;
-        const imageHeight = image.naturalHeight || image.height;
-        const imageScale = Math.max(size / imageWidth, size / imageHeight) * this.data.backgroundScale;
-        const drawWidth = imageWidth * imageScale;
-        const drawHeight = imageHeight * imageScale;
-        ctx.fillStyle = this.data.backgroundColor || '#081421';
-        ctx.fillRect(0, 0, size, size);
-        ctx.drawImage(
-          image,
-          (size - drawWidth) / 2 + this.data.backgroundOffsetX * (size / 480),
-          (size - drawHeight) / 2 + this.data.backgroundOffsetY * (size / 480),
-          drawWidth,
-          drawHeight
-        );
-        if (this.data.backgroundDim > 0) {
-          ctx.fillStyle = 'rgba(0, 0, 0, ' + (this.data.backgroundDim / 100) + ')';
-          ctx.fillRect(0, 0, size, size);
-        }
-      } else if (this.data.backgroundColor) {
+      const hasBackgroundImage = !!(
+        image && image.complete !== false && (image.naturalWidth || image.width)
+      );
+      // A selected photo freezes the water pattern. It remains a real lower
+      // layer, so transparent pixels in the photo can still reveal the waves.
+      const t = hasBackgroundImage ? 0 : timeSec * this.data.waveSpeed;
+      const amp = this.data.waveAmplitude;
+
+      // Paint the dial base first; the Guilloche is composited above it.
+      if (this.data.backgroundColor) {
         ctx.fillStyle = this.data.backgroundColor;
         ctx.fillRect(0, 0, size, size);
         if (this.data.backgroundSunburst && typeof ctx.createConicGradient === 'function') {
@@ -1732,6 +1720,28 @@
           ctx.stroke();
         }
       }
+
+      // The personal image is deliberately composited after the waves. Opaque
+      // pixels cover them; transparent areas retain the static wave layer below.
+      if (hasBackgroundImage) {
+        const imageWidth = image.naturalWidth || image.width;
+        const imageHeight = image.naturalHeight || image.height;
+        const imageScale = Math.max(size / imageWidth, size / imageHeight) * this.data.backgroundScale;
+        const drawWidth = imageWidth * imageScale;
+        const drawHeight = imageHeight * imageScale;
+        ctx.drawImage(
+          image,
+          (size - drawWidth) / 2 + this.data.backgroundOffsetX * (size / 480),
+          (size - drawHeight) / 2 + this.data.backgroundOffsetY * (size / 480),
+          drawWidth,
+          drawHeight
+        );
+        if (this.data.backgroundDim > 0) {
+          ctx.fillStyle = 'rgba(0, 0, 0, ' + (this.data.backgroundDim / 100) + ')';
+          ctx.fillRect(0, 0, size, size);
+        }
+      }
+
       if (this.data.backgroundVignette) {
         const vignette = ctx.createRadialGradient(CX, CY, R * 0.48, CX, CY, R - 16);
         vignette.addColorStop(0, 'rgba(6, 15, 26, 0)');
