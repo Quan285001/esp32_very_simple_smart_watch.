@@ -2517,6 +2517,7 @@
 /* Watch Face Studio hybrid presets.
  * Decorative artwork is rendered to a 480x480 browser bitmap; live time/date
  * remain native WFS elements so the watch never displays a frozen clock.
+ * Water guilloche and the amber seconds arc are static artwork; live hands/readouts remain native.
  */
 (function(root){
 'use strict';
@@ -2532,7 +2533,23 @@ const SPECS=[
 {id:'m13',category:'digital',name:'Clean Large Digital',bg:'#050608',accent:'#38bdf8',secondary:'#94a3b8',style:'clean-digital'},
 {id:'m01',category:'digital',name:'Digital Bold Slim',bg:'#060709',accent:'#a3e635',secondary:'#cbd5e1',style:'m01-native'},
 {id:'m10',category:'digital',name:'Minute Track & Pill',bg:'#050608',accent:'#93a5f8',secondary:'#cbd5e1',style:'m10-native'},
-{id:'m16',category:'digital',name:'Crimson Night Digital',bg:'#050608',accent:'#ef4444',secondary:'#f8fafc',style:'m16-native'}
+{id:'m16',category:'digital',name:'Crimson Night Digital',bg:'#050608',accent:'#ef4444',secondary:'#f8fafc',style:'m16-native'},
+{id:'m02',category:'analog',name:'Gradient Minimal',bg:'#4f46e5',accent:'#ef4444',secondary:'#ffffff',style:'m02-native'},
+{id:'m03',category:'analog',name:'Dark High-Contrast',bg:'#050608',accent:'#ef4444',secondary:'#f8fafc',style:'m03-native'},
+{id:'m04',category:'analog',name:'Minimal Tick & Line',bg:'#060709',accent:'#ef4444',secondary:'#f8fafc',style:'m04-native'},
+{id:'m05',category:'analog',name:'Tapered Orange Second',bg:'#050608',accent:'#ea580c',secondary:'#e2e8f0',style:'m05-native'},
+{id:'m06',category:'analog',name:'Field Diamond Hybrid',bg:'#050608',accent:'#cbd5e1',secondary:'#f8fafc',style:'m06-native'},
+{id:'m07',category:'analog',name:'Dress Moon Accent',bg:'#060709',accent:'#e2e8f0',secondary:'#e5b869',style:'m07-native'},
+{id:'m08',category:'analog',name:'Violet Sweep Offset',bg:'#050608',accent:'#8b5cf6',secondary:'#e2e8f0',style:'m08-native'},
+{id:'m09',category:'analog',name:'Blue Notch Badge',bg:'#050608',accent:'#38bdf8',secondary:'#e2e8f0',style:'m09-native'},
+{id:'m11',category:'analog',name:'Elements Water',bg:'#091826',accent:'#38bdf8',secondary:'#cbd5e1',style:'m11-native'},
+{id:'m12',category:'analog',name:'Elements Air',bg:'#e8e6e1',accent:'#1e3a8a',secondary:'#334155',style:'m12-native'},
+{id:'m14',category:'analog',name:'Tall 12 Red Dot',bg:'#050608',accent:'#ef4444',secondary:'#e2e8f0',style:'m14-native'},
+{id:'m15',category:'analog',name:'Amber Sweep Side Readouts',bg:'#2b2d30',accent:'#d97706',secondary:'#f8fafc',style:'m15-native'},
+{id:'m17',category:'analog',name:'Light Cream Rust Second',bg:'#f6f3ec',accent:'#c25928',secondary:'#18181b',style:'m17-native'},
+{id:'m18',category:'analog',name:'Lime Sweep Minimal',bg:'#050608',accent:'#a3e635',secondary:'#f8fafc',style:'m18-native'},
+{id:'m19',category:'analog',name:'Skeleton Leaf Orange',bg:'#18191b',accent:'#ea580c',secondary:'#e2e8f0',style:'m19-native'},
+{id:'m20',category:'digital',name:'Giant HH & Amber Arc',bg:'#141517',accent:'#f59e0b',secondary:'#f1f5f9',style:'m20-native'}
 ,{id:'ref-classic-12',category:'analog',name:'Classic Baton 12',description:'Fine chapter ring · Warm hour batons · 12 marker',bg:'#060709',accent:'#d9a452',secondary:'#e2e8f0',style:'reference-classic-12'},
 {id:'ref-chronometer-gmt',category:'analog',name:'Chronometer Ring GMT',description:'Metallic bezel · Minute track · Arrowhead indices',bg:'#07080a',accent:'#cbd5e1',secondary:'#d4af6a',style:'reference-chronometer-gmt'},
 {id:'ref-split-dual-digit',category:'digital',name:'Split Dual Digital',description:'Bold hours · Light minutes · Bottom readouts',bg:'#04141c',accent:'#f8fafc',secondary:'#cbd5e1',style:'reference-split-dual-digit'},
@@ -2633,6 +2650,28 @@ function renderArtworkCanvas(spec,options={}){
   c.fillStyle='#93a5f8';c.beginPath();c.roundRect(206,80,68,38,19);c.fill();
  }else if(style==='m16-native'){
   ring(216,'rgba(239,68,68,.22)',2);line(80,240,400,240,'rgba(148,163,184,.12)',1);
+
+ }else if(style==='m20-native'){
+  ring(220,'rgba(245,158,11,.22)',12);c.beginPath();c.arc(240,240,220,-Math.PI/2,Math.PI*1.42);c.strokeStyle='#f59e0b';c.lineWidth=12;c.lineCap='round';c.stroke();c.beginPath();c.arc(240,20,10,0,Math.PI*2);c.fillStyle='#ffffff';c.fill();
+ }else if(/^m(02|03|04|05|06|07|08|09|11|12|14|15|17|18|19)-native$/.test(style)){
+  const light=['m12-native','m17-native'].includes(style),ink=light?'#334155':'#e2e8f0',muted=light?'rgba(51,65,85,.35)':'rgba(203,213,225,.35)';
+  ring(226,light?'rgba(51,65,85,.18)':'rgba(226,232,240,.14)',style==='m04-native'?4:2);
+  for(let i=0;i<60;i++){const a=(i*6-90)*Math.PI/180,major=i%5===0;c.save();c.translate(240,240);c.rotate(a);c.fillStyle=major?ink:muted;c.fillRect(216,major?-2.2:-1,major?12:6,major?4.4:2);c.restore()}
+  if(style==='m02-native'){for(let h=0;h<6;h++){const a=(h*60-90)*Math.PI/180;txt(String([12,2,4,6,8,10][h]),240+Math.cos(a)*174,240+Math.sin(a)*174,24,'#ffffff',600)}ring(150,'rgba(255,255,255,.18)',2)}
+  else if(style==='m03-native'){[0,3,6,9].forEach(h=>{const a=(h*30-90)*Math.PI/180;txt(String(h||12),240+Math.cos(a)*172,240+Math.sin(a)*172,25,'#f8fafc',700)});line(78,344,402,344,'rgba(148,163,184,.18)',2)}
+  else if(style==='m04-native'){ring(188,'rgba(148,163,184,.25)',2);for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*190,240+Math.sin(a)*190,240+Math.cos(a)*164,240+Math.sin(a)*164,h%3===0?'#94a3b8':'#475569',h%3===0?5:3)}}
+  else if(style==='m05-native'){for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);c.fillStyle='#e2e8f0';c.beginPath();c.moveTo(178,-3);c.lineTo(204,-7);c.lineTo(204,7);c.lineTo(178,3);c.closePath();c.fill();c.restore()}txt('DAY / DATE',240,356,14,'#ea580c',700)}
+  else if(style==='m06-native'){for(let h=1;h<=12;h++){const a=(h*30-90)*Math.PI/180;txt(String(h),240+Math.cos(a)*184,240+Math.sin(a)*184,20,ink,600)}ring(144,'rgba(148,163,184,.2)',2)}
+  else if(style==='m07-native'){ring(190,'rgba(226,232,240,.16)',3);c.beginPath();c.arc(240,240,30,-Math.PI/2,Math.PI/2);c.fillStyle='#e5e7eb';c.fill();c.beginPath();c.arc(254,232,28,0,Math.PI*2);c.fillStyle='#060709';c.fill();txt('12',240,64,36,'#e5b869',700)}
+  else if(style==='m08-native'){ring(204,'rgba(139,92,246,.35)',3);for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*200,240+Math.sin(a)*200,240+Math.cos(a)*176,240+Math.sin(a)*176,'#8b5cf6',4)}txt('VIOLET',240,356,13,'#8b5cf6',700)}
+  else if(style==='m09-native'){for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;c.save();c.translate(240,240);c.rotate(a);c.fillStyle='#38bdf8';c.fillRect(190,-5,24,10);c.restore()}c.fillStyle='#0b2233';c.beginPath();c.roundRect(170,330,140,48,12);c.fill();c.strokeStyle='#38bdf8';c.lineWidth=2;c.stroke()}
+  else if(style==='m11-native'){for(let r=72;r<=184;r+=14){c.beginPath();c.ellipse(240,240,r,r*.72,0,0,Math.PI*2);c.strokeStyle='rgba(56,189,248,.18)';c.lineWidth=2;c.stroke()}for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*212,240+Math.sin(a)*212,240+Math.cos(a)*186,240+Math.sin(a)*186,'#cbd5e1',5)}txt('WATER',240,354,14,'#7dd3fc',700)}
+  else if(style==='m12-native'){for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*190,240+Math.sin(a)*190,240+Math.cos(a)*164,240+Math.sin(a)*164,'#94a3b8',10)}ring(132,'rgba(30,58,138,.3)',3);ring(76,'rgba(30,58,138,.22)',3);txt('PEARL',240,74,14,'#1e3a8a',700)}
+  else if(style==='m14-native'){txt('12',240,104,72,'#e2e8f0',200);for(let h=1;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*194,240+Math.sin(a)*194,240+Math.cos(a)*178,240+Math.sin(a)*178,'#64748b',3)}}
+  else if(style==='m15-native'){c.beginPath();c.arc(240,240,218,-.35,.55);c.strokeStyle='rgba(255,255,255,.28)';c.lineWidth=10;c.stroke();c.beginPath();c.arc(240,240,218,.15,.55);c.strokeStyle='#f8fafc';c.lineWidth=10;c.stroke()}
+  else if(style==='m17-native'){ring(204,'rgba(15,23,42,.16)',2);[[240,44],[240,436],[44,240],[436,240]].forEach(([x,y])=>{c.beginPath();c.arc(x,y,7,0,Math.PI*2);c.fillStyle='#0f172a';c.fill()})}
+  else if(style==='m18-native'){ring(204,'rgba(148,163,184,.28)',2);for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;c.beginPath();c.arc(240+Math.cos(a)*204,240+Math.sin(a)*204,5,0,Math.PI*2);c.fillStyle='#a3e635';c.fill()}}
+  else if(style==='m19-native'){for(let h=0;h<12;h++){const a=(h*30-90)*Math.PI/180;line(240+Math.cos(a)*202,240+Math.sin(a)*202,240+Math.cos(a)*178,240+Math.sin(a)*178,h%3===0?'#94a3b8':'#475569',5)}ring(150,'rgba(234,88,12,.18)',2)}
  }else if(style==='angled'){
   line(64,420,64,56,'rgba(248,250,252,.35)',3);line(64,56,445,275,'rgba(248,250,252,.35)',3);line(118,126,450,315,'rgba(248,250,252,.35)',3);
   c.save();c.translate(286,236);c.rotate(29*Math.PI/180);c.fillStyle='rgba(15,23,42,.82)';c.fillRect(-126,-24,252,48);c.strokeStyle='rgba(248,250,252,.45)';c.lineWidth=2;c.strokeRect(-126,-24,252,48);
@@ -2662,6 +2701,8 @@ function renderThumbnail(spec,options={}){
   text('28',240,116,25,'#090d16',700);text('SAT',240,160,25,'#f8fafc',600);text('09:42',240,250,92,'#f8fafc',400);text('NOV 2026 · :15',240,340,20,'#94a3b8',600);
  }else if(spec.style==='m16-native'){
   text('09:42',240,110,62,'#ef4444',700);text('28 NOV',240,166,30,'#ef4444',700);
+ }else if(spec.style==='m20-native'){
+  text('09',240,224,150,'#f1f5f9',400);text('SAT 28 NOV · :42',240,354,20,'#f59e0b',600);
  }else if(spec.style==='clean-digital'){
   text('SAT 28 NOV',240,138,24,'#94a3b8',600);
   text('09:42',240,242,108,'#f8fafc',400);
@@ -2728,6 +2769,9 @@ function renderLivePreview(spec,targetCanvas,now=new Date(),options={}){
  }else if(spec.style==='m16-native'){
   text(String(stamp.getHours()).padStart(2,'0')+':'+String(stamp.getMinutes()).padStart(2,'0'),240,110,62,'#ef4444',700);
   text(String(stamp.getDate()).padStart(2,'0')+' '+months[stamp.getMonth()],240,166,30,'#ef4444',700);
+ }else if(spec.style==='m20-native'){
+  text(String(hours24).padStart(2,'0'),240,224,150,'#f1f5f9',400);text(['SUN','MON','TUE','WED','THU','FRI','SAT'][stamp.getDay()]+' '+String(stamp.getDate()).padStart(2,'0')+' '+months[stamp.getMonth()]+' · :'+String(stamp.getMinutes()).padStart(2,'0'),240,354,20,'#f59e0b',600);
+  const a=secondAngle*Math.PI/180;ctx.beginPath();ctx.arc(240,240,222,-Math.PI/2,a,false);ctx.strokeStyle='#f59e0b';ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();ctx.beginPath();ctx.arc(240+Math.cos(a)*222,240+Math.sin(a)*222,9,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
  }else if(spec.style==='reference-split-dual-digit'){
   text(String(hours12).padStart(2,'0'),222,150,126,'#f8fafc',400);
   text(hours24>=12?'PM':'AM',320,174,25,'#f8fafc',600);
@@ -2813,8 +2857,21 @@ function createObjects(spec,assetId){
   add('text','Date separator',112,158,14,16,{text:'|',textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},4);
   add('digital-clock','Seconds',126,158,44,16,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},5);
  }else if(spec.category==='analog'){
-  const colors=spec.style==='gold'?{hour:'#e5b869',minute:'#e5b869',second:'#f3d193'}:spec.style==='tactical'?{hour:'#ffffff',minute:'#ffffff',second:'#dc2626'}:{hour:'#f8fafc',minute:'#f8fafc',second:'#ef4444'};
-  add('analog-clock','Live analog hands',40,40,160,160,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3,showOuterRing:false,showHourTicks:false}},1);
+  const colors={hour:spec.secondary||'#f8fafc',minute:spec.secondary||'#f8fafc',second:spec.accent||'#ef4444'};
+  add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3,showOuterRing:false,showHourTicks:false}},1);
+  const center={fontFamily:'system-ui',textAlign:'center'};
+  if(spec.style==='m03-native')add('date','Date',28,166,184,18,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{...center,fontSize:11,fontWeight:600,fill:'#cbd5e1'}},2);
+  if(spec.style==='m05-native')add('date','Weekday and day',146,103,76,24,{dataBinding:{source:'date',format:'ddd DD'},textStyle:{...center,fontSize:12,fontWeight:700,fill:spec.accent}},2);
+  if(spec.style==='m06-native'){add('date','Weekday and day',64,54,112,18,{dataBinding:{source:'date',format:'ddd DD'},textStyle:{...center,fontSize:11,fontWeight:600,fill:'#e2e8f0'}},2);add('digital-clock','Time',72,78,96,22,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{...center,fontSize:13,fontWeight:600,fill:'#94a3b8'}},3)}
+  if(spec.style==='m07-native')add('date','Date',66,168,108,18,{dataBinding:{source:'date',format:'DD MMM'},textStyle:{...center,fontSize:12,fontWeight:600,fill:'#e5b869'}},2);
+  if(spec.style==='m08-native'){add('date','Date',34,162,172,18,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{...center,fontSize:11,fontWeight:600,fill:'#cbd5e1'}},2);add('digital-clock','Time',68,184,104,18,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{...center,fontSize:12,fontWeight:600,fill:'#8b5cf6'}},3)}
+  if(spec.style==='m09-native')add('date','Date badge',76,166,88,22,{dataBinding:{source:'date',format:'DD MMM'},textStyle:{...center,fontSize:12,fontWeight:700,fill:'#38bdf8',backgroundColor:'#0b2233',backgroundShape:'rounded-rectangle'}},2);
+  if(spec.style==='m12-native'){add('date','Month and year',58,28,124,18,{dataBinding:{source:'date',format:'MMM YYYY'},textStyle:{...center,fontSize:11,fontWeight:600,fill:'#1e3a8a'}},2);add('date','Weekday',22,108,66,18,{dataBinding:{source:'date',format:'ddd'},textStyle:{...center,fontSize:10,fontWeight:600,fill:'#334155'}},3);add('digital-clock','Time readout',76,178,88,18,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm:ss'},textStyle:{...center,fontSize:11,fontWeight:600,fill:'#1e3a8a'}},4)}
+  if(spec.style==='m15-native'){add('date','Side date',8,104,104,24,{dataBinding:{source:'date',format:'ddd, MMM DD'},textStyle:{...center,fontSize:10,fontWeight:600,fill:'#f8fafc'}},2);add('digital-clock','Side time',128,104,104,24,{clockMode:'digital',timeFormat:'12h',dataBinding:{source:'time',format:'hh:mm A'},textStyle:{...center,fontSize:11,fontWeight:700,fill:'#f8fafc'}},3)}
+  if(spec.style==='m17-native'){add('digital-clock','Side time',152,96,80,22,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{...center,fontSize:12,fontWeight:500,fill:'#475569'}},2);add('date','Side date',152,120,80,18,{dataBinding:{source:'date',format:'MMM DD'},textStyle:{...center,fontSize:10,fontWeight:500,fill:'#b45309'}},3)}
+  if(spec.style==='m18-native')add('digital-clock','Bottom time',68,166,104,22,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{...center,fontSize:13,fontWeight:600,fill:'#94a3b8'}},2);
+  if(spec.style==='m19-native'){add('date','Day',24,104,80,24,{dataBinding:{source:'date',format:'DD'},textStyle:{...center,fontSize:15,fontWeight:600,fill:'#e2e8f0'}},2);add('date','Weekday',136,104,80,24,{dataBinding:{source:'date',format:'ddd'},textStyle:{...center,fontSize:13,fontWeight:600,fill:'#e2e8f0'}},3)}
+
  }else{
   const style=spec.style;
   if(style==='stacked'){add('digital-clock','Hours',52,68,136,52,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH'},textStyle:{fontSize:49,fontWeight:600,fill:'#f8fafc',fontFamily:'system-ui'}},1);add('digital-clock','Minutes',52,119,136,52,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'mm'},textStyle:{fontSize:49,fontWeight:600,fill:'#f8fafc',fontFamily:'system-ui'}},2);add('digital-clock','Seconds',155,105,48,22,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:13,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui'}},3)}
