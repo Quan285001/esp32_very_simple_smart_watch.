@@ -2528,7 +2528,8 @@ const SPECS=[
 {id:'dual-tone',category:'digital',name:'Dual-Tone Bold Blocks',bg:'#0c0806',accent:'#f59e0b',secondary:'#e07a38',style:'dual'},
 {id:'tall-vertical',category:'digital',name:'Tall Vertical Split (:MM)',bg:'#120714',accent:'#f9a8d4',secondary:'#fda4af',style:'tall'},
 {id:'thin-outline',category:'digital',name:'Thin Outline Wide (09 07)',bg:'#070a08',accent:'#a3e635',secondary:'#bef264',style:'outline'},
-{id:'angled-tech',category:'digital',name:'Angled Tech Strip',bg:'#07080c',accent:'#38bdf8',secondary:'#f43f5e',style:'angled'}
+{id:'angled-tech',category:'digital',name:'Angled Tech Strip',bg:'#07080c',accent:'#38bdf8',secondary:'#f43f5e',style:'angled'},
+{id:'m13',category:'digital',name:'Clean Large Digital',bg:'#050608',accent:'#38bdf8',secondary:'#94a3b8',style:'clean-digital'}
 ,{id:'ref-classic-12',category:'analog',name:'Classic Baton 12',description:'Fine chapter ring · Warm hour batons · 12 marker',bg:'#060709',accent:'#d9a452',secondary:'#e2e8f0',style:'reference-classic-12'},
 {id:'ref-chronometer-gmt',category:'analog',name:'Chronometer Ring GMT',description:'Metallic bezel · Minute track · Arrowhead indices',bg:'#07080a',accent:'#cbd5e1',secondary:'#d4af6a',style:'reference-chronometer-gmt'},
 {id:'ref-split-dual-digit',category:'digital',name:'Split Dual Digital',description:'Bold hours · Light minutes · Bottom readouts',bg:'#04141c',accent:'#f8fafc',secondary:'#cbd5e1',style:'reference-split-dual-digit'},
@@ -2644,7 +2645,13 @@ function renderThumbnail(spec,options={}){
  
 
 
- if(spec.category==='analog'){
+ if(spec.style==='clean-digital'){
+  add('date','Weekday and date',30,58,180,20,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:textStyle(12,600,'#94a3b8')},1);
+  digital('Time',18,91,204,64,'HH:mm',54,'#f8fafc',2,'24h',400);
+  add('date','Year',70,158,42,16,{dataBinding:{source:'date',format:'YYYY'},textStyle:textStyle(11,600,spec.accent)},3);
+  staticText('Date separator','|',112,158,14,16,11,spec.accent,4,600);
+  digital('Seconds',126,158,44,16,'ss',11,spec.accent,5,'24h',600);
+ }else if(spec.category==='analog'){
   const colors=spec.style==='gold'?['#e5b869','#e5b869','#f3d193']:spec.style==='tactical'?['#ffffff','#ffffff','#dc2626']:['#f8fafc','#f8fafc','#ef4444'];
   const angles=[-Math.PI/2-0.42,-Math.PI/2+0.9,-Math.PI/2+1.65],lengths=[116,151,166],widths=[9,6,3];
   for(let i=0;i<3;i++){const x=240+Math.cos(angles[i])*lengths[i],y=240+Math.sin(angles[i])*lengths[i];c.strokeStyle=colors[i];c.lineWidth=widths[i];c.lineCap='round';c.beginPath();c.moveTo(240,240);c.lineTo(x,y);c.stroke()}
@@ -2656,7 +2663,8 @@ function renderThumbnail(spec,options={}){
   if(style==='tall'){text('12',240,222,132,'#f9a8d4',600);text(':00',240,350,118,'#f9a8d4',600)}
   if(style==='outline'){text('09',142,260,92,'#bef264',400);text('07',338,260,92,'#bef264',400);text('38',240,350,30,'#bef264',600)}
   if(style==='angled'){text('09:07',286,265,64,'#f8fafc',600);text('38',340,328,28,'#38bdf8',600);text('FRI, 07 NOV',240,392,20,'#cbd5e1',600)}
-  if(style!=='angled')text('FRI, 07 NOV',240,414,19,style==='dual'?'#e7b887':'#cbd5e1',600);
+  if(style==='clean-digital'){text('SAT 28 NOV',240,138,24,'#94a3b8',600);text('09:42',240,242,108,'#f8fafc',400);text('2026 | :15',240,336,24,'#38bdf8',600)}
+  if(!['angled','clean-digital'].includes(style))text('FRI, 07 NOV',240,414,19,style==='dual'?'#e7b887':'#cbd5e1',600);
  }
  return canvas.toDataURL('image/png');
 }
