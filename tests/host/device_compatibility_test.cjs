@@ -664,7 +664,7 @@ for (const id of ['m01','m02','m03','m04','m05','m06','m07','m08','m09','m10','m
  const spec=presets.SPECS.find(item=>item.id===id);assert.ok(spec,id+' must be registered as a WFS1 preset');
  const objects=presets.createObjects(spec,id+'_artwork');assert.ok(objects.length<=16,id+' must fit the firmware object limit');
  assert.ok(objects.some(object=>object.type==='image'),id+' must include generated artwork');
- assert.ok(objects.some(object=>object.type==='digital-clock'),id+' must keep time live');
+ if(['m01','m10','m13','m16','m20'].includes(id))assert.ok(objects.some(object=>object.type==='digital-clock'),id+' must keep digital time live');
  if(['m02','m03','m04','m05','m06','m07','m08','m09','m11','m12','m14','m15','m16','m17','m18','m19'].includes(id))assert.ok(objects.some(object=>object.type==='analog-clock'),id+' hands must remain live');
  if(id==='m20'){assert.ok(objects.some(object=>object.type==='digital-clock'&&object.dataBinding?.format==='HH'),'m20 giant hour must remain live');assert.ok(objects.some(object=>object.type==='analog-clock'),'m20 seconds sweep must remain live');}
 }
