@@ -111,7 +111,7 @@ function bind(){
  $('#templateSaveBtn').addEventListener('click',saveTemplate);$('#templateUploadBtn').addEventListener('click',uploadTemplate);
 }
 function studioViewIsActive(){return !$('#studioGallery').hidden||!$('#studioCustomizer').hidden}
-function scheduleFrame(){if(frameTimer!==null||document.visibilityState!=='visible'||!studioViewIsActive())return;frameTimer=window.setTimeout(()=>{frameTimer=null;if(document.visibilityState!=='visible'||!studioViewIsActive())return;const now=new Date();if(!$('#studioGallery').hidden)drawGallery(now);else if(selectedId&&!$('#studioCustomizer').hidden)updateSelectedPreview();scheduleFrame()},250)}
+function scheduleFrame(){if(frameTimer!==null||document.visibilityState!=='visible'||!studioViewIsActive())return;const delay=selectedId==='m11'&&!$('#studioCustomizer').hidden?100:250;frameTimer=window.setTimeout(()=>{frameTimer=null;if(document.visibilityState!=='visible'||!studioViewIsActive())return;const now=new Date();if(!$('#studioGallery').hidden)drawGallery(now);else if(selectedId&&!$('#studioCustomizer').hidden)updateSelectedPreview();scheduleFrame()},delay)}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){if(frameTimer!==null)window.clearTimeout(frameTimer);frameTimer=null}else scheduleFrame()});
 function init(){if(!window.WfsTemplateFaces||!window.WfsExtendedTemplateFaces||!window.WfsWatchFacePresets)return;document.body.dataset.view='template-studio';bind();buildGallery();scheduleFrame()}
 window.addEventListener('wfs:ready',init,{once:true});
