@@ -2620,8 +2620,11 @@ function renderArtworkCanvas(spec,options={}){
    backgroundVignette:options.vignette!==false
   });
   water._drawFlowingGuilloche(0);
+  water.ctx.save();
+  water.ctx.beginPath();water.ctx.arc(water.CX,water.CY,water.R,0,Math.PI*2);water.ctx.clip();
   water.ctx.drawImage(water.waveCanvas,0,0);
   water._drawBezelAndIndices();
+  water.ctx.restore();
   c.drawImage(waterCanvas,0,0,480,480);
   return canvas;
  }
