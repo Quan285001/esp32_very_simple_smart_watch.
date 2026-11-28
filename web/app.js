@@ -729,7 +729,7 @@ async function buildWfsPackage(design){
  const layoutBytes=new TextEncoder().encode(JSON.stringify(packageDesign)),maxJsonBytes=Number(effectiveCaps.json)||16384;
  if(layoutBytes.length>maxJsonBytes)throw Error('Design JSON exceeds device limit ('+maxJsonBytes+' bytes)');
  const layoutDigest=new Uint8Array(await crypto.subtle.digest('SHA-256',layoutBytes));
- const required=[...new Set(packageDesign.objects.map(o=>({'text':'text.basic','digital-clock':'clock.digital','analog-clock':'clock.analog','date':'date.basic','weather':'weather.temperature','shape':'shape.basic','image':'image.rgb565'}[o.type])).filter(Boolean))];
+ const required=[...new Set(packageDesign.objects.map(o=>({'text':'text.basic','digital-clock':'clock.digital','analog-clock':'clock.analog','date':'date.basic','weather':'weather.temperature','shape':'shape.basic','image':'image.rgb565','wave':'wave.parametric'}[o.type])).filter(Boolean))];
  if(packageDesign.objects.some(o=>o.type==='weather'&&Array.isArray(o.weatherFields)&&o.weatherFields.includes('condition')))required.push('weather.condition');
  const manifest={packageFormatVersion:1,designId:packageDesign.designId,name:packageDesign.name,schemaVersion:1,deviceProfileId:packageDesign.deviceProfileId,requiredCapabilities:required,layoutSha256:wfsHex(layoutDigest),assets:packageAssets};
  const manifestBytes=new TextEncoder().encode(JSON.stringify(manifest)),payloadLength=manifestBytes.length+layoutBytes.length+assetOffset;
