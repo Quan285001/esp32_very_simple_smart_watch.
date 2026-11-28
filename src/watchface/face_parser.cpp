@@ -165,6 +165,8 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
         "preferredUpdateMs", "staticLayer", "requiresAntialias", "requiresBitmap"
     };
 
+    JsonObjectConst waveConfigObject = source["waveConfig"].as<JsonObjectConst>();
+
     // WAVE CONFIGURATION VALIDATION
     // Accept only a bounded numeric program; never accept executable script or arrays.
     const char* objectType = source["type"] | "";
@@ -208,7 +210,7 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
     JsonObjectConst bindingObject = source["dataBinding"].as<JsonObjectConst>();
     JsonObjectConst handConfigObject = source["handConfig"].as<JsonObjectConst>();
     JsonObjectConst renderHintsObject = source["renderHints"].as<JsonObjectConst>();
-    JsonObjectConst waveConfigObject = source["waveConfig"].as<JsonObjectConst>();
+
     if ((!transformObject.isNull() &&
          !hasOnlyKeys(transformObject, transformKeys, sizeof(transformKeys) / sizeof(transformKeys[0]))) ||
         (!styleObject.isNull() &&
