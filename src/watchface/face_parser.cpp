@@ -225,7 +225,7 @@ bool hasUnsupportedObjectProperties(JsonObjectConst source) {
     if (source.containsKey("handConfig") && handConfig.isNull()) return true;
     if (!handConfig.isNull()) {
         static const char* const handKeys[] = {"length", "width", "color", "tail", "visible"};
-        static const char* const configKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor", "showOuterRing"};
+        static const char* const configKeys[] = {"hour", "minute", "second", "centerRadius", "centerColor", "showOuterRing", "showHourTicks"};
         if (!hasOnlyKeys(handConfig, configKeys, sizeof(configKeys) / sizeof(configKeys[0]))) return true;
         if (strcmp(source["type"] | "", "analog-clock") != 0) return true;
         const char* handNames[] = {"hour", "minute", "second"};
