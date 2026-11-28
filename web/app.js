@@ -175,10 +175,11 @@ function renderSelectionOverlay(canvas){
 function renderWavePreview(element,object,now=new Date()){
  const config=object.waveConfig||{},lineCount=Math.max(2,Math.min(12,Number(config.lineCount)||8));
  const segments=Math.max(4,Math.min(24,Number(config.segments)||18));
- const speed=Math.max(0,Math.min(4,Number(config.speed)||0.8));
- const amplitude=Math.max(0,Math.min(2,Number(config.amplitude)||0.75));
+ const speedValue=Number(config.speed),speed=Number.isFinite(speedValue)?Math.max(0,Math.min(4,speedValue)):0.8;
+ const amplitudeValue=Number(config.amplitude),amplitude=Number.isFinite(amplitudeValue)?Math.max(0,Math.min(2,amplitudeValue)):0.75;
  const imageAbove=state.design?.objects?.some(item=>item.visible!==false&&item.type==='image'&&(item.transform?.zIndex||0)>(object.transform?.zIndex||0));
- const phase=(Number(config.phase)||0)+((config.animate!==false&&!imageAbove)?now.getTime()*0.001*speed:0);
+ const localSeconds=now.getHours()*3600+now.getMinutes()*60+now.getSeconds()+now.getMilliseconds()/1000;
+ const phase=(Number(config.phase)||0)+((config.animate!==false&&!imageAbove)?localSeconds*speed:0);
  const canvas=element.querySelector('canvas')||document.createElement('canvas');
  canvas.width=240;canvas.height=120;canvas.style.cssText='display:block;width:100%;height:100%;pointer-events:none';
  if(!canvas.parentNode)element.append(canvas);
