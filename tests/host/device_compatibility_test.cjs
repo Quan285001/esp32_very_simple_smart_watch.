@@ -657,6 +657,6 @@ const m13Spec = presets.SPECS.find(spec => spec.id === 'm13');
 assert.ok(m13Spec, 'Clean Large Digital must be present in the WFS1 preset catalog');
 const m13Objects = presets.createObjects(m13Spec, 'm13_artwork');
 assert.ok(m13Objects.length <= 16, 'm13 must stay within the firmware object limit');
-assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'HH:mm'), 'm13 main time must stay live');
+assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'HH:mm'), 'm13 main time must stay live: ' + JSON.stringify(m13Objects));
 assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'ss'), 'm13 seconds must stay live');
 assert.ok(m13Objects.some(object => object.type === 'date' && object.dataBinding?.format === 'YYYY'), 'm13 year must stay live');
