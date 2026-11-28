@@ -210,7 +210,7 @@ assert.doesNotMatch(indexSource, /(?:template-face-renderers|extended-template-f
 const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
 assert.match(studioSource, /module\.renderLivePreview\(spec,canvas/,
   'the 32-face Studio gallery and selected reference previews must use the animated renderer');
-assert.match(indexSource, /watch-face-catalog\.js\?v=m16-wfs1-adapters-1/,
+assert.match(indexSource, /watch-face-catalog\.js\?v=all-32-wfs1-adapters-1/,
   'the updated catalog must use a fresh cache-busting asset version');
 assert.match(studioSource, /filter\(spec=>spec\.id\.startsWith\('ref-'\)\)/,
   'the four reference presets must be included in the visible Template Studio gallery');
@@ -647,7 +647,7 @@ async function testUploadablePresetPackages() {
 }
 
 testUploadablePresetPackages()
-  .then(() => console.log('WFS1 package builder tests passed for all 16 uploadable presets.'))
+  .then(() => console.log('WFS1 package builder tests passed for all 32 uploadable presets.'))
   .catch(error => { console.error(error); process.exitCode = 1; });
 
 console.log('WFS device compatibility preflight tests passed.');
@@ -660,10 +660,11 @@ assert.ok(m13Objects.length <= 16, 'm13 must stay within the firmware object lim
 assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'HH:mm'), 'm13 main time must stay live: ' + JSON.stringify(m13Objects));
 assert.ok(m13Objects.some(object => object.type === 'digital-clock' && object.dataBinding?.format === 'ss'), 'm13 seconds must stay live');
 assert.ok(m13Objects.some(object => object.type === 'date' && object.dataBinding?.format === 'YYYY'), 'm13 year must stay live');
-for (const id of ['m01','m10','m16']) {
+for (const id of ['m01','m02','m03','m04','m05','m06','m07','m08','m09','m10','m11','m12','m13','m14','m15','m16','m17','m18','m19','m20']) {
  const spec=presets.SPECS.find(item=>item.id===id);assert.ok(spec,id+' must be registered as a WFS1 preset');
  const objects=presets.createObjects(spec,id+'_artwork');assert.ok(objects.length<=16,id+' must fit the firmware object limit');
  assert.ok(objects.some(object=>object.type==='image'),id+' must include generated artwork');
  assert.ok(objects.some(object=>object.type==='digital-clock'),id+' must keep time live');
- if(id==='m16')assert.ok(objects.some(object=>object.type==='analog-clock'),'m16 hands must remain live');
+ if(['m02','m03','m04','m05','m06','m07','m08','m09','m11','m12','m14','m15','m16','m17','m18','m19'].includes(id))assert.ok(objects.some(object=>object.type==='analog-clock'),id+' hands must remain live');
+ if(id==='m20'){assert.ok(objects.some(object=>object.type==='digital-clock'&&object.dataBinding?.format==='HH'),'m20 giant hour must remain live');assert.ok(objects.some(object=>object.type==='analog-clock'),'m20 seconds sweep must remain live');}
 }
