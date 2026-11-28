@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
           "hour":{"length":40,"width":6,"color":"#123456","tail":8,"visible":true},
           "minute":{"length":75,"width":3,"color":"#abcdef","tail":5,"visible":false},
           "second":{"length":90,"width":1.5,"color":"#ff0000","tail":20,"visible":true},
-          "centerColor":"#00ff00","centerRadius":4,"showOuterRing":false
+          "centerColor":"#00ff00","centerRadius":4,"showOuterRing":false,"showHourTicks":false
         }
       }]
     })JSON";
@@ -197,10 +197,15 @@ int main(int argc, char** argv) {
     assert(model.objects[0].analogCenterRadius == 4.0f);
     assert(model.objects[0].analogCenterColor == 0x07E0);
     assert(model.objects[0].analogShowOuterRing == false);
+    assert(model.objects[0].analogShowHourTicks == false);
 
     const std::string invalidOuterRingType = replaceOnce(analogFace,
         R"JSON("showOuterRing":false)JSON", R"JSON("showOuterRing":"false")JSON");
     result = parse(invalidOuterRingType, model);
+    assert(!result && result.error == FaceParseError::InvalidField);
+    const std::string invalidHourTicksType = replaceOnce(analogFace,
+        R"JSON("showHourTicks":false)JSON", R"JSON("showHourTicks":0)JSON");
+    result = parse(invalidHourTicksType, model);
     assert(!result && result.error == FaceParseError::InvalidField);
 
     const std::string invalidHandWidth = replaceOnce(analogFace,
