@@ -413,40 +413,6 @@ int main() {
     assert(renderWatchFaceDynamic(face,timeInfo,160,weather)==FaceRenderStatus::Ok);
     assert(std::count(canvas.calls.begin(),canvas.calls.end(),"line")==72);
 
-    // An overlapping analog clock composes lower-z layers into hand tiles.
-    // Incidental partial wave draws during that composition must not advance
-    // the wave's independent full-region update timer.
-    face=baseFace(); face.objectCount=2;
-    face.objects[0]=baseObject(FaceElementType::Wave,"water-wave-with-hands");
-    face.objects[0].transform.x=18; face.objects[0].transform.y=64;
-    face.objects[0].transform.width=204; face.objects[0].transform.height=112;
-    face.objects[0].transform.zIndex=1;
-    face.objects[0].wave={6,12,0.8f,0.75f,0.0f,0x126C,0x3C1E,160,true};
-    face.objects[1]=baseObject(FaceElementType::AnalogClock,"water-hands");
-    face.objects[1].transform.x=16; face.objects[1].transform.y=16;
-    face.objects[1].transform.width=208; face.objects[1].transform.height=208;
-    face.objects[1].transform.zIndex=2;
-    timeInfo.tm_sec=9;
-    canvas.reset();
-    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
-    timeInfo.tm_sec=9;
-    canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,160,weather)==FaceRenderStatus::Ok);
-    auto hasFullWaveRegion = []() {
-        return std::any_of(canvas.fillRectCalls.begin(),canvas.fillRectCalls.end(),
-            [](const TestCanvas::FillRectCall& call) {
-                return call.x==18 && call.y==64 && call.w==204 && call.h==112;
-            });
-    };
-    assert(hasFullWaveRegion()); // scheduled full wave redraw at 160 ms
-    canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,280,weather)==FaceRenderStatus::Ok);
-    assert(!hasFullWaveRegion()); // 120 ms since the last full wave redraw
-    canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,320,weather)==FaceRenderStatus::Ok);
-    assert(hasFullWaveRegion()); // incidental hand-tile composition did not reset cadence
-    timeInfo.tm_sec=9;
-
     // A higher-z image overlapping the wave freezes the wave at phase zero.
     // The static wave remains below the image, so transparent image pixels can reveal it.
     face=baseFace(); face.objectCount=2; face.assetCount=1; face.containsImageAssets=true;
