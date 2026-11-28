@@ -33,7 +33,7 @@ const artworkRenderer=source.slice(artworkStart,artworkEnd);
 assert(artworkRenderer.includes("if(style==='m11-native')"),
   'Elements Water WFS artwork must use its dedicated shared renderer path');
 assert(artworkRenderer.includes('new WaterRenderer(waterCanvas)') &&
-       artworkRenderer.includes('water._drawFlowingGuilloche(0)') &&
+       artworkRenderer.includes('water._drawFlowingGuilloche(0,{drawWaves:false})') &&
        artworkRenderer.includes('water._drawBezelAndIndices()'),
   'Elements Water device artwork must reuse the live Guilloche and bezel implementation');
 assert(!artworkRenderer.includes('c.ellipse(240,240,r,r*.72'),
@@ -41,6 +41,14 @@ assert(!artworkRenderer.includes('c.ellipse(240,240,r,r*.72'),
 assert(artworkRenderer.includes('water.ctx.arc(water.CX,water.CY,water.R'),
   'Elements Water exported artwork must remain clipped to the circular dial');
 
+assert(source.includes("waveConfig:{lineCount:8,segments:18,speed:0.8,amplitude:0.75"),
+  'Elements Water must expose bounded wave parameters in the shared preset definition');
+assert(source.includes("add('wave','Flowing water',18,64,204,112,{waveConfig:spec.waveConfig},1)"),
+  'Elements Water WFS1 export must carry the same wave configuration as a native object');
+assert(source.includes('drawParametricWavePreview(ctx,spec.waveConfig'),
+  'Web live preview must render the shared parametric wave configuration');
+assert(source.includes('water._drawFlowingGuilloche(0,{drawWaves:false})'),
+  'Elements Water static artwork must not bake the independent wave layer into its image asset');
 assert(source.includes('function getFormattedTimeAndDate('));
 assert.strictEqual((source.match(/function drawSwordHand\s*\(/g) || []).length, 2,
   'the two renderer-specific sword-hand implementations must remain distinct');
