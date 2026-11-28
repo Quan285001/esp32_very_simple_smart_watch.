@@ -81,6 +81,7 @@ struct FaceObject {
     float analogCenterRadius;
     uint16_t analogCenterColor;
     bool analogShowOuterRing;
+    bool analogShowHourTicks;
 };
 
 struct FaceAsset {
