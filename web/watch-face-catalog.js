@@ -2521,9 +2521,9 @@
 /* === WFS v1 preset artwork and package adapters (8 shared + 4 reference faces) === */
 
 /* Watch Face Studio hybrid presets.
- * Decorative artwork is rendered to a 480x480 browser bitmap; live time/date
- * remain native WFS elements so the watch never displays a frozen clock.
- * Water guilloche and the amber seconds arc are static artwork; live hands/readouts remain native.
+ * Static dial artwork is rendered to a 480x480 browser bitmap; live time/date
+ * and parametric effects remain native WFS objects so the watch can update them.
+ * Elements Water waves now travel as a bounded waveConfig object; live hands/readouts remain native.
  */
 (function(root){
 'use strict';
