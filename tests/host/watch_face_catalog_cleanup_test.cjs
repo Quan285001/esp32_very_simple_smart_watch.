@@ -39,8 +39,8 @@ assert.deepStrictEqual(faceCounts, [8, 20],
 
 const presetBlock = source.match(/const SPECS=\[([\s\S]*?)\];/);
 assert(presetBlock, 'WFS1 preset list must remain present');
-assert.strictEqual((presetBlock[1].match(/\bid:'[^']+'/g) || []).length, 12,
-  'all 8 original and 4 reference WFS1 presets must remain present');
+assert.strictEqual((presetBlock[1].match(/\bid:'[^']+'/g) || []).length, 13,
+  '8 original, 4 reference and the first extended WFS1 preset must remain present');
 
 console.log('Watch-face catalog and Template Studio regression checks passed.');
 
