@@ -18,7 +18,7 @@
   const SUPPORTED_TYPES = new Set(Object.keys(TYPE_CAPABILITY));
   const ELEMENT_CODES = Object.freeze({
     t: 'text', dc: 'digital-clock', ac: 'analog-clock',
-    d: 'date', w: 'weather', s: 'shape', i: 'image', wv: 'wave'
+    d: 'date', w: 'weather', s: 'shape', i: 'image', v: 'wave'
   });
   const SAFE_FONTS = new Set(['system-ui', 'sans-serif', 'inherit']);
   const SUPPORTED_FORMAT_TOKENS = Object.freeze({
