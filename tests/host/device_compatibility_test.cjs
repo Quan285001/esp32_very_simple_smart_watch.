@@ -195,12 +195,6 @@ assert.match(appSource, /getMilliseconds\(\)\/1000/,
   'analog second-hand angles must use fractional seconds for smooth motion');
 assert.match(appSource, /function syncLivePreviewLoop/,
   'live preview animation must be scoped to the active templates or editor view');
-assert.match(studioSource, /module\.renderLivePreview\(spec,canvas/,
-  'the 32-face Studio gallery and selected reference previews must use the animated renderer');
-assert.match(indexSource, /watch-face-catalog\.js\?v=giant-hh-live-preview-2/,
-  'the updated catalog must use a fresh cache-busting asset version');
-
-
 const unifiedFaceIds = [
   ...originalFaceCatalog.faces.map(face => face.id),
   ...extendedFaceCatalog.faces.map(face => face.id),
@@ -214,6 +208,10 @@ assert.match(indexSource, /web\/watch-face-catalog\.js/,
 assert.doesNotMatch(indexSource, /(?:template-face-renderers|extended-template-face-renderers|watch-face-presets)\.js/,
   'the app must not load the retired split catalog scripts');
 const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
+assert.match(studioSource, /module\.renderLivePreview\(spec,canvas/,
+  'the 32-face Studio gallery and selected reference previews must use the animated renderer');
+assert.match(indexSource, /watch-face-catalog\.js\?v=giant-hh-live-preview-2/,
+  'the updated catalog must use a fresh cache-busting asset version');
 assert.match(studioSource, /filter\(spec=>spec\.id\.startsWith\('ref-'\)\)/,
   'the four reference presets must be included in the visible Template Studio gallery');
 
