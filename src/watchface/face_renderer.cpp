@@ -34,7 +34,8 @@ bool isDynamic(FaceElementType type) {
     return type == FaceElementType::DigitalClock ||
            type == FaceElementType::AnalogClock ||
            type == FaceElementType::Date ||
-           type == FaceElementType::Weather;
+           type == FaceElementType::Weather ||
+           type == FaceElementType::Wave;
 }
 
 bool intersects(const FaceObject& object, int x, int y, int w, int h) {
