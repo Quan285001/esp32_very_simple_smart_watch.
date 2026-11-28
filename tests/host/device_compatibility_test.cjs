@@ -50,7 +50,84 @@ for (const call of [giantHourCall, giantFooterCall]) {
   assert.equal(call.baseline, 'middle', 'Giant HH and footer must use a vertically centered text baseline');
 }
 assert.equal(giantHourCall.y, 240, 'Giant HH must be centered on the dial');
+
 assert.equal(giantFooterCall.y, 388, 'date and minute footer must retain its lower-dial position');
+
+// Elements Water is rendered through the existing 250ms Studio scheduler,
+// without starting a second requestAnimationFrame loop.
+const previousDocument = global.document;
+const previousRequestAnimationFrame = global.requestAnimationFrame;
+let animationRequests = 0;
+global.requestAnimationFrame = () => { animationRequests++; return animationRequests; };
+const waterCanvases = [];
+function makeWaterCanvas(width, height) {
+  const textCalls = [];
+  const drawCalls = [];
+  const transforms = [];
+  const context = new Proxy({
+    fillText(value, x, y) {
+      textCalls.push({ value: String(value), x, y, align: this.textAlign, baseline: this.textBaseline });
+    },
+    drawImage(...args) { drawCalls.push(args); },
+    translate(x, y) { transforms.push(['translate', x, y]); },
+    scale(x, y) { transforms.push(['scale', x, y]); },
+    createRadialGradient() { return { addColorStop() {} }; },
+    createLinearGradient() { return { addColorStop() {} }; }
+  }, {
+    get(target, key) { return key in target ? target[key] : () => {}; },
+    set(target, key, value) { target[key] = value; return true; }
+  });
+  const canvas = {
+    width, height, textCalls, drawCalls, transforms,
+    getContext(type) { return type === '2d' ? context : null; }
+  };
+  waterCanvases.push(canvas);
+  return canvas;
+}
+global.document = { createElement(tag) {
+  assert.equal(tag, 'canvas');
+  return makeWaterCanvas(300, 150);
+} };
+extendedFaceCatalog.setElementsWaterData({
+  tempText: '29/23°',
+  leftValue: '85',
+  leftProgress: 0.85,
+  bottomValue: '76',
+  dateValue: '09',
+  waveSpeed: 1.25,
+  waveAmplitude: 0.9
+});
+const waterTarget = makeWaterCanvas(480, 480);
+extendedFaceCatalog.renderFace('m11', waterTarget, new Date(2026, 10, 28, 9, 42, 15, 0));
+assert.equal(waterCanvases.length, 2, 'Elements Water should allocate one reusable face canvas and one wave buffer');
+assert.deepEqual([waterCanvases[0].width, waterCanvases[0].height], [600, 600],
+  'Elements Water should render on its private 600x600 logical canvas');
+assert.deepEqual([waterCanvases[1].width, waterCanvases[1].height], [600, 600],
+  'the guilloche buffer should use the same internal coordinate system');
+const waterText = waterCanvases[0].textCalls.map(call => call.value);
+for (const value of ['29/23°', '85', '09', '76']) {
+  assert.ok(waterText.includes(value), 'Elements Water should render dynamic complication data: ' + value);
+}
+assert.ok(waterTarget.drawCalls.length > 0, 'Elements Water should composite its rendered face into the supplied template canvas');
+assert.equal(animationRequests, 0, 'Template Studio rendering must not create an independent animation loop');
+const waterClass = extendedFaceCatalog.ElementsWaterWatchFace;
+assert.equal(typeof waterClass, 'function', 'Elements Water module should be available through the namespaced catalog API');
+const standaloneCanvas = makeWaterCanvas(300, 400);
+const standaloneWater = new waterClass(standaloneCanvas);
+standaloneWater.setData({ leftProgress: 4, waveSpeed: 8, waveAmplitude: 9 });
+assert.equal(standaloneWater.data.leftProgress, 1, 'gauge progress must be clamped to 0..1');
+assert.equal(standaloneWater.data.waveSpeed, 4, 'wave speed must be bounded');
+assert.equal(standaloneWater.data.waveAmplitude, 2, 'wave amplitude must be bounded');
+standaloneWater.renderFrame(new Date(2026, 10, 28), 10);
+assert.ok(standaloneCanvas.transforms.some(call => call[0] === 'scale' && call[1] === 0.5),
+  'Elements Water should scale down proportionally to a 300px canvas');
+assert.ok(standaloneCanvas.transforms.some(call => call[0] === 'translate' && call[2] === 50),
+  'non-square canvases should keep the dial centered without stretching');
+if (previousDocument === undefined) delete global.document;
+else global.document = previousDocument;
+if (previousRequestAnimationFrame === undefined) delete global.requestAnimationFrame;
+else global.requestAnimationFrame = previousRequestAnimationFrame;
+
 
 
 const root = path.resolve(__dirname, '../..');
