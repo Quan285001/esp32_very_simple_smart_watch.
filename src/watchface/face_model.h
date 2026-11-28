@@ -19,7 +19,8 @@ enum class FaceElementType : uint8_t {
     Date,
     Weather,
     Shape,
-    Image
+    Image,
+    Wave
 };
 
 enum class FaceTextAlign : uint8_t {
@@ -44,6 +45,20 @@ struct FaceAnalogHandConfig {
     float tail;
     uint16_t color;
     bool visible;
+};
+
+// Bounded parametric wave definition shared by the Web exporter and ESP renderer.
+// Values are intentionally small so the ESP32-C3 never needs a heap allocation.
+struct FaceWaveConfig {
+    uint8_t lineCount;
+    uint8_t segments;
+    float speed;
+    float amplitude;
+    float phase;
+    uint16_t color;
+    uint16_t highlightColor;
+    uint16_t updateMs;
+    bool animate;
 };
 
 struct FaceObject {
@@ -77,7 +92,9 @@ struct FaceObject {
     bool showWeatherTemperature;
     bool showWeatherCondition;
 
+    // Type-specific rendering configuration.
     FaceAnalogHandConfig analogHands[3]; // hour, minute, second
+    FaceWaveConfig wave;
     float analogCenterRadius;
     uint16_t analogCenterColor;
     bool analogShowOuterRing;
