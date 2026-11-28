@@ -85,7 +85,7 @@ The BOOT button supports short press, double press and hold:
 
 Menu groups include Clock, Weather, Connectivity and System. Connectivity controls Wi-Fi and Bluetooth; System includes time/weather sync, device information, Light Sleep and restart.
 
-At startup, the firmware restores persistent settings/cache, performs bounded network/time/weather work when configured, initializes BLE, then turns Wi-Fi off. Enable Wi-Fi when a network operation is needed. Cached weather can still be shown offline.
+At startup, the firmware restores persistent settings/cache, performs bounded network/time/weather work when configured, keeps BLE uninitialized and turns Wi-Fi off. Bluetooth/GATT are initialized only when the user enables Bluetooth from Menu → Connectivity. Enable Wi-Fi when a network operation is needed. Cached weather can still be shown offline.
 
 Auto Light Sleep is limited to the clock screen after the configured idle timeout (15 seconds by default) and is suppressed during an active BLE connection or background work. Manual Light Sleep remains available from the menu. Wake with the BOOT button.
 
