@@ -84,6 +84,7 @@ uint16_t capabilityBit(const char* value) {
     if (strcmp(value, "weather.condition") == 0) return 1U << 5;
     if (strcmp(value, "shape.basic") == 0) return 1U << 6;
     if (strcmp(value, "image.rgb565") == 0) return 1U << 7;
+    if (strcmp(value, "wave.parametric") == 0) return 1U << 8;
     return 0;
 }
 
@@ -357,6 +358,9 @@ bool validateWfsPackage(fs::File& file, size_t expectedFileLength,
                 break;
             case FaceElementType::Image:
                 requiredCapabilityMask |= capabilityBit("image.rgb565");
+                break;
+            case FaceElementType::Wave:
+                requiredCapabilityMask |= capabilityBit("wave.parametric");
                 break;
         }
         if (object.type != FaceElementType::Image) continue;
