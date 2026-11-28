@@ -72,22 +72,16 @@ uint32_t facePerfImageCacheMisses = 0;
 
 void loop() {
     // During startup, the boot task owns the display. Do not run normal UI,
-    // button, or periodic services until network work and BLE initialization
-    // have both reached their terminal state.
+    // button, or periodic services until the ordered network stage completes.
+    // BLE stays uninitialized until the user explicitly enables it in the menu.
     if (!bootUiReady) {
-        if (BootCoordinator::takeBleInitRequest()) {
-            bootTerminalLog("[BLE] Initializing Bluetooth", TFT_YELLOW);
-            beginBLE();
-            if (isBLEEnabled()) {
-                toggleBLE();
-            }
-            SystemDiagnostics::logMemory("after BLE init");
+        if (BootCoordinator::takeStartupReadyRequest()) {
             WiFi.disconnect(false, false);
             WiFi.mode(WIFI_OFF);
             wifiEnabled = false;
             WifiService::resetConnectionMonitor(millis());
 
-            bootTerminalLog("[OK] Bluetooth initialized; radios idle", TFT_GREEN);
+            bootTerminalLog("[OK] Bluetooth remains OFF; enable from menu", TFT_GREEN);
             bootTerminalLog("[BOOT] Startup complete", TFT_GREEN);
             delay(350);
 
