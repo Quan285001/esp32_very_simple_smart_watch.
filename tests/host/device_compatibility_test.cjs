@@ -210,7 +210,7 @@ assert.doesNotMatch(indexSource, /(?:template-face-renderers|extended-template-f
 const studioSource = fs.readFileSync(path.join(root, 'web/template-studio.js'), 'utf8');
 assert.match(studioSource, /module\.renderLivePreview\(spec,canvas/,
   'the 32-face Studio gallery and selected reference previews must use the animated renderer');
-assert.match(indexSource, /watch-face-catalog\.js\?v=all-32-wfs1-adapters-4/,
+assert.match(indexSource, /watch-face-catalog\.js\?v=elements-water-shared-art-5/,
   'the updated catalog must use a fresh cache-busting asset version');
 assert.match(studioSource, /filter\(spec=>spec\.id\.startsWith\('ref-'\)\)/,
   'the four reference presets must be included in the visible Template Studio gallery');
