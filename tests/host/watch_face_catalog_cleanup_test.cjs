@@ -39,8 +39,8 @@ assert.deepStrictEqual(faceCounts, [8, 20],
 
 const presetBlock = source.match(/const SPECS=\[([\s\S]*?)\];/);
 assert(presetBlock, 'WFS1 preset list must remain present');
-assert.strictEqual((presetBlock[1].match(/\bid:'[^']+'/g) || []).length, 16,
-  '8 original, 4 reference and four extended WFS1 presets must remain present');
+assert.strictEqual((presetBlock[1].match(/\bid:'[^']+'/g) || []).length, 32,
+  '8 original, 20 extended and 4 reference WFS1 presets must remain present');
 
 console.log('Watch-face catalog and Template Studio regression checks passed.');
 
@@ -85,4 +85,4 @@ assert(appSource.includes("legacyStatus('This firmware does not currently accept
   'firmware upload capability rejection must be visible in the persistent status area');
 assert(studioHtml.includes('id="templateTransferStatus"') && studioHtml.includes('aria-live="polite"'), 'Template Studio must provide a persistent WFS transfer status region');
 assert(studioHtml.includes('web/app.js?v=live-analog-hands-1'), 'app.js changes must use a refreshed cache key');
-assert(studioHtml.includes('web/watch-face-catalog.js?v=m16-wfs1-adapters-1'), 'Elements Water renderer changes must use a refreshed cache key');
+assert(studioHtml.includes('web/watch-face-catalog.js?v=all-32-wfs1-adapters-1'), 'Elements Water renderer changes must use a refreshed cache key');
