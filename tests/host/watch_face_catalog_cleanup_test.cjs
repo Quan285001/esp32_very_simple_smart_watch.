@@ -85,4 +85,4 @@ assert(appSource.includes("legacyStatus('This firmware does not currently accept
   'firmware upload capability rejection must be visible in the persistent status area');
 assert(studioHtml.includes('id="templateTransferStatus"') && studioHtml.includes('aria-live="polite"'), 'Template Studio must provide a persistent WFS transfer status region');
 assert(studioHtml.includes('web/app.js?v=live-analog-hands-1'), 'app.js changes must use a refreshed cache key');
-assert(studioHtml.includes('web/watch-face-catalog.js?v=elements-water-image-layer-1'), 'Elements Water renderer changes must use a refreshed cache key');
+assert(studioHtml.includes('web/watch-face-catalog.js?v=m13-wfs1-adapter-1'), 'Elements Water renderer changes must use a refreshed cache key');
