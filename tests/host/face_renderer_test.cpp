@@ -432,18 +432,18 @@ int main() {
     canvas.reset();
     assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
 
-    // The analog clock moves at 80 ms and restores only clipped hand rows.
+    // The analog clock moves at 100 ms and restores only clipped hand rows.
     // Wave is not due yet, so no complete 240px Wave redraw should occur.
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,80,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,100,weather)==FaceRenderStatus::Ok);
     assert(!canvas.clipHeights.empty());
     assert(std::find(canvas.clipHeights.begin(),canvas.clipHeights.end(),240)==canvas.clipHeights.end());
 
-    // At 160 ms, the analog-hand restoration again draws only partial Wave
+    // At 200 ms, the analog-hand restoration again draws only partial Wave
     // rows. The Wave's own pass must still see its original timestamp and
     // perform one complete redraw of its full bounds.
     canvas.reset();
-    assert(renderWatchFaceDynamic(face,timeInfo,160,weather)==FaceRenderStatus::Ok);
+    assert(renderWatchFaceDynamic(face,timeInfo,200,weather)==FaceRenderStatus::Ok);
     assert(std::find(canvas.clipHeights.begin(),canvas.clipHeights.end(),240)!=canvas.clipHeights.end());
     timeInfo.tm_sec=9;
 
