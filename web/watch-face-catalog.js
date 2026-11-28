@@ -1,4 +1,5 @@
 /* Unified Watch Face Catalog: 8 original + 20 extended + 4 reference-aligned faces. */
+/* WFS1 export coverage: all 32 catalog entries have native object adapters. */
 
 /* Shared merge helpers for targeted template refinements. */
 (function(root){
