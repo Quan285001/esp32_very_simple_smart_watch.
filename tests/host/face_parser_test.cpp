@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
     assert(model.objects[0].wave.amplitude == 0.8f);
     assert(model.objects[0].wave.updateMs == 200);
     assert(model.objects[0].wave.animate == true);
-    assert(model.objects[0].wave.color == 0x15A8);
+    assert(model.objects[0].wave.color == 0x126C);
 
     const std::string oversizedWave = replaceOnce(validWave,
         R"JSON("lineCount":6)JSON", R"JSON("lineCount":13)JSON");
