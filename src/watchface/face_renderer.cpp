@@ -823,6 +823,9 @@ bool drawObject(const FaceModel& face, const FaceObject& object,
         case FaceElementType::Shape:
             drawShape(object);
             return true;
+        case FaceElementType::Wave:
+            drawWave(face, object, timeInfo, millisValue);
+            return true;
         case FaceElementType::AnalogClock:
             drawAnalogClock(object, timeInfo, millisValue);
             return true;
@@ -947,6 +950,10 @@ FaceRenderStatus renderWatchFaceDynamic(const FaceModel& face, const struct tm& 
             updateAnalogHandCache(order[i], dynamicObject, timeInfo, millisValue);
             continue;
         }
+        // Waves refresh at their own bounded cadence, independently of clock interpolation.
+        if (dynamicObject.type == FaceElementType::Wave &&
+            !waveFrameDue(face, order[i], dynamicObject, timeInfo, millisValue)) continue;
+
         int dirtyX = 0;
         int dirtyWidth = 0;
         if (dynamicTextUnchanged(order[i], dynamicObject, timeInfo, weather,
