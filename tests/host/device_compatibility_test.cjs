@@ -293,6 +293,10 @@ for (const id of ['ref-classic-12', 'ref-chronometer-gmt']) {
   );
 }
 
+const splitDualSpec = presets.SPECS.find(template => template.id === 'ref-split-dual-digit');
+const splitSubtime = presets.createObjects(splitDualSpec, 'split-artwork').find(object => object.name === 'Sub time');
+assert.equal(splitSubtime.dataBinding.format, 'HH:mm:ss',
+  'Split Dual Digital must expose live seconds in its lower time readout');
 const minimalArcSpec = presets.SPECS.find(template => template.id === 'ref-minimal-arc');
 const minimalArcClock = presets.createObjects(minimalArcSpec, 'minimal-artwork').find(object => object.type === 'analog-clock');
 assert.deepEqual([minimalArcClock.transform.x, minimalArcClock.transform.y, minimalArcClock.transform.width, minimalArcClock.transform.height], [16, 16, 208, 208], 'unrelated analog templates must not receive the 1.75x scaling patch');
