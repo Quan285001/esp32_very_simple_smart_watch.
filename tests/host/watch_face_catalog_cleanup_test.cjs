@@ -16,6 +16,17 @@ for (const name of [
 assert(source.includes('window.WfsTemplateFaces'));
 assert(source.includes('window.WfsExtendedTemplateFaces'));
 assert(source.includes('root.WfsWatchFacePresets'));
+assert(source.includes('const hasBackgroundImage = !!('), 'Elements Water must detect an active personal background image');
+const waterRendererStart = source.indexOf('_drawFlowingGuilloche(timeSec)');
+const waterRendererEnd = source.indexOf('_drawBezelAndIndices()', waterRendererStart);
+const waterRenderer = source.slice(waterRendererStart, waterRendererEnd);
+assert(waterRenderer.includes('const t = hasBackgroundImage ? 0 : timeSec * this.data.waveSpeed'),
+  'Elements Water waves must freeze whenever a personal image is active');
+assert(waterRenderer.indexOf('ctx.stroke();') < waterRenderer.indexOf('ctx.drawImage(\n          image,'),
+  'Elements Water wave strokes must be composited before the personal image');
+assert(waterRenderer.indexOf('ctx.drawImage(\n          image,') < waterRenderer.indexOf('this.data.backgroundDim'),
+  'personal image dimming must remain applied after the image layer');
+
 assert(source.includes('function getFormattedTimeAndDate('));
 assert.strictEqual((source.match(/function drawSwordHand\s*\(/g) || []).length, 2,
   'the two renderer-specific sword-hand implementations must remain distinct');
