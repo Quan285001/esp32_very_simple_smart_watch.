@@ -27,7 +27,7 @@ namespace {
 enum class State : uint8_t {
     Idle,
     NetworkRunning,
-    BlePending,
+    StartupReadyPending,
     Complete
 };
 
@@ -122,11 +122,11 @@ void networkStartupTask(void* parameter) {
         bootTerminalLog("[INFO] Wi-Fi unavailable; using saved data", TFT_YELLOW);
     }
 
-    // BLE is initialized by loop() after this task exits, so its allocation
-    // cannot overlap either HTTPS/TLS request.
+    // The application loop completes startup after this worker releases its
+    // stack. BLE is intentionally initialized only on explicit user request.
     bootTerminalLog("[OK] Network startup stage complete", TFT_GREEN);
     SystemDiagnostics::logMemory("bootNetwork task exit");
-    setState(State::BlePending);
+    setState(State::StartupReadyPending);
     vTaskDelete(nullptr);
 }
 
@@ -180,7 +180,7 @@ bool begin() {
     );
 
     if (created != pdPASS) {
-        setState(State::BlePending);
+        setState(State::StartupReadyPending);
         bootTerminalLog("[WARN] Network task unavailable; skipping Wi-Fi", TFT_YELLOW);
         WiFi.disconnect(false, false);
         WiFi.mode(WIFI_OFF);
@@ -193,17 +193,17 @@ bool begin() {
 
 bool isBusy() {
     const State current = getState();
-    return current == State::NetworkRunning || current == State::BlePending;
+    return current == State::NetworkRunning || current == State::StartupReadyPending;
 }
 
-bool takeBleInitRequest() {
+bool takeStartupReadyRequest() {
     portENTER_CRITICAL(&stateMux);
-    const bool pending = state == State::BlePending;
+    const bool pending = state == State::StartupReadyPending;
     if (pending) state = State::Complete;
     portEXIT_CRITICAL(&stateMux);
     if (pending) {
-        // Let the network worker execute its self-delete and give the idle
-        // task a tick to reclaim its stack before BLE allocates its buffers.
+        // Let the network worker self-delete and give the idle task a tick
+        // to reclaim its stack before the UI resumes normal scheduling.
         vTaskDelay(1);
     }
     return pending;
