@@ -2805,7 +2805,7 @@ function createObjects(spec,assetId){
  }else if(spec.style==='m16-native'){
   add('digital-clock','Digital time',48,30,144,34,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:27,fontWeight:600,fill:'#ef4444',fontFamily:'system-ui',textAlign:'center'}},1);
   add('date','Date',76,58,88,22,{dataBinding:{source:'date',format:'DD MMM'},textStyle:{fontSize:14,fontWeight:600,fill:'#ef4444',fontFamily:'system-ui',textAlign:'center'}},2);
-  add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui'},handConfig:{hour:{length:54,width:4,tail:10,color:'#e2e8f0'},minute:{length:78,width:3,tail:12,color:'#f8fafc'},second:{length:0,width:0,tail:0,color:'#ef4444'},centerColor:'#1e293b',centerRadius:3,showOuterRing:false,showHourTicks:false}},3);
+  add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui'},handConfig:{hour:{length:54,width:4,tail:10,color:'#e2e8f0'},minute:{length:78,width:3,tail:12,color:'#f8fafc'},second:{length:0,width:0.25,tail:0,color:'#ef4444'},centerColor:'#1e293b',centerRadius:3,showOuterRing:false,showHourTicks:false}},3);
  }else if(spec.style==='clean-digital'){
   add('date','Weekday and date',30,58,180,20,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{fontSize:12,fontWeight:600,fill:'#94a3b8',fontFamily:'system-ui',textAlign:'center'}},1);
   add('digital-clock','Time',18,91,204,64,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'HH:mm'},textStyle:{fontSize:54,fontWeight:400,fill:'#f8fafc',fontFamily:'system-ui',textAlign:'center'}},2);
