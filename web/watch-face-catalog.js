@@ -1647,7 +1647,7 @@
       ctx.restore();
     }
 
-    _drawFlowingGuilloche(timeSec) {
+    _drawFlowingGuilloche(timeSec, options = {}) {
       const ctx = this.wctx;
       const { CX, CY, R, baseSize: size } = this;
       const image = this.data.backgroundImage;
@@ -1686,6 +1686,9 @@
       ctx.beginPath();
       ctx.arc(CX, CY, R - 18, 0, Math.PI * 2);
       ctx.clip();
+      // Static WFS artwork omits the wave layer; the same bounded parameters
+      // are exported as a native `wave` object and rendered independently.
+      if (options.drawWaves !== false) {
       const strips = 54;
       for (let i = -4; i <= strips + 4; i++) {
         const ratio = i / strips;
@@ -1720,6 +1723,8 @@
           ctx.strokeStyle = 'rgba(115, 168, 212, ' + ((shimmer - 0.52) * 0.55) + ')';
           ctx.stroke();
         }
+      }
+
       }
 
       // The personal image is deliberately composited after the waves. Opaque
@@ -2543,7 +2548,7 @@ const SPECS=[
 {id:'m07',category:'analog',name:'Dress Moon Accent',bg:'#060709',accent:'#e2e8f0',secondary:'#e5b869',style:'m07-native'},
 {id:'m08',category:'analog',name:'Violet Sweep Offset',bg:'#050608',accent:'#8b5cf6',secondary:'#e2e8f0',style:'m08-native'},
 {id:'m09',category:'analog',name:'Blue Notch Badge',bg:'#050608',accent:'#38bdf8',secondary:'#e2e8f0',style:'m09-native'},
-{id:'m11',category:'analog',name:'Elements Water',bg:'#091826',accent:'#38bdf8',secondary:'#cbd5e1',style:'m11-native'},
+{id:'m11',category:'analog',name:'Elements Water',bg:'#091826',accent:'#38bdf8',secondary:'#cbd5e1',style:'m11-native',waveConfig:{lineCount:8,segments:18,speed:0.8,amplitude:0.75,phase:0,color:'#164e63',highlightColor:'#3b82f6',updateMs:160,animate:true}},
 {id:'m12',category:'analog',name:'Elements Air',bg:'#e8e6e1',accent:'#1e3a8a',secondary:'#334155',style:'m12-native'},
 {id:'m14',category:'analog',name:'Tall 12 Red Dot',bg:'#050608',accent:'#ef4444',secondary:'#e2e8f0',style:'m14-native'},
 {id:'m15',category:'analog',name:'Amber Sweep Side Readouts',bg:'#2b2d30',accent:'#d97706',secondary:'#f8fafc',style:'m15-native'},
@@ -2619,7 +2624,7 @@ function renderArtworkCanvas(spec,options={}){
    backgroundSunburst:options.sunburst!==false,
    backgroundVignette:options.vignette!==false
   });
-  water._drawFlowingGuilloche(0);
+  water._drawFlowingGuilloche(0,{drawWaves:false});
   water.ctx.save();
   water.ctx.beginPath();water.ctx.arc(water.CX,water.CY,water.R,0,Math.PI*2);water.ctx.clip();
   water.ctx.drawImage(water.waveCanvas,0,0);
@@ -2708,8 +2713,39 @@ function renderArtworkCanvas(spec,options={}){
  c.restore();return canvas;
 }
 function renderBackground(spec,options){return renderArtworkCanvas(spec,options||{}).toDataURL('image/png')}
+// -------------------- SHARED PARAMETRIC WAVE PREVIEW --------------------
+// This uses the same waveConfig object that createObjects() serializes to WFS1.
+function drawParametricWavePreview(ctx, config = {}, timeSec = 0) {
+ const lineCount=Math.max(2,Math.min(12,Number(config.lineCount)||8));
+ const segments=Math.max(4,Math.min(24,Number(config.segments)||18));
+ const speed=Math.max(0,Math.min(4,Number(config.speed)||0.8));
+ const amplitude=Math.max(0,Math.min(2,Number(config.amplitude)||0.75));
+ const phase=(Number(config.phase)||0)+(config.animate===false?0:timeSec*speed);
+ const color=/^#[0-9a-f]{6}$/i.test(config.color||'')?config.color:'#164e63';
+ const highlight=/^#[0-9a-f]{6}$/i.test(config.highlightColor||'')?config.highlightColor:'#3b82f6';
+ const x=36,y=128,width=408,height=224;
+ ctx.save();ctx.beginPath();ctx.arc(240,240,214,0,Math.PI*2);ctx.clip();
+ for(let line=0;line<lineCount;line++){
+  const row=line,baseY=y+(row+.5)*height/lineCount;
+  const bob=(Math.sin(phase*1.45+row*.42)*7.5+Math.cos(phase*.85-row*.25)*4)*amplitude;
+  ctx.beginPath();
+  for(let segment=0;segment<=segments;segment++){
+   const nx=segment/segments;
+   const w1=Math.sin(nx*Math.PI*3.1+phase*1.35+row*.32)*14;
+   const w2=Math.sin(nx*Math.PI*5.6-phase*1.05+row*.58)*6.5;
+   const w3=Math.cos(nx*Math.PI*1.8+phase*.75-row*.19)*9;
+   const curve=Math.sin(nx*Math.PI)*-8;
+   const px=x+nx*width,py=baseY+bob+(w1+w2+w3+curve)*amplitude;
+   if(segment===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+  }
+  ctx.strokeStyle=line%3===0?highlight:color;ctx.lineWidth=line%3===0?1.8:1.2;ctx.stroke();
+ }
+ ctx.restore();
+}
+
 function renderThumbnail(spec,options={}){
  const canvas=renderArtworkCanvas(spec,options),c=canvas.getContext('2d');
+ if(spec.style==='m11-native')drawParametricWavePreview(c,spec.waveConfig,0);
  const text=(value,x,y,size,color,weight=600)=>{c.font=weight+' '+size+'px system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=color;c.fillText(value,x,y)};
  if(String(spec.style||'').startsWith('reference-')){
  
@@ -2779,6 +2815,7 @@ function renderLivePreview(spec,targetCanvas,now=new Date(),options={}){
   ctx.font=weight+' '+size+'px system-ui, sans-serif';
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=color;ctx.fillText(value,x,y);
  };
+ if(spec.style==='m11-native')drawParametricWavePreview(ctx,spec.waveConfig,stamp.getTime()*0.001);
  const hand=(angle,length,width,color,tail=12)=>{
   ctx.save();ctx.translate(240,240);ctx.rotate(angle*Math.PI/180);
   ctx.fillStyle=color;ctx.beginPath();
@@ -2891,7 +2928,9 @@ function createObjects(spec,assetId){
   add('digital-clock','Seconds',126,158,44,16,{clockMode:'digital',timeFormat:'24h',dataBinding:{source:'time',format:'ss'},textStyle:{fontSize:11,fontWeight:600,fill:spec.accent,fontFamily:'system-ui',textAlign:'center'}},5);
  }else if(spec.category==='analog'){
   const colors={hour:spec.secondary||'#f8fafc',minute:spec.secondary||'#f8fafc',second:spec.accent||'#ef4444'};
-  add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3,showOuterRing:false,showHourTicks:false}},1);
+  if(spec.style==='m11-native')add('wave','Flowing water',18,64,204,112,{waveConfig:spec.waveConfig},1);
+  const handZ=spec.style==='m11-native'?2:1;
+  add('analog-clock','Live analog hands',16,16,208,208,{clockMode:'analog',textStyle:{fontSize:12,fontWeight:400,fill:colors.hour,fontFamily:'system-ui'},handConfig:{hour:{length:58,width:5,tail:5,color:colors.hour},minute:{length:82,width:3,tail:6,color:colors.minute},second:{length:92,width:1.5,tail:18,color:colors.second},centerColor:colors.second,centerRadius:3,showOuterRing:false,showHourTicks:false}},handZ);
   const center={fontFamily:'system-ui',textAlign:'center'};
   if(spec.style==='m03-native')add('date','Date',28,166,184,18,{dataBinding:{source:'date',format:'ddd DD MMM'},textStyle:{...center,fontSize:11,fontWeight:600,fill:'#cbd5e1'}},2);
   if(spec.style==='m05-native')add('date','Weekday and day',146,103,76,24,{dataBinding:{source:'date',format:'ddd DD'},textStyle:{...center,fontSize:12,fontWeight:600,fill:spec.accent}},2);
