@@ -92,6 +92,8 @@ static FaceObject baseObject(FaceElementType type, const char* id) {
     object.analogHands[2]={86.0f,1.5f,18.0f,0xF800,true};
     object.analogCenterRadius=3.0f;
     object.analogCenterColor=0xFFFF;
+    object.analogShowOuterRing=true;
+    object.analogShowHourTicks=true;
     object.fillColor=0x07E0;
     object.shapeKind=0;
     object.textAlign=FaceTextAlign::Center;
@@ -301,6 +303,22 @@ int main() {
     assert(canvas.circleFillRadii.back()==4);
     assert(canvas.circleFillColors.back()==0x07E0);
     assert(canvas.circleFillRadii.size()>10); // thick strokes are rasterized
+
+    // Artwork-backed faces can suppress both generic bezel marks while
+    // retaining the live hour, minute and second hands.
+    face.objects[0].analogShowOuterRing=false;
+    face.objects[0].analogShowHourTicks=false;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    assert(canvas.lineColors.size()==2);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"circle")==0);
+
+    // The two controls are independent: keep hour ticks without the outer ring.
+    face.objects[0].analogShowHourTicks=true;
+    canvas.reset();
+    assert(renderWatchFace(face,timeInfo,0,weather)==FaceRenderStatus::Ok);
+    assert(canvas.lineColors.size()==14);
+    assert(std::count(canvas.calls.begin(),canvas.calls.end(),"circle")==0);
 
     // An analog redraw that fails in a later overlapping layer must remain
     // retryable. The next successful frame must redraw the clock region and
